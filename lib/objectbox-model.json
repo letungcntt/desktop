@@ -1,0 +1,130 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:6861805016079206464",
+      "lastPropertyId": "9:2329653410046300580",
+      "name": "Media",
+      "properties": [
+        {
+          "id": "1:2702756830654910334",
+          "name": "localId",
+          "type": 6,
+          "flags": 129
+        },
+        {
+          "id": "2:4597110856942034595",
+          "name": "pathInDevice",
+          "type": 9
+        },
+        {
+          "id": "3:898083122814801858",
+          "name": "remoteUrl",
+          "type": 9,
+          "flags": 2048,
+          "indexId": "1:7389310413820421371"
+        },
+        {
+          "id": "4:2828290150242274044",
+          "name": "name",
+          "type": 9,
+          "flags": 2048,
+          "indexId": "2:3424186378862200661"
+        },
+        {
+          "id": "5:4983435052483734883",
+          "name": "type",
+          "type": 9
+        },
+        {
+          "id": "6:765413271514850662",
+          "name": "metaData",
+          "type": 9
+        },
+        {
+          "id": "7:982657495441939166",
+          "name": "size",
+          "type": 6
+        },
+        {
+          "id": "8:7410428979993984634",
+          "name": "keyEncrypt",
+          "type": 9
+        },
+        {
+          "id": "9:2329653410046300580",
+          "name": "status",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "2:275369382404678635",
+      "lastPropertyId": "8:651792314313018640",
+      "name": "MediaConversation",
+      "properties": [
+        {
+          "id": "1:29796006850205116",
+          "name": "localId",
+          "type": 6,
+          "flags": 129
+        },
+        {
+          "id": "2:1442713841608998011",
+          "name": "messageId",
+          "type": 9
+        },
+        {
+          "id": "3:8586811796737179898",
+          "name": "userId",
+          "type": 9
+        },
+        {
+          "id": "4:7520300815573811179",
+          "name": "conversationId",
+          "type": 9,
+          "flags": 2048,
+          "indexId": "3:7868740462426779017"
+        },
+        {
+          "id": "5:4889705799191854830",
+          "name": "insertedAt",
+          "type": 9
+        },
+        {
+          "id": "6:4752600099882084273",
+          "name": "keyDecrypt",
+          "type": 9
+        },
+        {
+          "id": "7:58376986096370357",
+          "name": "currentTime",
+          "type": 6
+        },
+        {
+          "id": "8:651792314313018640",
+          "name": "mediaId",
+          "type": 11,
+          "flags": 520,
+          "indexId": "4:4335266089894186280",
+          "relationTarget": "Media"
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "2:275369382404678635",
+  "lastIndexId": "4:4335266089894186280",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [],
+  "retiredIndexUids": [],
+  "retiredPropertyUids": [],
+  "retiredRelationUids": [],
+  "version": 1
+}
