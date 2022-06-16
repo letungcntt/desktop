@@ -267,13 +267,9 @@ class _ChannelSettingState extends State<ChannelSetting> {
                             ],
                           );
                         case 'Apps':
-                          return renderAction(action, isDark, context);
                         case 'Change workflow':
-                          return renderAction(action, isDark, context);
-                        case 'Unarchive Channe':
+                        case 'Unarchive Channel':
                         case 'Archive Channel':
-                          if(ownerChannel == null) return Container();
-                          return renderAction(action, isDark, context);
                         case 'Setting':
                           return renderAction(action, isDark, context);
                         case 'Leave Channel':
@@ -570,69 +566,73 @@ class _MembersTileState extends State<MembersTile> {
                 : member["id"]);
             }
           },
-          child: Container(
-            padding: EdgeInsets.only(top: 7, bottom: 7, right: 15),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Stack(
-                      children: [
-                        CachedAvatar(
-                          member["avatar_url"],
-                          width: 30,
-                          height: 30,
-                          isAvatar: true,
-                          name: member["nickname"] ?? member["full_name"]
-                        ),
-                        Positioned(
-                          top: 20, left: 20,
-                          child: Container(
-                            height: 10, width: 10,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(width: 1, color: Color(0xffffffff)),
-                              color: member['is_online'] ?? false ? Color(0xff73d13d) : Color(0xffbfbfbf)
-                            ),
-                          )
-                        )
-                      ],
-                    ),
-                    SizedBox(width: 10),
-                    Row(
-                      children: [
-                        Text(
-                          member["nickname"] ?? member["full_name"],
-                          style: TextStyle(
-                            fontSize: 15,
-                            // color: Constants.checkColorRole(member["role_id"], isDark)
-                            color: member['is_online'] ?? false
-                              ? Constants.checkColorRole(member["role_id"], isDark)
-                              : isDark ? Colors.white60 : Color(0xff3D3D3D)
+          child: ListAction(
+            action: "",
+            isDark: isDark,
+            child: Container(
+              padding: EdgeInsets.only(top: 7, bottom: 7, right: 15,left: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Stack(
+                        children: [
+                          CachedAvatar(
+                            member["avatar_url"],
+                            width: 30,
+                            height: 30,
+                            isAvatar: true,
+                            name: member["nickname"] ?? member["full_name"]
                           ),
-                        ),
-                        SizedBox(width: 3),
-                        (currentMember["user_id"] != null && currentMember["user_id"] == member["id"])
-                            ? Text(
-                              "(you)",
-                              style: TextStyle(color: member['is_online'] ?? false
-                                ? Constants.checkColorRole(member["role_id"], isDark)
-                                : isDark ? Colors.white60 : Color(0xff3D3D3D))
+                          Positioned(
+                            top: 20, left: 20,
+                            child: Container(
+                              height: 10, width: 10,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(width: 1, color: Color(0xffffffff)),
+                                color: member['is_online'] ?? false ? Color(0xff73d13d) : Color(0xffbfbfbf)
+                              ),
                             )
-                            : Container()
-                      ],
-                    ),
-                  ],
-                ),
-                (isOwner || (member["role_id"] != null && currentUserWs['role_id'] <= 3 && currentUserWs["role_id"] <= member["role_id"])) && (currentMember["user_id"] != member["id"]) && member["account_type"] == "user"
-                  ? InkWell(
-                    onTap: () {
-                      onShowDeleteMember(context, member["id"]);
-                    },
-                    child: Icon(Icons.close, size: 13))
-                  : SizedBox()
-              ],
+                          )
+                        ],
+                      ),
+                      SizedBox(width: 10),
+                      Row(
+                        children: [
+                          Text(
+                            member["nickname"] ?? member["full_name"],
+                            style: TextStyle(
+                              fontSize: 15,
+                              // color: Constants.checkColorRole(member["role_id"], isDark)
+                              color: member['is_online'] ?? false
+                                ? Constants.checkColorRole(member["role_id"], isDark)
+                                : isDark ? Colors.white60 : Color(0xff3D3D3D)
+                            ),
+                          ),
+                          SizedBox(width: 3),
+                          (currentMember["user_id"] != null && currentMember["user_id"] == member["id"])
+                              ? Text(
+                                "(you)",
+                                style: TextStyle(color: member['is_online'] ?? false
+                                  ? Constants.checkColorRole(member["role_id"], isDark)
+                                  : isDark ? Colors.white60 : Color(0xff3D3D3D))
+                              )
+                              : Container()
+                        ],
+                      ),
+                    ],
+                  ),
+                  (isOwner || (member["role_id"] != null && currentUserWs['role_id'] <= 3 && currentUserWs["role_id"] <= member["role_id"])) && (currentMember["user_id"] != member["id"]) && member["account_type"] == "user"
+                    ? InkWell(
+                      onTap: () {
+                        onShowDeleteMember(context, member["id"]);
+                      },
+                      child: Icon(Icons.close, size: 13))
+                    : SizedBox()
+                ],
+              ),
             ),
           ),
         );
@@ -711,35 +711,22 @@ class _MembersTileState extends State<MembersTile> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ListAction(
-                  action: '',
-                  isDark: isDark,
-                  child: InkWell(
-                    onTap: () => onShowInviteChannelDialog(context),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(4))
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            PhosphorIcons.userPlus,
-                            color: Palette.defaultTextDark,
-                            size: 18.0,
-                          ),
-                          SizedBox(width: 8,),
-                          Text(
-                            S.of(context).invitePeople,
-                            style: TextStyle(
-                              color: Palette.defaultTextDark, fontSize: 15, fontWeight: FontWeight.w500,
-                              height: 1.1
-                            )
-                          )
-                        ],
-                      ),
+                Row(
+                  children: [
+                    Icon(
+                      PhosphorIcons.users,
+                      color: Palette.defaultTextDark,
+                      size: 18.0,
                     ),
-                  ),
+                    SizedBox(width: 8,),
+                    Text(
+                      "Members",
+                      style: TextStyle(
+                        color: Palette.defaultTextDark, fontSize: 15, fontWeight: FontWeight.w500,
+                        height: 1.1
+                      )
+                    )
+                  ],
                 ),
                 InkWell(
                   onTap: (){
@@ -754,7 +741,7 @@ class _MembersTileState extends State<MembersTile> {
           ),
           Expanded(
             child: Container(
-              padding: EdgeInsets.only(bottom: 15, left: 20),
+              padding: EdgeInsets.only(bottom: 15,),
               child: SingleChildScrollView(
                 controller: ScrollController(),
                 child: Column(
@@ -762,32 +749,32 @@ class _MembersTileState extends State<MembersTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ownerMember.length > 0 ? Container(
-                      padding: EdgeInsets.only(top: 20, bottom: 15),
+                      padding: EdgeInsets.only(top: 20, bottom: 15, left: 14),
                       child: ownerMember.length > 0 ? Text("OWNER", style: TextStyle(color: isDark ? Color(0xFFFFFFFF) : Color(0xff828282), fontSize: 14, fontWeight: FontWeight.w700)) : Container()
                     ) : Container(),
                     renderMembers(ownerMember, currentMember, currentUser, currentUserWs, isOwner),
                     adminMembers.length > 0 ? Container(
-                      padding: EdgeInsets.only(top: 20, bottom: 15),
+                      padding: EdgeInsets.only(top: 20, bottom: 15, left: 14),
                       child: adminMembers.length > 0 ? Text("ADMINS (${adminMembers.length})", style: TextStyle(color: isDark ? Color(0xFFFFFFFF) : Color(0xff828282), fontSize: 14, fontWeight: FontWeight.w700)) : Container()
                     ) : Container(),
                     renderMembers(adminMembers, currentMember, currentUser, currentUserWs, isOwner),
                     editorMembers.length > 0 ? Container(
-                      padding: EdgeInsets.only(top: 20, bottom: 15),
+                      padding: EdgeInsets.only(top: 20, bottom: 15, left: 14),
                       child: editorMembers.length > 0 ? Text("EDITORS (${editorMembers.length})", style: TextStyle(color: isDark ? Color(0xFFFFFFFF) : Color(0xff828282), fontSize: 14, fontWeight: FontWeight.w700)) : Container()
                     ) : Container(),
                     renderMembers(editorMembers, currentMember, currentUser, currentUserWs, isOwner),
                     fullMembers.length > 0 ? Container(
-                      padding: EdgeInsets.only(top: 20, bottom: 15),
+                      padding: EdgeInsets.only(top: 20, bottom: 15, left: 14),
                       child: fullMembers.length > 0 ? Text("MEMBERS (${fullMembers.length})", style: TextStyle(color: isDark ? Color(0xFFFFFFFF) : Color(0xff828282), fontSize: 14, fontWeight: FontWeight.w700)) : Container()
                     ) : Container(),
                     renderMembers(fullMembers, currentMember, currentUser, currentUserWs, isOwner),
                     offlineMembers.length > 0 ? Container(
-                      padding: EdgeInsets.only(top: 20, bottom: 15),
+                      padding: EdgeInsets.only(top: 20, bottom: 15, left: 14),
                       child: offlineMembers.length > 0 ? Text("OFFLINE (${offlineMembers.length})", style: TextStyle(color: isDark ? Color(0xFFFFFFFF) : Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w700)) : Container()
                     ) : Container(),
                     renderMembers(offlineMembers, currentMember, currentUser, currentUserWs, isOwner),
                     appMembers.length > 0 ? Container(
-                      padding: EdgeInsets.only(top: 20, bottom: 15),
+                      padding: EdgeInsets.only(top: 20, bottom: 15, left: 14),
                       child: appMembers.length > 0 ? Text("APP (${appMembers.length})", style: TextStyle(color: isDark ? Color(0xFFFFFFFF) : Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w700)) : Container()
                     ) : Container(),
                     renderMembers(appMembers, currentMember, currentUser, currentUserWs, isOwner)

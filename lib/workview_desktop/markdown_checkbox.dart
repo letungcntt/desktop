@@ -4,9 +4,10 @@ import 'package:workcake/common/palette.dart';
 class MarkdownCheckbox extends StatefulWidget {
   const MarkdownCheckbox({
     Key? key,
-    @required this.value,
-    @required this.variable,
-    @required this.onChangeCheckBox, 
+    required this.value,
+    required this.variable,
+    required this.onChangeCheckBox,
+    this.isBlockCheckBox = false,
     this.commentId,
     required this.isDark
   }) : super(key: key);
@@ -16,6 +17,7 @@ class MarkdownCheckbox extends StatefulWidget {
   final onChangeCheckBox;
   final commentId;
   final bool isDark;
+  final bool isBlockCheckBox;
 
   @override
   _MarkdownCheckboxState createState() => _MarkdownCheckboxState();
@@ -50,7 +52,7 @@ class _MarkdownCheckboxState extends State<MarkdownCheckbox> {
           height: 15.0,
           width: 24.0,
           child: Checkbox(
-            onChanged: (newValue) {
+            onChanged: widget.isBlockCheckBox ? null : (newValue) {
               this.setState(() { value = newValue; });
               widget.onChangeCheckBox(newValue, widget.variable, widget.commentId);
             },

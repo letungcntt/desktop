@@ -5,6 +5,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/cached_image.dart';
+import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/emoji/itemEmoji.dart';
 import 'package:workcake/models/models.dart';
@@ -118,7 +119,7 @@ class _ReactionsDialogState extends State<ReactionsDialog> {
                                         padding: EdgeInsets.only(bottom: 8, top: 13),
                                         decoration: BoxDecoration(
                                           border: Border(
-                                            bottom: BorderSide(width: 2.5, color: index == indexReactions ? isDark ? Color(0xffFAAD14) : Color(0xff1890FF) : Colors.transparent)
+                                            bottom: BorderSide(width: 2.5, color: index == indexReactions ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor() : Colors.transparent)
                                           )
                                         ),
                                         child: Wrap(

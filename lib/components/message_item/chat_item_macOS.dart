@@ -84,17 +84,17 @@ class ChatItemMacOS extends StatefulWidget {
 
   ChatItemMacOS({
     Key? key,
-    @required this.id,
-    @required this.message,
-    @required this.avatarUrl,
-    @required this.insertedAt,
-    @required this.fullName,
-    @required this.attachments,
-    @required this.isChannel,
-    @required this.userId,
-    @required this.isThread,
-    @required this.reactions,
-    @required this.isViewMention,
+    required this.id,
+    required this.message,
+    required this.avatarUrl,
+    required this.insertedAt,
+    required this.fullName,
+    required this.attachments,
+    required this.isChannel,
+    required this.userId,
+    required this.isThread,
+    required this.reactions,
+    required this.isViewMention,
     this.isDirect,
     this.isMe,
     this.count,
@@ -122,7 +122,7 @@ class ChatItemMacOS extends StatefulWidget {
     this.onFirstFrameDone,
     this.firstMessage,
     this.onShareMessage,
-    @required this.isDark,
+    required this.isDark,
     this.waittingForResponse,
     this.isUnreadThreadMessage,
     this.currentTime,
@@ -132,7 +132,7 @@ class ChatItemMacOS extends StatefulWidget {
     this.isShow = true,
     this.keyScroll,
     this.isFetchingUp = false,
-    this.isFetchingDown = false
+    this.isFetchingDown = false,
   }) : super(key: key);
 
   @override
@@ -143,7 +143,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   bool showMenu =  false;
   bool showMore = false;
   bool showEmoji = false;
-  var colorMention = Color(0xFFffffff);
+  Color colorMention = Color(0xFFffffff);
   bool isShift = false;
   bool showDetail = false;
   var isHover = false;
@@ -241,7 +241,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                           height: 22, width: 22,
                           isRound: true,
                           isAvatar: true,
-                          name: Utils.getUserNickName (users[3]["user_id"])  ?? users[3]["full_name"],
+                          name: users[3]["full_name"],
                           fontSize: 10
                         )
                       )
@@ -256,7 +256,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                           height: 22, width: 22,
                           isRound: true,
                           isAvatar: true,
-                          name: Utils.getUserNickName (users[2]["user_id"])  ?? users[2]["full_name"],
+                          name: users[2]["full_name"],
                           fontSize: 10
                         )
                       )
@@ -271,7 +271,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                           height: 22, width: 22,
                           isRound: true,
                           isAvatar: true,
-                          name: Utils.getUserNickName (users[1]["user_id"])  ?? users[1]["full_name"],
+                          name: users[1]["full_name"],
                           fontSize: 10
                         )
                       )
@@ -284,7 +284,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                           height: 22, width: 22,
                           isRound: true,
                           isAvatar: true,
-                          name: Utils.getUserNickName (users[0]["user_id"]) ?? users[0]["full_name"],
+                          name: users[0]["full_name"],
                           fontSize: 10
                         )
                     )
@@ -312,7 +312,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   }
 
   getUser(userId) {
-    var users = Provider.of<Workspaces>(context, listen: false).members;
+    List users = Provider.of<Workspaces>(context, listen: false).members;
 
     if (!widget.isChannel){
       var indexConversation = Provider.of<DirectMessage>(context, listen: false).data.indexWhere((element) => element.id == widget.conversationId);
@@ -321,7 +321,6 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     }
 
     int index = users.indexWhere((e) => e["id"] == userId || e["user_id"] == userId);
-
     if (index != -1) {
       roleId = users[index]["role_id"];
       return {
@@ -336,6 +335,11 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
         "full_name": "Bot"
       };
     }
+  }
+
+  showInfo(context, id) {
+    final currentUser = Provider.of<User>(context, listen: false).currentUser;
+    if (id != null && currentUser["id"] != id) onShowUserInfo(context, id);
   }
 
   renderSystemMessage(attachments) {
@@ -437,13 +441,15 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
 
               case "create_channel":
                 String listName = att["data_member"] != null ? att["data_member"].map((ele) => ele["full_name"]).toList().join(", ") : "";
-
                 return Column(
                   children: [
                   Text.rich(
                       TextSpan( 
                         children: <InlineSpan>[ 
-                          TextSpan(text: att["user"], style: TextStyle(color: Colors.grey[700])),
+                          TextSpan(
+                            text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                            recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                          ),
                           TextSpan(text: " has created a channel: ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                           TextSpan(text: "${params["name"]}", style: TextStyle(color: Colors.grey[700])),
                           TextSpan(text: " at $messageTime. ", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
@@ -466,7 +472,11 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return att["user"] == att["invited_user"] ? Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["invited_user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["invited_user"],
+                        style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["invited_user_id"])
+                      ),
                       TextSpan(text: " has joined the channel by invitation code", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
                     ]
@@ -474,9 +484,15 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 ) : Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has invited ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: att["invited_user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["invited_user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["invited_user_id"])
+                      ),
                       TextSpan(text: " to channel", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
                     ]
@@ -486,11 +502,29 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has invite ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: att["invited_user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["invited_user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["invited_user_id"])
+                      ),
                       TextSpan(text: " to this conversation", style: TextStyle(color: Colors.grey[500],fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
+                    ]
+                  )
+                );
+              case "update_conversation":
+                return Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: att["user"]['name'], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user"]['id'])
+                      ),
+                      TextSpan(text: "  has changed ${att['avatar_url'] != null ? 'avatar' : 'name'} this group ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                     ]
                   )
                 );
@@ -498,7 +532,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has left ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: "this conversation", style: TextStyle(color: Colors.grey[500],fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
@@ -509,7 +546,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has left the channel", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
                     ]
@@ -519,7 +559,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["delete_user_name"], style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                      TextSpan(
+                        text: att["delete_user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["delete_user_id"])
+                      ),
                       TextSpan(text: " was kicked from this channel", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
                     ]
@@ -529,7 +572,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user_name"], style: TextStyle(color: Colors.grey[700])),
+                      TextSpan(
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has changed channel topic to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: params["topic"], style: TextStyle(color: Colors.grey[700])),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
@@ -540,7 +586,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user_name"], style: TextStyle(color: Colors.grey[700])),
+                      TextSpan(
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has changed channel name to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: params["name"], style: TextStyle(color: Colors.grey[700])),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
@@ -551,7 +600,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user_name"], style: TextStyle(color: Colors.grey[700])),
+                      TextSpan(
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has changed channel private to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: "${params["is_private"] ? "private" : "public"}", style: TextStyle(color: Colors.grey[700])),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
@@ -563,7 +615,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return  Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user_name"], style: TextStyle(color: Colors.grey[700])),
+                      TextSpan(
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: "${params["is_archived"] ? "archived" : "unarchived"}", style: TextStyle(color: Colors.grey[700])),
                       TextSpan(text: " this channel", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
@@ -576,7 +631,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 return  Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
-                      TextSpan(text: att["user_name"], style: TextStyle(color: Colors.grey[700])),
+                      TextSpan(
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
+                      ),
                       TextSpan(text: " has changed channel workflow to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
                       TextSpan(text: "${params["kanban_mode"] ? "Kanban mode" : "Dev mode"}", style: TextStyle(color: Colors.grey[700])),
                       TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
@@ -685,7 +743,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   colorHover: null,
                   child: GestureDetector(
                     onTap: (){
-                      final channelId = widget.isChannel ? Provider.of<Channels>(context, listen: false).currentChannel["id"] : null;
+                      final channelId = widget.isChannel ? widget.channelId : null;
                       final workspaceId = widget.isChannel ? Provider.of<Workspaces>(context, listen: false).currentWorkspace["id"] : null;
                       Provider.of<Messages>(context, listen: false).handleReactionMessage({
                         "emoji_id": id,
@@ -731,7 +789,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 );
               }).toList(),
             ),
-            isHover ? Container(
+            (isHover && reactions.length > 0) ? Container(
               margin: EdgeInsets.only(left: 4, top: 4),
               child: Tooltip(
                 message: "Show detail",
@@ -1102,7 +1160,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     child: getReadMessageConversation(widget.id, widget.conversationId)
                   ),
                 ),
-                if ((selectedTab == "channel" || selectedTab == "thread") && widget.isChannel) 
+                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && widget.isChannel) 
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
                   child: IconButton(
@@ -1163,7 +1221,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     icon: SvgPicture.asset('assets/icons/happy_light.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282))
                   ),
                 ),
-                if ((selectedTab == "channel" || selectedTab == "thread") && !widget.isChildMessage) 
+                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && !widget.isChildMessage) 
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
                   child: IconButton(
@@ -1197,7 +1255,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     }
                   ),
                 ),
-                if ((selectedTab == "channel" || selectedTab == "thread") && !widget.isChildMessage && (widget.isChannel == true || widget.isDirect == true)) 
+                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && !widget.isChildMessage && (widget.isChannel == true || widget.isDirect == true)) 
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
                   child: IconButton(
@@ -1212,7 +1270,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     }
                   ),
                 ),
-                if (selectedTab == "channel" || selectedTab == "thread") StatefulBuilder(
+                if (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") StatefulBuilder(
                   builder: (context, setState) {
                     return HoverItem(
                       colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
@@ -1238,7 +1296,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     );
                   }
                 ),
-                if (selectedTab == "channel" || selectedTab == "thread") 
+                if (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") 
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
                   child: IconButton(
@@ -1260,7 +1318,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     onPressed: () => showDialogForwardMessage(message),
                   ),
                 ),
-                if (showMore && (selectedTab == "channel" || selectedTab == "thread") && checkPinMessage() && !(widget.isThread && widget.isChildMessage) && widget.conversationId == null) 
+                if (showMore && (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && checkPinMessage() && !(widget.isThread && widget.isChildMessage) && widget.conversationId == null) 
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
                   child: IconButton(
@@ -1341,7 +1399,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
       child: ContextMenuRegion(
         contextMenu: GenericContextMenu(
           buttonConfigs: widget.isSystemMessage || isPoll ? [] : [
-            if((selectedTab == "channel" || selectedTab == "thread") && widget.isChannel) ContextMenuButtonConfig(
+            if((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && widget.isChannel) ContextMenuButtonConfig(
               'Emoji',
               icon: SvgPicture.asset(
                 "assets/icons/happy_light.svg",
@@ -1557,19 +1615,21 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                                           margin: EdgeInsets.only(bottom: 4),
                                           child: RichTextWidget(
                                             TextSpan(
+                                               style: TextStyle(
+                                                  color: widget.isChannel
+                                                    ? widget.userId == currentUser["id"] && (widget.customColor != "default" && widget.customColor != null)
+                                                      ? Color(int.parse("0xFF${widget.customColor}"))
+                                                      : Constants.checkColorRole(getUser(widget.userId)["role_id"], isDark)
+                                                    : widget.userId == currentUser["id"]
+                                                      ? Colors.lightBlue
+                                                      : isDark
+                                                        ? Palette.defaultTextDark
+                                                        : Palette.defaultTextLight,
+                                                ),
                                               children: [
                                                 TextSpan(
                                                   text: widget.fullName ?? getUser(widget.userId)["full_name"],
                                                   style: TextStyle(
-                                                    color: widget.isChannel
-                                                      ? widget.userId == currentUser["id"] && (widget.customColor != "default" && widget.customColor != null)
-                                                        ? Color(int.parse("0xFF${widget.customColor}"))
-                                                        : Constants.checkColorRole(getUser(widget.userId)["role_id"], isDark)
-                                                      : widget.userId == currentUser["id"]
-                                                        ? Colors.lightBlue
-                                                        : isDark
-                                                            ? Palette.defaultTextDark
-                                                            : Palette.defaultTextLight,
                                                     fontWeight: FontWeight.w700,
                                                     fontSize: 14
                                                   ),
@@ -1591,7 +1651,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                                                 ),
                                                 TextSpan(
                                                   text: Utils.checkedTypeEmpty(showDateThread) ? "   $showDateThread" : DateFormat('kk:mm').format(DateTime.now()),
-                                                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Color(0xFF323F4B)),
+                                                  style: TextStyle(fontSize: 11, color: isDark ? Colors.white70 : Color(0xFF323F4B),),
                                                 ),
                                               ]
                                             ),

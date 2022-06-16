@@ -230,7 +230,7 @@ class _ChannelAppMacOSState extends State<ChannelAppMacOS> {
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       border: Border.all(
-                      color: isDark ? Color(0xffFAAD14): Color(0xff1890FF),
+                      color: isDark ? Color(0xffFAAD14): Utils.getPrimaryColor(),
                       width: 1,
                     ),
                     borderRadius: BorderRadius.circular(4),),
@@ -240,13 +240,13 @@ class _ChannelAppMacOSState extends State<ChannelAppMacOS> {
                         Icon(
                           PhosphorIcons.plus,
                           size: 13,
-                          color: isDark ? Color(0xffFAAD14): Color(0xff1890FF)
+                          color: isDark ? Color(0xffFAAD14): Utils.getPrimaryColor()
                         ),
                         SizedBox(width: 8,),
                         Text(
                           "New Apps",
                           style: TextStyle(
-                            color: isDark ? Color(0xffFAAD14): Color(0xff1890FF),
+                            color: isDark ? Color(0xffFAAD14): Utils.getPrimaryColor(),
                             fontSize: 13
                           )
                         ),

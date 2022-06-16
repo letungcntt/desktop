@@ -351,15 +351,15 @@ class _CreateCommandViewState extends State<CreateCommandView> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(5),
                                   border: Border.all(
-                                    color: isDark ? Color(0xffFAAD14) : Color(0xff1890FF),
+                                    color: isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor(),
                                     width: 1,
                                   ),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.add, color: isDark ? Color(0xffFAAD14) : Color(0xff1890FF),size: 16,),
-                                    Text(S.current.addParamsCommands,style: TextStyle(color: isDark ? Color(0xffFAAD14) : Color(0xff1890FF),fontSize: 13),)
+                                    Icon(Icons.add, color: isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor(),size: 16,),
+                                    Text(S.current.addParamsCommands,style: TextStyle(color: isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor(),fontSize: 13),)
                                   ],
                                 ),
                               ),
@@ -415,7 +415,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
                               margin: EdgeInsets.only(right: 24),
                               padding: EdgeInsets.symmetric(vertical: 2, horizontal: 16),
                               decoration: BoxDecoration(
-                                color:  Color(0xff1890FF),
+                                color:  Utils.getPrimaryColor(),
                                 borderRadius: BorderRadius.circular(3)
                               ),
                               child: TextButton(

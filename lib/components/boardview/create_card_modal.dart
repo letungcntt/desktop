@@ -11,6 +11,7 @@ import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/component/AttachmentItem.dart';
 import 'package:workcake/models/models.dart';
@@ -203,7 +204,7 @@ class _CreateCardState extends State<CreateCard> {
     };
 
     Provider.of<Boards>(context, listen: false).createNewCard(token, selectedBoard["workspace_id"], selectedBoard["channel_id"], selectedBoard["id"], widget.listCardId, card);
-    // box.put(selectedBoard["id"], null);
+    box.put(selectedBoard["id"], null);
     Navigator.pop(context);
   }
 
@@ -232,7 +233,7 @@ class _CreateCardState extends State<CreateCard> {
                             decoration: BoxDecoration(
                               border: Border(
                                 right: BorderSide(
-                                  color: Color(0xff5E5E5E),
+                                  color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                                   width: 1.0
                                 )
                               )
@@ -246,9 +247,9 @@ class _CreateCardState extends State<CreateCard> {
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Container(
-                                      color: Color(0xff2E2E2E),
+                                      color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                                       height: 46,
-                                      child: CupertinoTextField(
+                                      child: TextFormField(
                                         controller: titleController,
                                         autofocus: false,
                                         onEditingComplete: () {
@@ -256,14 +257,20 @@ class _CreateCardState extends State<CreateCard> {
                                             saveDraftCard();
                                           }
                                         },
-                                        placeholder: "Please input title",
+                                        decoration: InputDecoration(
+                                          hintText: "Please input title",
+                                          contentPadding: EdgeInsets.only(left: 12),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                                            borderRadius: BorderRadius.all(Radius.circular(4))
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                                            borderRadius: BorderRadius.all(Radius.circular(4))
+                                          )
+                                        ),
                                         cursorColor: isDark ? Colors.white : null,
-                                        padding: EdgeInsets.only(left: 12),
-                                        style: TextStyle(color: Color(0xffFFFFFF), fontSize: 15),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(2),
-                                          border: Border.all(color: Color(0xff5e5e5e), width: 1)
-                                        )
+                                        style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 15),
                                       )
                                     )
                                   ]
@@ -288,11 +295,10 @@ class _CreateCardState extends State<CreateCard> {
                                     crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
                                       Container(
-                                        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                        // padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(4),
-                                          color: Color(0xff2E2E2E),
-                                          border: Border.all(color: Color(0xff5E5E5E), width: 1)
+                                          color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                                         ),
                                         width: double.infinity,
                                         height: 176,
@@ -301,11 +307,19 @@ class _CreateCardState extends State<CreateCard> {
                                           onChanged: (value) {
                                             saveDraftCard();
                                           },
-                                          minLines: 1,
+                                          minLines: 8,
                                           maxLines: 8,
-                                          decoration: InputDecoration.collapsed(
+                                          decoration: InputDecoration(
                                             hintText: "Add a more detailed...",
-                                            hintStyle: TextStyle(fontSize: 14)
+                                            hintStyle: TextStyle(fontSize: 14),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                                              borderRadius: BorderRadius.all(Radius.circular(4))
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                                              borderRadius: BorderRadius.all(Radius.circular(4))
+                                            )
                                           )
                                         )
                                       )
@@ -352,7 +366,7 @@ class _CreateCardState extends State<CreateCard> {
                                     scrollDirection: Axis.horizontal,
                                     itemCount: attachments.length,
                                     itemBuilder: (BuildContext context, int index) { 
-                                      return AttachmentItem(attachment: attachments[index], onDeleteAttachment: onDeleteAttachment);
+                                      return AttachmentItem(attachments: attachments, onDeleteAttachment: onDeleteAttachment, index: index);
                                     }
                                   )
                                 ),
@@ -368,7 +382,7 @@ class _CreateCardState extends State<CreateCard> {
                                         padding: EdgeInsets.symmetric(vertical: 7, horizontal: 16),
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(2),
-                                          border: Border.all(color: Color(0xff5E5E5E))
+                                          border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                                         ),
                                         child: Wrap(
                                           crossAxisAlignment: WrapCrossAlignment.center,
@@ -418,10 +432,10 @@ class _CreateCardState extends State<CreateCard> {
                 padding: EdgeInsets.only(top: 16, right: 20, bottom: 16),
                 width: 994,
                 decoration: BoxDecoration(
-                  color: Color(0xff3D3D3D),
+                  color: isDark ? Color(0xff3D3D3D) : null,
                   border: Border(
                     top: BorderSide(
-                      color: Color(0xff5E5E5E),
+                      color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                       width: 1.0
                     )
                   )
@@ -456,7 +470,7 @@ class _CreateCardState extends State<CreateCard> {
                           borderRadius: BorderRadius.circular(4)
                         ),
                         padding: EdgeInsets.symmetric(vertical: 9, horizontal: 12),
-                        child: Text("Create Card"),
+                        child: Text("Create Card", style: TextStyle(color: Palette.defaultTextDark)),
                       ),
                     )
                   ]
@@ -524,6 +538,7 @@ class _ChecklistsState extends State<Checklists> {
         ),
         onAddChecklist ? Container(
           margin: EdgeInsets.only(top: 12),
+          color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
           height: 40,
           child: Focus(
             onFocusChange: (hasFocus) {
@@ -533,7 +548,7 @@ class _ChecklistsState extends State<Checklists> {
                 });
               }
             },
-            child: CupertinoTextField(
+            child: TextFormField(
               controller: checklistController,
               autofocus: true,
               onEditingComplete: () {
@@ -543,14 +558,19 @@ class _ChecklistsState extends State<Checklists> {
                 checklistController.clear();
                 setState(() { onAddChecklist = false; });
               },
-              placeholder: "Please input title",
               cursorColor: isDark ? Colors.white : null,
-              padding: EdgeInsets.only(left: 16, bottom: 2),
-              style: TextStyle(color: Color(0xffFFFFFF), fontSize: 15),
-              decoration: BoxDecoration(
-                color: Color(0xff2E2E2E),
-                borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: Color(0xff5e5e5e), width: 1)
+              style: TextStyle(color: isDark ? Color(0xffFFFFFF) : Color(0xffA6A6A6), fontSize: 15),
+              decoration: InputDecoration(
+                hintText: "Please input title",
+                contentPadding: EdgeInsets.only(left: 16, bottom: 2),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                  borderRadius: BorderRadius.all(Radius.circular(4))
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                  borderRadius: BorderRadius.all(Radius.circular(4))
+                )
               )
             ),
           ),
@@ -564,9 +584,9 @@ class _ChecklistsState extends State<Checklists> {
             },
             child: Container(
               decoration: BoxDecoration(
-                color: isDark ? Color(0xff2E2E2E) : null,
-                border: Border.all(color: Color(0xff5E5E5E)),
-                borderRadius: BorderRadius.circular(2)
+                color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                borderRadius: BorderRadius.circular(4)
               ),
               height: 40,
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 14),
@@ -624,6 +644,8 @@ class _SelectDueDateState extends State<SelectDueDate> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return InkWell(
       overlayColor: MaterialStateProperty.all(Colors.transparent),
       onTap: () {
@@ -641,7 +663,7 @@ class _SelectDueDateState extends State<SelectDueDate> {
               height: 32,
               padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
               decoration: BoxDecoration(
-                color: Color(0xff5E5E5E),
+                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
                 borderRadius: BorderRadius.circular(2)
               ),
               child: Row(
@@ -685,8 +707,10 @@ class SelectLabel extends StatefulWidget {
 
 class _SelectLabelState extends State<SelectLabel> {
   onSelectLabel() {
-    showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
+    showPopover(
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -703,7 +727,7 @@ class _SelectLabelState extends State<SelectLabel> {
           return Stack(
             children: [
               Container(
-                color: Color(0xff2E2E2E),
+                color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
@@ -711,16 +735,16 @@ class _SelectLabelState extends State<SelectLabel> {
                       padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                       child: CupertinoTextField(
                         decoration: BoxDecoration(
-                          color: Color(0xff2E2E2E),
+                          color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                           borderRadius: BorderRadius.circular(2),
-                          border: Border.all(color: Color(0xff5E5E5E))
+                          border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                         ),
                         padding: EdgeInsets.only(top: 6, left: 10, bottom: 4),
                         placeholder: "Filter labels",
                         placeholderStyle: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ),
-                    Divider(height: 1, thickness: 1, color: Color(0xff5E5E5E)),
+                    Divider(height: 1, thickness: 1, color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
                     Expanded(
                       child: ListView.builder(
                         padding: EdgeInsets.only(bottom: 52),
@@ -738,7 +762,7 @@ class _SelectLabelState extends State<SelectLabel> {
                               decoration: BoxDecoration(
                                 border: Border(
                                   top: BorderSide(
-                                    color: index == 0 ? Colors.transparent : Color(0xff5E5E5E),
+                                    color: index == 0 ? Colors.transparent : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                                     width: 1.0
                                   )
                                 )
@@ -751,7 +775,7 @@ class _SelectLabelState extends State<SelectLabel> {
                                     crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
                                       Checkbox(
-                                        activeColor: Color(0xffFAAD14),
+                                        activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
                                         onChanged: (bool? value) {  }, value: widget.labels.contains(labels[index]["id"])
                                       ),
                                       SizedBox(width: 6),
@@ -801,10 +825,10 @@ class _SelectLabelState extends State<SelectLabel> {
                   height: 52,
                   width: 262,
                   decoration: BoxDecoration(
-                    color: Color(0xff2E2E2E),
+                    color: isDark ? Palette.backgroundTheardDark : Colors.white,
                     border: Border(
                       top: BorderSide(
-                        color: Color(0xff5E5E5E),
+                        color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                         width: 1.0
                       )
                     )
@@ -817,7 +841,7 @@ class _SelectLabelState extends State<SelectLabel> {
                     child: Center(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Color(0xff4C4C4C),
+                          color: isDark ? Color(0xff4C4C4C) : Color(0xffF3F3F3),
                           borderRadius: BorderRadius.circular(3)
                         ),
                         width: 226,
@@ -845,8 +869,10 @@ class _SelectLabelState extends State<SelectLabel> {
   }
 
   onCreateLabel() {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -875,7 +901,7 @@ class _SelectLabelState extends State<SelectLabel> {
     final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
     
-    Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color);
+    Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color, null);
     Navigator.pop(context);
     onSelectLabel();
   }
@@ -883,6 +909,7 @@ class _SelectLabelState extends State<SelectLabel> {
   @override
   Widget build(BuildContext context) {
     final selectedBoard = Provider.of<Boards>(context, listen: true).selectedBoard;
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     List labels = widget.labels.map((e) {
       var index = selectedBoard["labels"].indexWhere((ele) => ele["id"] == e);
@@ -902,7 +929,7 @@ class _SelectLabelState extends State<SelectLabel> {
             height: 32,
             padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
             decoration: BoxDecoration(
-              color: Color(0xff5E5E5E),
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
               borderRadius: BorderRadius.circular(2)
             ),
             child: Row(
@@ -970,6 +997,7 @@ class _CreateLabelState extends State<CreateLabel> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     return Column(
       children: [
         Container(
@@ -986,12 +1014,12 @@ class _CreateLabelState extends State<CreateLabel> {
                   controller: labelTitleController,
                   padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                   placeholder: "Name label",
-                  style: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
-                  placeholderStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
+                  style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                  placeholderStyle: TextStyle(color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14),
                   decoration: BoxDecoration(
-                    color: Color(0xff2E2E2E),
+                    color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                     borderRadius: BorderRadius.circular(2),
-                    border: Border.all(color: Color(0xff5E5E5E))
+                    border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                   )
                 )
               ),
@@ -1003,12 +1031,12 @@ class _CreateLabelState extends State<CreateLabel> {
                 child: CupertinoTextField(
                   padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                   placeholder: "Description",
-                  style: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
-                  placeholderStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
+                  style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                  placeholderStyle: TextStyle(color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14),
                   decoration: BoxDecoration(
-                    color: Color(0xff2E2E2E),
-                    borderRadius: BorderRadius.circular(2),
-                    border: Border.all(color: Color(0xff5E5E5E))
+                    color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                   )
                 )
               ),
@@ -1053,7 +1081,7 @@ class _CreateLabelState extends State<CreateLabel> {
             ]
           )
         ),
-        Divider(color: Color(0xff5E5E5E)),
+        Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
         Padding(
           padding: EdgeInsets.symmetric(vertical: 8, horizontal: 24),
           child: Row(
@@ -1081,7 +1109,7 @@ class _CreateLabelState extends State<CreateLabel> {
                   height: 32,
                   width: 138,
                   decoration: BoxDecoration(
-                    color: Color(0xff1890FF)
+                    color: Utils.getPrimaryColor()
                   ),
                   child: Center(child: Text("Create Label"))
                 )
@@ -1110,8 +1138,9 @@ class SelectPriority extends StatefulWidget {
 
 class _SelectPriorityState extends State<SelectPriority> {
   onSelectPriority() {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -1134,14 +1163,14 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), width: 1.0))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Icon(PhosphorIcons.warning, size: 14, color: Color(0xffD81A1A)),
                       SizedBox(width: 12),
-                      Text("Very High", style: TextStyle(fontSize: 14, color: Color(0xffD81A1A)))
+                      Text("Urgent", style: TextStyle(fontSize: 14, color: Color(0xffD81A1A)))
                     ]
                   )
                 )
@@ -1156,7 +1185,7 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), width: 1.0))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1178,7 +1207,7 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), width: 1.0))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1200,7 +1229,7 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), width: 1.0))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1240,6 +1269,8 @@ class _SelectPriorityState extends State<SelectPriority> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return InkWell(
       overlayColor: MaterialStateProperty.all(Colors.transparent),
       onTap: () {
@@ -1258,7 +1289,7 @@ class _SelectPriorityState extends State<SelectPriority> {
               height: 32,
               padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
               decoration: BoxDecoration(
-                color: Color(0xff5E5E5E),
+                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
                 borderRadius: BorderRadius.circular(2)
               ),
               child: Row(
@@ -1281,7 +1312,7 @@ class _SelectPriorityState extends State<SelectPriority> {
               ),
               SizedBox(width: 6),
               Text(
-                "${widget.priority == 1 ? 'Very High' : widget.priority == 2 ? 'High' : widget.priority == 3 ? 'Medium' : 'Low'}",
+                "${widget.priority == 1 ? 'Urgent' : widget.priority == 2 ? 'High' : widget.priority == 3 ? 'Medium' : 'Low'}",
                 style: TextStyle(color: Color(widget.priority == 1 ? 0xffFF7875 : widget.priority == 2 ? 0xffFAAD14 : widget.priority == 3 ? 0xff27AE60 : widget.priority == 4 ? 0xff69C0FF : 0xffFFFFFF))
               )
             ]
@@ -1319,8 +1350,9 @@ class _SelectAssigneeState extends State<SelectAssignee> {
   }
 
   onSelectAssignee() {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -1335,6 +1367,7 @@ class _SelectAssigneeState extends State<SelectAssignee> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1348,7 +1381,7 @@ class _SelectAssigneeState extends State<SelectAssignee> {
             height: 32,
             padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
             decoration: BoxDecoration(
-              color: Color(0xff5E5E5E),
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
               borderRadius: BorderRadius.circular(2)
             ),
             child: Row(

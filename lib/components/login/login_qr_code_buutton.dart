@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:workcake/common/utils.dart';
 import 'package:workcake/models/models.dart';
 
 import '../../common/palette.dart';
@@ -37,7 +38,7 @@ class _LoginQrCodeButtonState extends State<LoginQrCodeButton> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           borderRadius: const BorderRadius.all(Radius.circular(4.0)),
-          border: Border.all(color: isHover ? const Color(0xff1890FF) : const Color(0xFF5E5E5E)),
+          border: Border.all(color: isHover ?  Utils.getPrimaryColor() : const Color(0xFF5E5E5E)),
           // boxShadow: <BoxShadow>[
           //   BoxShadow(
           //     color: Colors.black.withOpacity(0.15),
@@ -52,12 +53,12 @@ class _LoginQrCodeButtonState extends State<LoginQrCodeButton> {
           children: [
             Icon(
               PhosphorIcons.qrCodeThin,
-              color: isHover ? const Color(0xff1890FF) :  isDark ? const Color(0xffDBDBDB) : Colors.black.withOpacity(0.85,)
+              color: isHover ? Utils.getPrimaryColor() :  isDark ? const Color(0xffDBDBDB) : Colors.black.withOpacity(0.85,)
             ),
             Container(width: 12,),
             Text(
               widget.text,
-              style: TextStyle(fontSize: 16, color: isHover ? const Color(0xff1890FF) : isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D)),
+              style: TextStyle(fontSize: 16, color: isHover ? Utils.getPrimaryColor() : isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D)),
             ),
           ],
         ),

@@ -70,11 +70,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m23(type) => "Tìm kiếm ${type}";
 
-  static String m24(count) => "📂  đã gửi ${count} files.";
+  static String m24(count) => "đã gửi ${count} files.";
 
-  static String m25(count) => "📷  đã gửi ${count} ảnh.";
+  static String m25(count) => "đã gửi ${count} ảnh.";
 
-  static String m26(count) => "🎬  đã gửi ${count} video.";
+  static String m26(count) => "đã gửi ${count} video.";
 
   static String m27(count) => "Xem thêm ${count} bình luận";
 
@@ -489,14 +489,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "selectChannel": MessageLookupByLibrary.simpleMessage("Chọn kênh"),
         "selectMember": MessageLookupByLibrary.simpleMessage("Chọn thành viên"),
         "sent": MessageLookupByLibrary.simpleMessage("Đã gửi"),
-        "sentAFile":
-            MessageLookupByLibrary.simpleMessage("📂  đã gửi một file."),
-        "sentAVideo":
-            MessageLookupByLibrary.simpleMessage("🎬  đã gửi một video."),
-        "sentAnImage":
-            MessageLookupByLibrary.simpleMessage("📷  đã gửi một ảnh."),
-        "sentAttachments": MessageLookupByLibrary.simpleMessage(
-            "💬  đã gửi tập tin đính kèm."),
+        "sentAFile": MessageLookupByLibrary.simpleMessage("đã gửi một file."),
+        "sentAVideo": MessageLookupByLibrary.simpleMessage("đã gửi một video."),
+        "sentAnImage": MessageLookupByLibrary.simpleMessage("đã gửi một ảnh."),
+        "sentAttachments":
+            MessageLookupByLibrary.simpleMessage("đã gửi tập tin đính kèm."),
         "sentFiles": m24,
         "sentImages": m25,
         "sentVideos": m26,

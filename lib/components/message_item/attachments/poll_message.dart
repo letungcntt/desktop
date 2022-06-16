@@ -7,6 +7,9 @@ import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/models/models.dart';
+enum PollStatus {
+  NEW, EDIT, DONE 
+}
 
 class PollCard extends StatefulWidget {
   const PollCard({
@@ -85,6 +88,8 @@ class _PollCardState extends State<PollCard> {
     final auth = Provider.of<Auth>(context, listen: false);
     final isDark  = auth.theme == ThemeType.DARK;
     final currentUser = Provider.of<User>(context, listen: true).currentUser;
+    options.sort((b, a) => widget.att["results"].where((e) => e["id"] == a["id"]).toList().length.compareTo(widget.att["results"].where((e) => e["id"] == b["id"]).toList().length));
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: Container(
@@ -146,7 +151,7 @@ class _PollCardState extends State<PollCard> {
                                     minHeight: 38,
                                     semanticsLabel: option["title"],
                                     value: calculatePollSelect(option),
-                                    valueColor: AlwaysStoppedAnimation<Color>(isVoted ? (isDark ?  Palette.calendulaGold : Palette.dayBlue).withOpacity(0.85) : (isDark ? Color(0xff5e5e5e) :Color(0xffdbdbdb))),
+                                    valueColor: AlwaysStoppedAnimation<Color>(isVoted ? isDark ?  Palette.calendulaGold.withOpacity(0.85) : Palette.dayBlue.withOpacity(0.35) : (isDark ? Color(0xff5e5e5e) :Color(0xffdbdbdb))),
                                     backgroundColor: isDark ? Color(0xff3D3D3D) : Color(0xfff8f8f8),
                                   )
                                 )
@@ -372,7 +377,7 @@ class _PollCardState extends State<PollCard> {
                                           name: member["full_name"]
                                         ),
                                         SizedBox(width: 6),
-                                        Text("${member["full_name"]}"),
+                                        Text("${member["nickname"] ?? member["full_name"]}"),
                                       ],
                                     ),
                                   ),
@@ -416,6 +421,7 @@ class _PollMessageState extends State<PollMessage> {
   List options = [];
   List added = [];
   List displayList = [];
+  int currentOptionId = 0;
 
   onSelectPoll(option) {
     final userId = Provider.of<Auth>(context, listen: false).userId;
@@ -440,6 +446,7 @@ class _PollMessageState extends State<PollMessage> {
     final messageId = widget.message['id'];
 
     added = added.where((e) => e["title"].trim() != "").toList();
+    added = added.map((e) => {'id': e['id'], 'title': e['title']}).toList();
 
     Provider.of<Messages>(context, listen: false).onSubmitPoll(token, workspaceId, channelId, messageId, selected, added, removed);
   }
@@ -460,7 +467,7 @@ class _PollMessageState extends State<PollMessage> {
     final userId = Provider.of<Auth>(context, listen: false).userId;
     options = List.from(widget.att["options"]);
     displayList = options + added;
-    added.add({'id': generateOptionID(), 'title': ""});
+    added.add({'id': generateOptionID(), 'title': "", 'status': PollStatus.NEW});
     selected = widget.att["results"].where((e) => e["user_id"] == userId).toList();
   }
 
@@ -477,7 +484,7 @@ class _PollMessageState extends State<PollMessage> {
     while(listID.contains(newID)){
       newID += 1;
     }
-    
+    currentOptionId = newID;
     return newID;
   }
 
@@ -485,7 +492,6 @@ class _PollMessageState extends State<PollMessage> {
   Widget build(BuildContext context) {
     final isDark  = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     displayList = options + added;
-
     return MouseRegion(
       cursor: MouseCursor.defer,
       child: GestureDetector(
@@ -516,46 +522,126 @@ class _PollMessageState extends State<PollMessage> {
                     children: displayList.map<Widget>((opt) {
                       final title = opt['title'];
                       final _controller = TextEditingController(text: title);
-                                
-                      return added.contains(opt)
-                      ? pollItem(isDark, opt, _controller)  
-                      : InkWell(
-                        overlayColor: MaterialStateProperty.all(Colors.grey[400]),
-                        onTap: () {
-                          onSelectPoll(opt);
-                        },
-                        child: Container(
-                          alignment: Alignment.centerLeft,
-                          constraints: BoxConstraints(
-                            minHeight: 40,
-                          ),
-                          width: 468-12*2,
-                          decoration: BoxDecoration(
-                            color: (selected.indexWhere((e) => e["id"] == opt["id"]) != -1) 
-                            ? isDark ?  Color(0xff5e5e5e) :  Color(0xffdbdbdb)
-                            : isDark ? Colors.grey[800] : Color(0xfff8f8f8),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: isDark ? Color(0xff3d3d3d) : Color(0xffdbdbdb), 
-                            ),
-                          ),
-                          margin: EdgeInsets.fromLTRB(18,6,18,0),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(title, style: TextStyle(fontSize: 13)),
-                          )
-                        )
-                      );}).toList() + <Widget>[ SizedBox(height: 8) ]
-                  ),
+
+                      switch(opt['status']) {
+                        case PollStatus.NEW:
+                          return createPollItem(isDark, opt, _controller);
+                        case PollStatus.EDIT:
+                          return editPollItem(isDark, opt, _controller);
+                        case PollStatus.DONE:
+                          return InkWell(
+                            overlayColor: MaterialStateProperty.all(Colors.grey[400]),
+                            onTap: () { 
+                              onSelectPoll(opt);
+                            },
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              constraints: BoxConstraints(
+                                minHeight: 40,
+                              ),
+                              width: 468-12*2,
+                              decoration: BoxDecoration(
+                                color: (selected.indexWhere((e) => e["id"] == opt["id"]) != -1) 
+                                ? isDark ?  Color(0xff5e5e5e) :  Color(0xffdbdbdb)
+                                : isDark ? Colors.grey[800] : Color(0xfff8f8f8),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isDark ? Color(0xff3d3d3d) : Color(0xffdbdbdb), 
+                                ),
+                              ),
+                              margin: EdgeInsets.fromLTRB(18,6,18,0),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 468-12*2-66,
+                                    padding: const EdgeInsets.only(left: 16),
+                                    child: Text(title, style:TextStyle(fontSize: 13, inherit: false, height: 1.2))
+                                  ),
+                                  InkWell(
+                                    onTap: () {
+                                      currentOptionId = opt['id'];
+                                      int _optionIndex = added.indexWhere((e) => e['id'] == currentOptionId);
+                                      setState(() {
+                                        added[_optionIndex]['status'] = PollStatus.EDIT;
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: EdgeInsets.only(right: 4),
+                                      child: Icon(
+                                        PhosphorIcons.pencilSimpleLineThin,
+                                        size: 20.0,
+                                        color: isDark ? Colors.grey[300] : Color(0xff5e5e5e)
+                                      )
+                                    )
+                                  ),
+                                  InkWell(
+                                    canRequestFocus: false,
+                                    onTap: () {
+                                      var removeIndex = added.indexWhere((e) => e == opt);
+                                      setState(() {
+                                        added.removeAt(removeIndex);
+                                        var _index = added.indexWhere((e) => e["title"].trim() == "");
+                                        if (_index == -1){
+                                          setState(() {
+                                            added.add({'id': generateOptionID(), 'title': "", 'status': PollStatus.NEW});
+                                          });
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: EdgeInsets.only(right: 2),
+                                      child: Icon(
+                                        PhosphorIcons.trash,
+                                        size: 20.0,
+                                        color: isDark ? Colors.grey[300] : Color(0xff5e5e5e)
+                                      ))
+                                  ),
+                                ],
+                              )
+                            )
+                          );
+                        default:
+                          return InkWell(
+                            overlayColor: MaterialStateProperty.all(Colors.grey[400]),
+                            onTap: () { 
+                              onSelectPoll(opt);
+                            },
+                            child: Container(
+                              alignment: Alignment.centerLeft,
+                              constraints: BoxConstraints(
+                                minHeight: 40,
+                              ),
+                              width: 468-12*2,
+                              decoration: BoxDecoration(
+                                color: (selected.indexWhere((e) => e["id"] == opt["id"]) != -1) 
+                                ? isDark ?  Color(0xff5e5e5e) :  Color(0xffdbdbdb)
+                                : isDark ? Colors.grey[800] : Color(0xfff8f8f8),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: isDark ? Color(0xff3d3d3d) : Color(0xffdbdbdb), 
+                                ),
+                              ),
+                              margin: EdgeInsets.fromLTRB(18,6,18,0),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(title, style: TextStyle(fontSize: 13)),
+                              )
+                            )
+                          );
+                      }
+                    }).toList() + <Widget>[ SizedBox(height: 8) ]
+                  ) 
                 )
               ),
               isDark ? Container() : Container(height: 1, width: 468, color: Color(0xffdbdbdb)),
               InkWell(
                 onTap: () {
+                  var _optionIndex = added.indexWhere((e) => e['id'] == currentOptionId);
                   var _index = added.indexWhere((e) => e["title"].trim() == "");
                   if (_index == -1){
                     setState(() {
-                      added.add({'id': generateOptionID(), 'title': ""});
+                      added[_optionIndex]['status'] = PollStatus.DONE;
+                      added.add({'id': generateOptionID(), 'title': "", 'status': PollStatus.NEW});
                     });
                   }
                 },
@@ -619,7 +705,7 @@ class _PollMessageState extends State<PollMessage> {
     );
   }
 
-  FocusScope pollItem(bool isDark, opt, TextEditingController controller) {
+  FocusScope createPollItem(bool isDark, opt, TextEditingController controller) {
     return FocusScope(
     child: Container(
       margin: EdgeInsets.only(top: 6),
@@ -659,27 +745,120 @@ class _PollMessageState extends State<PollMessage> {
                 var _index = added.indexWhere((e) => e["title"].trim() == "");
                 if (_index == -1){
                   setState(() {
-                    added.add({'id': generateOptionID(), 'title': ""});
+                    opt['status'] = PollStatus.DONE;
+                    added.add({'id': generateOptionID(), 'title': "", 'status': PollStatus.NEW});
                   });
                 }
               },
-              suffix: InkWell(
-                canRequestFocus: false,
-                onTap: () {
-                  var removeIndex = added.indexWhere((e) => e == opt);
-                  setState(() {
-                    added.removeAt(removeIndex);
-                    var _index = added.indexWhere((e) => e["title"].trim() == "");
-                    if (_index == -1){
-                      setState(() {
-                        added.add({'id': generateOptionID(), 'title': ""});
+            )
+          ),
+        ],
+      )
+    ),
+  );
+  }
+
+  FocusScope editPollItem(bool isDark, opt, TextEditingController controller) {
+    String _queue = "";
+
+    return FocusScope(
+    child: Container(
+      margin: EdgeInsets.only(top: 6),
+      width: 468-18*2,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: isDark ? Colors.grey[800] : Color(0xfff8f8f8)
+      ),
+      height: 39,
+      child: Row(
+        children: [
+          Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isDark ? Color(0xff3d3d3d) : Color(0xffdbdbdb), 
+              ),
+            ),
+            width: 468-18*2,
+            child: CupertinoTextField(
+              controller: controller,
+              key: Key(opt["id"].toString()),
+              autofocus: true,
+              onChanged: (value) {
+                _queue = value;
+              },
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              placeholder: S.current.option,
+              placeholderStyle: TextStyle(fontSize: 14, color: isDark ? Colors.grey[400] : Color(0xff828282)),
+              style: TextStyle(color: isDark ?Colors.grey[200] : Color(0xff3d3d3d), fontSize: 13, inherit: false),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: isDark ? Colors.grey[800] : Color(0xfff8f8f8)
+              ),
+              onEditingComplete: (){},
+              suffix: Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      if (_queue.trim() != ""){
+                        setState(() {
+                          opt['title'] = _queue;
+                          opt['status'] = PollStatus.DONE;
+                        });
+                      } else {
+                        setState((){
+                          opt['status'] = PollStatus.DONE;  
+                        });
+                      }
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(right: 4),
+                      child: Icon(
+                        PhosphorIcons.check,
+                        size: 20.0,
+                        color: Colors.blue
+                      )
+                    )
+                  ),
+                  InkWell(
+                    onTap: () {
+                      setState((){
+                        opt['status'] = PollStatus.DONE;
                       });
-                    }
-                  });
-                },
-                child: Container(
-                  margin: EdgeInsets.only(right: 6),
-                  child: Icon(Icons.close, color: isDark ? Colors.grey[300] : Color(0xff5e5e5e)))
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(right: 4),
+                      child: Icon(
+                        PhosphorIcons.x,
+                        size: 20.0,
+                        color: Colors.red
+                      )
+                    )
+                  ),
+                  InkWell(
+                    canRequestFocus: false,
+                    onTap: () {
+                      var removeIndex = added.indexWhere((e) => e == opt);
+                      setState(() {
+                        added.removeAt(removeIndex);
+                        var _index = added.indexWhere((e) => e["title"].trim() == "");
+                        if (_index == -1){
+                          setState(() {
+                            added.add({'id': generateOptionID(), 'title': "", 'status': PollStatus.NEW});
+                          });
+                        }
+                      });
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(right: 8),
+                      child: Icon(
+                        PhosphorIcons.trash,
+                        size: 20.0,
+                        color: isDark ? Colors.grey[300] : Color(0xff5e5e5e)
+                      ))
+                  ),
+                ],
               )
             )
           ),
@@ -688,5 +867,6 @@ class _PollMessageState extends State<PollMessage> {
     ),
   );
   }
+
 }
 

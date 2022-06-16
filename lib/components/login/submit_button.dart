@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:workcake/common/utils.dart';
 
 class SubmitButton extends StatefulWidget {
   const SubmitButton({Key? key, required this.onTap, required this.text, this.isLoading = false}) : super(key: key);
@@ -36,7 +37,7 @@ class _SubmitButtonState extends State<SubmitButton> {
               blurRadius: 8,
             )
           ],
-          color: isHover ? const Color(0xff40A9FF) : const Color(0xff1890FF)
+          color: isHover ? const Color(0xff40A9FF) : Utils.getPrimaryColor()
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

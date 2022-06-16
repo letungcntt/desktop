@@ -154,7 +154,7 @@ class _MentionItemState extends State<MentionItem> {
                   width: MediaQuery.of(context).size.width,
                   height: 32,
                   margin: EdgeInsets.only(bottom: 2.0),
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0, left: 12.0),
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 5.0, left: 12.0),
                   decoration: BoxDecoration(
                     color: isDark ? Color(0xFF5E5E5E) : Color(0xFFEAE8E8),
                     borderRadius: BorderRadius.all(
@@ -169,7 +169,7 @@ class _MentionItemState extends State<MentionItem> {
                         text: TextSpan(
                           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Color(0xFF1F2933)),
                           children: <TextSpan>[
-                            TextSpan(text: mentions[index]["creator_name"], style: TextStyle(fontWeight: FontWeight.w600)),
+                            TextSpan(text: Utils.getUserNickName(mentions[index]["creator_id"]) ?? mentions[index]["creator_name"], style: TextStyle(fontWeight: FontWeight.w600)),
                             TextSpan(text: ' mentioned you in '),
                             TextSpan(text: mentionInThread ? "a thread in " : ""),
                             TextSpan(
@@ -436,7 +436,7 @@ class _MentionItemState extends State<MentionItem> {
                                       }
                                     },
                                     child: Text(
-                                      mentions[index]["creator_name"],
+                                      Utils.getUserNickName(mentions[index]["creator_id"]) ?? mentions[index]["creator_name"],
                                       style: TextStyle(
                                         color: mentions[index]["creator_id"] == currentUser["id"] ? Colors.lightBlue : isDark ? Color(0xffF5F7FA) : Color(0xff102A43),
                                         fontWeight: FontWeight.w700,

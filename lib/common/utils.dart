@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
-import 'package:device_info/device_info.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:encrypt/encrypt.dart' as En;
@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:platform_device_id/platform_device_id.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/E2EE/e2ee.dart';
 
@@ -48,8 +49,8 @@ class Utils {
 
   static checkDebugMode(String address) {
     assert(() {
-      // apiUrl = 'https://192.168.3.16:6001/api/';
-      // socketUrl = 'wss://192.168.3.16:6001/socket/websocket';
+      // apiUrl = 'https://192.168.3.20:6001/api/';
+      // socketUrl = 'wss://192.168.3.20:6001/socket/websocket';
       apiUrl = 'https://chat.pancake.vn/api/';
       socketUrl = 'wss://chat.pancake.vn/socket/websocket';
       clientId = 'c726228820114ea4a785898f8c4f7b53';
@@ -78,10 +79,10 @@ class Utils {
         return "Windows";
       } else if (Platform.isAndroid) {
         AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-        return androidInfo.model;
+        return androidInfo.model ?? "";
       } else if (Platform.isIOS) {
         IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-        return iosInfo.name;
+        return iosInfo.name ?? "";
       } 
       return "";
     } catch (e) {
@@ -104,7 +105,7 @@ class Utils {
   }
 
   static getPrimaryColor() {
-    return Color(0xFF2A5298);
+    return Color(0xff1890FF);
   }
 
   static getUnHighlightTextColor(){
@@ -149,6 +150,7 @@ class Utils {
       return response.data;
     } catch (e) {
       print(e);
+      return null;
     }
   }
 
@@ -276,9 +278,11 @@ class Utils {
           "privKey": signedKey.secretKey.toBase64()
         });
 
-        var newId  = "v3_" + MessageConversationServices.shaString([
+        var newId  = "v4_" + MessageConversationServices.shaString([
           identityKey.publicKey.toBase64(),
-          "a string ramdom"
+          await Utils.getDeviceIdentifier(),
+          // key nay se ko dc truyen di theo bat ky api nao, ko dc thay doi
+          "fhl9gBRZa8jLmT2wwTmMdS2M6YHiqLsHNpb85oEStNM="
         ]);
         _deviceId = newId;
         await boxKey.put("deviceId", newId);
@@ -754,8 +758,18 @@ class Utils {
   }
 
   static String? getUserNickName(String userId) {
-    List nickNames = Provider.of<Workspaces>(Utils.globalContext!, listen: false).members;
-    var index = nickNames.indexWhere((user) => userId == user["id"]);
-    return index == -1 ? null : nickNames[index]["nickname"];
+    List members = Provider.of<Workspaces>(Utils.globalContext!, listen: false).members;
+    List nickNameMembers = members.where((ele) => Utils.checkedTypeEmpty(ele['nickname'])).toList();
+    int indexNickName = nickNameMembers.indexWhere((user) => userId == user["id"]);
+
+    return indexNickName == -1 ? null : (nickNameMembers[indexNickName]["nickname"] ?? nickNameMembers[indexNickName]['full_name']);
+  }
+  
+  static Future<String> getDeviceIdentifier() async {
+    try {
+      return (await PlatformDeviceId.getDeviceId).toString();
+    } catch (e) {
+      return "";
+    }
   }
 }

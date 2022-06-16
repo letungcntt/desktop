@@ -335,7 +335,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
                                         if (index == 0) AuthorTimeline(author: author, isDark: isDark, type: "removed", showAuthor: !(added.length > 0)),
                                         CachedImage(user?["avatar_url"] ?? "", height: 28, width: 28, radius: 50, name: user?["full_name"] ?? "P"),
                                         SizedBox(width: 8),
-                                        Text("${user["full_name"]} ", style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
+                                        Text("${user["nickname"] ?? user["full_name"]} ", style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
                                         ),
                                       ],
                                     ),

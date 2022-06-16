@@ -1,22 +1,24 @@
 import 'dart:async';
-
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
+import 'package:workcake/channels/create_channel_desktop.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/custom_search_bar.dart';
+import 'package:workcake/components/icon_online.dart';
+import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/models/models.dart';
 
 class CreateDirectMessage extends StatefulWidget {
-
   final defaultList;
     CreateDirectMessage({
     Key? key,
-    this.defaultList
+    this.defaultList, 
   }): super(key: key);
 
   @override
@@ -107,7 +109,8 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
         false,
         0,
         {},
-        Provider.of<DirectMessage>(context, listen: false).getNameDM(listUserId, userId, nameFM)
+        Provider.of<DirectMessage>(context, listen: false).getNameDM(listUserId, userId, nameFM),
+        null
       ), "", isCreate: true);
       Navigator.pop(context);
     } catch (e) {
@@ -137,25 +140,36 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
     return Stack(
       children: [
         Container(
-          child: Column(children: <Widget>[
-            Container(
-              margin: EdgeInsets.all(20),
-              alignment: Alignment.center,
-              child: Text("New Direct Message", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20, color: isDark ? Colors.grey[400] : Colors.grey[700])),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+             Container(
+               padding: EdgeInsets.symmetric(horizontal: 24,vertical: 12),
+               child: Text(S.current.createGroup, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: isDark ? Color(0xffF1F1F1) : Colors.grey[700])),
             ),
             Container(
-              height: 30,
-              margin: EdgeInsets.fromLTRB(8, 0, 8, 0),
+               height: 1,
+               color: isDark ? Color(0xff1E1F20) : Color(0xffA6A6A6),
+            ),
+            Container(
+              margin: EdgeInsets.fromLTRB(24, 8, 8, 0),
               alignment: Alignment.centerLeft,
-              child: Text("Conversation Name:")
+              child: Text("Group name" , style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)),)
             ),
             Container(
               height: 40,
-              margin: EdgeInsets.only(right: 0, left: 0, top: 14, bottom: 10),
-              child: CustomSearchBar(
-                placeholder: listUserDM.length > 0 ? listUserDM.map((e) => e["full_name"]).join(", ") : "Enter conversation name",
+              margin: EdgeInsets.only(right: 24, left: 24, top: 8, bottom: 10),
+              child: CupertinoTextField(
+                style: TextStyle(color: isDark ? Colors.grey[300] : Colors.black87),
+                placeholder:  "Enter group name",
+                placeholderStyle: TextStyle(color: Color(0xffBCBCBC),fontSize: 16),
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5),
+                  color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
+                ),
                 onChanged: (value) {
-                  if (_debounce?.isActive ?? false) _debounce.cancel();
+                 if (_debounce?.isActive ?? false) _debounce.cancel();
                   _debounce = Timer(const Duration(milliseconds: 500), () {
                     nameFM = value;
                   });
@@ -163,55 +177,94 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
               )
             ),
             Container(
-              margin: EdgeInsets.fromLTRB(18, 0, 18, 0),
+              margin: EdgeInsets.fromLTRB(24, 4, 0, 0),
               child: Row(
                 children: <Widget>[
-                  Text("To: ", style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
                   Container(
-                    width: 430,
-                    child: Wrap(
-                      children: listUserDM.map((u) => GestureDetector(
-                        onTap: () {handleUserToDM(u, true);},
-                        child: Container(
-                          padding: EdgeInsets.fromLTRB(7, 0, 7, 0),
-                          margin: EdgeInsets.only(right: 10, top: 5),
-                          decoration: BoxDecoration(
-                              color: isDark ? Colors.grey[600] : Color(0xFFE0E0E0),
-                              borderRadius: BorderRadius.circular(16)),
-                          child: Container(
-                            // width: 100,
-                            padding: EdgeInsets.all(4),
-                            child: Wrap(
-                              children: [
-                                  CachedImage(
-                                    u["avatar_url"],
-                                    radius: 16,
-                                    isRound: true,
-                                    name: u["full_name"]
+                    width: 500,
+                    child: ScrollConfiguration(
+                      behavior: MyCustomScrollBehavior(),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: BouncingScrollPhysics(),
+                        child: Row(
+                          children: listUserDM.map((u) => GestureDetector(
+                            onTap: () {handleUserToDM(u, true);},
+                            child: Container(
+                              width: 60,
+                              height: 65,
+                              child: Wrap(
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  Stack(
+                                    children: [
+                                      CachedImage(
+                                        u["avatar_url"],
+                                        radius: 40,
+                                        isRound: true,
+                                        name: u["full_name"]
+                                      ),
+                                      Positioned(
+                                        right: 4,
+                                        top: -1,
+                                        child: InkWell(
+                                          onTap: () {handleUserToDM(u, true);},
+                                          child: Container(
+                                            width: 10,
+                                            height: 10,
+                                            child: Icon(Icons.cancel_rounded,
+                                              size: 15, color: isDark ? Palette.defaultTextDark : Palette.fillerText
+                                            ),
+                                          ),
+                                        )
+                                      ),
+                                      Positioned(
+                                        right: 0, bottom: -12,
+                                        child: u["is_online"] ? IconOnline() : Container()
+                                      )
+                                    ],
                                   ),
-                                  Text(" " + u["full_name"] + " "),
-                              ],
-                            )
-                          ),
+                                  Text(" " + u["full_name"] + " ", textAlign: TextAlign.center, style: TextStyle(fontSize: 11.5 ),),
+                                ],
+                              )
+                            ),
+                          )).toList(),
                         ),
-                      )).toList(),
+                      ),
                     ) 
                   )
                 ],
-              )),
+              )
+            ),
+            Container(
+              margin: EdgeInsets.fromLTRB(24, 8, 8, 0),
+              alignment: Alignment.centerLeft,
+              child: Text("Your Friends",style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500 , color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)),),
+            ),
             Container(
               height: 40,
-              margin: EdgeInsets.only(right: 0, left: 0, top: 14, bottom: 10),
-              child: CustomSearchBar(
-                autoFocus: true,
-                placeholder: "Enter pancake user...",
-                onChanged: (String value) {
-                  if (_debounce?.isActive ?? false) _debounce.cancel();
+              margin: EdgeInsets.only(right: 24, left: 24, top: 8, bottom: 10),
+              child: CupertinoTextField(
+                autofocus: true,
+                prefix:Container(
+                  child: Icon(Icons.search, color: isDark ? Color(0xffBCBCBC) : Colors.black54,size: 20,),
+                  padding: EdgeInsets.only(left: 15)
+                ),
+                style: TextStyle(color: isDark ? Color(0xffBCBCBC) : Colors.black87),
+                placeholder: "Search",
+                placeholderStyle: TextStyle(color: Color(0xffBCBCBC),fontSize: 16),
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(5),
+                  color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
+                ),
+                onChanged: (value) {
+                 if (_debounce?.isActive ?? false) _debounce.cancel();
                   _debounce = Timer(const Duration(milliseconds: 500), () {
                     search(Utils.unSignVietnamese(value.toLowerCase()), token);
                   });
                 },
-              ),
+              )
             ),
             Expanded(
               child: ListView.builder(
@@ -219,28 +272,35 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
                 itemCount: resultSearch.length,
                 itemBuilder: (context, index) {
                   var selected = listUserDM.where((e) {
-                        return e["id"] == resultSearch[index]["id"];
-                      }).length >
-                      0;
+                    return e["id"] == resultSearch[index]["id"];
+                  }).length >0;
                   return Container(
-                    margin: EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    margin: EdgeInsets.fromLTRB(24, 8, 24, 8),
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: <Widget>[
                           Row(
                             children: [
-                              CachedImage(
-                                resultSearch[index]["avatar_url"],
-                                radius: 35,
-                                isRound: true,
-                                name: resultSearch[index]["full_name"]
+                              Stack(
+                                children: [
+                                  CachedImage(
+                                    resultSearch[index]["avatar_url"],
+                                    radius: 35,
+                                    isRound: true,
+                                    name: resultSearch[index]["full_name"]
+                                  ),
+                                  Positioned(
+                                    right: 0, bottom: -13,
+                                    child: resultSearch[index]["is_online"] ? IconOnline() : Container()
+                                  )
+                                ],
                               ),
                               Container(
                                 width: 10,
                               ),
                               Container(
                                 child: Text(resultSearch[index]["full_name"],
-                                    style: TextStyle(fontSize: 16)),
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500,color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E))),
                               ),
                             ],
                           ),
@@ -253,17 +313,18 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
                                 padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
                                 decoration: BoxDecoration(
                                   borderRadius:
-                                      BorderRadius.all(Radius.circular(10)),
+                                    BorderRadius.all(Radius.circular(4)),
                                   color: selected
-                                      ? Colors.redAccent
-                                      : theme == ThemeType.DARK ? Color(0xFF1890FF) : Utils.getPrimaryColor(),
+                                    ? Colors.redAccent
+                                    : theme == ThemeType.DARK ? Color(0xFF1481FF) : Color(0xFF1481FF),
                                 ),
                                 child: Row(
                                   children: [
                                     Text(
                                       selected ? "Remove" : "Add",
                                       style: TextStyle(
-                                        color: Color(0xFFFFFFFF)
+                                        color: Color(0xFFFFFFFF),
+                                        fontSize: 14
                                       ),
                                     ),
                                   ],
@@ -275,39 +336,81 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
               ),
             ),
             // CREATE DIRECT MESSAGE
-            Center(
-              child: Container(
-                // padding: EdgeInsets.symmetric(horizontal: 16),
-                margin: EdgeInsets.only(top: 12),
-                width: MediaQuery.of(context).size.width,
-                height: 40,
-                child: TextButton(
-                  style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(
-                      isDark ? Color(0xff19DFCB) : Color(0xff2A5298)
+            Container(
+              padding: EdgeInsets.only(top: 10,bottom: 10),
+              decoration: BoxDecoration(
+                border: Border (
+                  top: BorderSide(
+                    color:isDark ? Color(0xff1E1F20) : Color(0xffA6A6A6),
+                    width: 1.0,
+                  ),
+                )
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                   Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: Color(0xFFFF7875),
+                          width: 1,
+                        )
+                      ),
+                      height: 34,
+                      width: 80,
+                      child: TextButton(
+                        style: ButtonStyle(
+                          shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))) ,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Text(
+                        S.current.cancel,
+                        style: TextStyle(
+                          fontSize: 14.0,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFFFF7875)
+                        ),
+                      )
                     )
                   ),
-                  onPressed: () {
-                    if (!creating){
-                      createDirectMessage(token);
-                    }
-                  },
-                  // color: Utils.getPrimaryColor(),
-                  child:  Row(
-                    children: [
-                      Expanded( child: Container(),),
-                      creating
-                          ? Container(
-                              width: 50,
-                              alignment: Alignment.center,
-                              child: Lottie.network("https://assets4.lottiefiles.com/datafiles/riuf5c21sUZ05w6/data.json"),
-                            )
-                          : Container(),
-                      Text("Create", style: TextStyle(color: Colors.white)),
-                      Expanded( child: Container(),),
-                    ],
-                  )
-                )
+                  SizedBox(width: 8,),
+                  Container(
+                    // padding: EdgeInsets.symmetric(horizontal: 16),
+                    margin: EdgeInsets.only(right: 20),
+                    height: 34,
+                    width: 106,
+                    child: TextButton(
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all(
+                           Color(0xff1481FF)
+                        )
+                      ),
+                      onPressed: () {
+                        if (!creating){
+                          createDirectMessage(token);
+                        }
+                      },
+                      // color: Utils.getPrimaryColor(),
+                      child:  Row(
+                        children: [
+                          Expanded( child: Container(),),
+                          creating
+                              ? Container(
+                                  width: 50,
+                                  alignment: Alignment.center,
+                                  child: Lottie.network("https://assets4.lottiefiles.com/datafiles/riuf5c21sUZ05w6/data.json"),
+                                )
+                              : Container(),
+                          Text("Create", style: TextStyle(color: Colors.white)),
+                          Expanded( child: Container(),),
+                        ],
+                      )
+                    )
+                  ),
+                ],
               ),
             )
           ]),

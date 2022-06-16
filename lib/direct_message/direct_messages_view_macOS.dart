@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:math';
 import 'package:context_menus/context_menus.dart';
-import 'package:device_info/device_info.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -75,50 +75,62 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
     );
   }
 
-  String getTextAtt(int video, int other ,int image) {
-    if (video == 1 && other == 0 && image == 0) return S.current.sentAVideo;
-    if (video > 1 && other == 0 && image == 0) return S.current.sentVideos(video);
-    if (video == 0 && other == 1 && image == 0) return S.current.sentAFile;
-    if (video == 0 && other > 1 && image == 0) return S.current.sentFiles(other);
-    if (video == 0 && other == 0 && image == 1) return S.current.sentAnImage;
-    if (video == 0 && other == 0 && image > 1) return S.current.sentImages(image);
-    if (video == 0 && other == 0 && image == 0) return "";
+  String getTextAtt(int video, int other ,int image, int callterminated, int attachment, int inviied,) {
+    if (video == 1 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentAVideo;
+    if (video > 1 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentVideos(video);
+    if (video == 0 && other == 1 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentAFile;
+    if (video == 0 && other > 1 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentFiles(other);
+    if (video == 0 && other == 0 && image == 1 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentAnImage;
+    if (video == 0 && other == 0 && image > 1 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentImages(image);
+    if (video == 0 && other == 0 && image == 0 && callterminated == 1 && attachment == 0 && inviied == 0) return S.current.theVideoCallEnded;
+    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 1 && inviied == 0) return S.current.sentAttachments;
+    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 1) return "";
+    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return "";
     return S.current.sentAttachments;
   }
 
-  String renderSnippet(List att, dm) {
-    Map t ={
+  String renderSnippet(List att, dm) {   
+   Map t = getType(att, dm);
+    return  getTextAtt(t['video'], t['other'], t['image'],t['call_terminated'],t['attachment'],t['inviied'],) + t['mention'];
+  }
+
+  Map getType(List att, dm) {
+     Map t ={
       'image':0, 
       'video':0,
-      'other':0
+      'other':0,
+      'call_terminated':0,
+      'attachment':0,
+      'inviied':0,
+      'mention':''
     };
     for (int i =0; i< att.length; i++) {
       
-      String? mime= att[i]['mime_type'];
-      if ( att[0]['type'] == 'device_info' || att[0]['type'] == 'action_button' || att[0]['type'] == 'assign' || att[0]['type'] == 'close_issue'|| att[0]['type'] == 'invite') {
-        return S.current.sentAttachments;
-      } else if (att[0]['type'] == 'call_terminated') {
-        return S.current.theVideoCallEnded;
-      } else if ( att[0]['type'] == 'block_code' ) {
-        return S.current.sentAFile;
-      } else if (att[i]["type"] == "mention"){
-        return att[0]["data"].map((e) {
-          if (e["type"] == "text" ) return e["value"];
-          return "${e["trigger"] ?? "@"}${e["name"] ?? ""} ";
-        }).toList().join();
-      }
+      String? mime= att[i]['mime_type']?? '';
+      
       if (mime == null) continue;
       if (mime=='image'||mime=='jpg') {
         t['image'] += 1;
       } else {
         if (mime=="mov"||mime=="mp4"||mime=="video") {
           t['video']+=1;
+        } else if(att[0]['type']=='call_terminated') {
+          t['call_terminated']+=1;
+        } else if(att[0]['type'] == 'device_info' || att[0]['type'] == 'action_button' || att[0]['type'] == 'assign' || att[0]['type'] == 'close_issue' || att[0]['type'] == 'invite') {
+          t['attachment']+=1;
+        } else if(att[0]['type']=='invite_direct') {
+          t['inviied']+=1;
+        } else if (att[0]["type"] == "mention"){
+          t['mention']+= att[0]["data"].map((e) {
+            if (e["type"] == "text" ) return e["value"];
+            return "${e["trigger"] ?? "@"}${e["name"] ?? ""} ";
+          }).toList().join();
         } else {
           t['other']+=1;
         }
       }
     }
-    return  getTextAtt(t['video'], t['other'], t['image']);
+    return t;
   }
   
   sendRequestSync(channel, auth, String type) async{
@@ -166,9 +178,10 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
         context: context, 
         builder: (BuildContext context){
           return AlertDialog(
+            contentPadding: EdgeInsets.zero,
             content: Container(
-              height: 600.0,
-              width: 500.0,
+              height: 700.0,
+              width: 550.0,
               child: CreateDirectMessage(
                 defaultList: directMessage.user.map((ele) => Utils.mergeMaps([
                   ele, {"id": ele["user_id"]}
@@ -183,7 +196,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: isDark ? Color(0xFF36393f) : Colors.white,
+          backgroundColor: isDark ? Color(0xFF3D3D3D) : Colors.white,
           contentPadding: EdgeInsets.all(0),
           content: Container(
             height: 600.0,
@@ -252,34 +265,6 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
 
     return Column(
       children: <Widget>[
-        InkWell(
-          // onTap: () => Provider.of<DirectMessage>(context, listen: false).onChangeSelectedFriend(true),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 18),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)
-              )
-            ),
-            height: 56,
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 2),
-                  child: Text(S.of(context).directMessages.toUpperCase(), style: TextStyle(fontSize: 16, color: Colors.white))
-                ),
-                // if (pendingUsers.length > 0) Container(
-                //   width: 10,
-                //   height: 10,
-                //   decoration: new BoxDecoration(
-                //     color: Colors.red,
-                //     shape: BoxShape.circle,
-                //   ),
-                // )
-              ],
-            )
-          )
-        ),
         ContextMenuRegion(
           contextMenu: GenericContextMenu(
             buttonConfigs: [
@@ -329,14 +314,21 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
             ],
           ),
           child: Container(
-            // padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-            // child: Align(
-            //   alignment: Alignment.centerLeft,
-            //   child: Text(
-            //     S.of(context).directMessages.toUpperCase(),
-            //     style: TextStyle(color: Colors.white),
-            //   ),
-            // ),
+            padding: EdgeInsets.symmetric(horizontal: 18),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)
+              )
+            ),
+            height: 56,
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(S.of(context).directMessages.toUpperCase(), style: TextStyle(fontSize: 16, color: Colors.white))
+                ),
+              ],
+            )
           ),
         ),
         Utils.checkedTypeEmpty(errorCode) ?
@@ -354,12 +346,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                           decoration: BoxDecoration(
                             color: !isDark ? Color(0xFF1890FF).withOpacity(0.08) : Color(0xFFFAAD14).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(2),
-                            border: Border(
-                              top: BorderSide(width: 1.0, color: isDark ? Color(0xFFD48806) : Color(0xFF69C0FF)),
-                              left: BorderSide(width: 1.0, color: isDark ? Color(0xFFD48806) : Color(0xFF69C0FF)),
-                              right: BorderSide(width: 1.0, color: isDark ? Color(0xFFD48806) : Color(0xFF69C0FF)),
-                              bottom: BorderSide(width: 1.0, color: isDark ? Color(0xFFD48806) : Color(0xFF69C0FF)),
-                            )
+                            border: Border.all(width: 1.0, color: isDark ? Color(0xFFD48806) : Color(0xFF69C0FF))
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center, //Center Row contents horizontally,
@@ -452,6 +439,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                         if (directMessage.archive == true) return Container();
                         var messageSnippet;
                         var userSnippet;
+                        var numberType;
                         var currentTime = 0; List userRead = [];
                         var indexConverMessage  =  dataConversationMessages.indexWhere((element) => element["conversation_id"] == directMessage.id);
                         if (directMessage.snippet != {}) {
@@ -461,6 +449,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                           messageSnippet = (directMessage.snippet["attachments"] != null && directMessage.snippet["attachments"].length > 0
                             ? renderSnippet(directMessage.snippet["attachments"], directMessage)
                             : directMessage.snippet["message"]);
+                          numberType  = getType(directMessage.snippet["attachments"] ?? [], directMessage);
                         } else {
                           // messageSnippet = "";
                           // userSnippet = "";
@@ -501,6 +490,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                             userSnippet: userSnippet,
                             userId: auth.userId,
                             roomIsActive: roomIsActive,
+                            numberType: numberType,
                           ),
                           contextMenu: GenericContextMenu(
                             buttonConfigs: [
@@ -580,7 +570,8 @@ class DirectMessageItem extends StatefulWidget{
     this.selectedMention,
     this.index,
     this.userId,
-    this.roomIsActive
+    this.roomIsActive,
+    this.numberType
   });
 
   final Key key;
@@ -598,6 +589,7 @@ class DirectMessageItem extends StatefulWidget{
   final index;
   final userId;
   final roomIsActive;
+  final numberType;
   @override
   State<StatefulWidget> createState() {
     return _DirectMessageItemState();
@@ -707,7 +699,13 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                       ? SizedBox(
                           width: 32,
                           height: 32,
-                          child: Container(
+                          child: directMessage.avatarUrl != null ? CachedAvatar(
+                            directMessage.avatarUrl != null ? directMessage.avatarUrl : getAvatarUrl(directMessage.user, widget.userId),
+                            height: 32, width: 32, radius: 16,
+                            isRound: true,
+                            name: directMessage.displayName,
+                            isAvatar: true
+                          ) : Container(
                             decoration: BoxDecoration(
                               color: Color(((index + 1) * pi * 0.1 * 0xFFFFFF).toInt()).withOpacity(1.0),
                               borderRadius: BorderRadius.circular(16)
@@ -722,7 +720,7 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                       : Container(
                         // margin: EdgeInsets.all(4),
                         child: CachedAvatar(
-                          getAvatarUrl(directMessage.user, widget.userId),
+                          directMessage.avatarUrl != null ? directMessage.avatarUrl : getAvatarUrl(directMessage.user, widget.userId),
                           height: 32, width: 32, radius: 16,
                           isRound: true,
                           name: directMessage.displayName,
@@ -807,15 +805,15 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                               ? Container(
                                 margin: EdgeInsets.only(right: 2, top: 3.5),
                                 child: Icon(
-                                    Icons.subdirectory_arrow_right,
-                                    color: color,
-                                    size: 11,
-                                  ),
+                                  Icons.subdirectory_arrow_right,
+                                  color: color,
+                                  size: 11,
+                                ),
                               )
                               : directMessage.user.length == 2 
                                 ? Container()
                                 : Container(
-                                  margin: EdgeInsets.only(right: 2),
+                                  margin: EdgeInsets.only(right: 0,top: 4),
                                   child: Text(
                                     userSnippet["full_name"] + ": ",
                                     style: TextStyle(
@@ -826,27 +824,58 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                                     ),
                                   ),
                                 ),
-                              Expanded(
-                                child: Text(
-                                  "${messageSnippet.split("\n")[0]}",
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    // tin chuwa doc snippet mau trang, 
-                                    color: color,
-                                    fontSize: 11,
-                                    height: 1.4,
-                                    fontWeight: fontWeight
+                                Expanded(
+                                  child: Utils.checkedTypeEmpty(widget.numberType["mention"]) 
+                                    ? Padding(
+                                      padding: const EdgeInsets.only(top: 3.6),
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            widget.numberType["mention"] ?? directMessage.snippet["message"],
+                                            style: TextStyle(color: color,  fontSize: 11,)
+                                          ),
+                                        ],
+                                      ),
+                                    ) 
+                                    : Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: rendericon(
+                                          widget.numberType["video"], 
+                                          widget.numberType["other"], 
+                                          widget.numberType["image"], 
+                                          widget.numberType["call_terminated"], 
+                                          widget.numberType["attachment"], 
+                                          widget.numberType["inviied"], color),
+                                      ),
+                                      SizedBox(width: 4,),
+                                      Expanded(
+                                        child: Text(
+                                          "${messageSnippet.split("\n")[0]}",
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            // tin chuwa doc snippet mau trang, 
+                                            color: color,
+                                            fontSize: 11,
+                                            height: 1.56,
+                                            fontWeight: fontWeight
+                                           ),
+                                          maxLines: 1,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  maxLines: 1,
                                 ),
-                              ),
-                            ],
-                          )           
-                      ) : Container()
-                    ],
-                  ),
-                )]
-              ),
+                              ],
+                            )           
+                          ) : Container()
+                        ],
+                      ),
+                    )
+                  ]
+               ),
             ),
             if (widget.roomIsActive) RoomActiveButton(),
             Container(
@@ -881,6 +910,18 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
             : BoxDecoration(),
       )
     );
+  }
+  
+  Widget rendericon(int video, int other ,int image, int callterminated, int attachment, int inviied, Color color) {
+    if (video >= 1 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.youtubeLogo, size: 13, color: color,);
+    if (video == 0 && other >= 1 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.folderOpen,size: 13, color: color,);
+    if (video == 0 && other == 0 && image >= 1 && callterminated == 0 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.image,size: 13, color: color,);
+    if (video == 0 && other == 0 && image == 0 && callterminated >= 1 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.phoneCall,size: 13, color: color,);
+    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment >= 1 && inviied == 0) return Icon(PhosphorIcons.chatCenteredDots,size: 13, color: color,);
+    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied >= 1) return Container();
+    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return Container();
+
+    return Icon(PhosphorIcons.folderOpen,size: 13);
   }
 }
 

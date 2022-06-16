@@ -141,7 +141,7 @@ class _LabelSelectionState extends State<LabelSelection> {
               child: TextButton(
                 onPressed: () async {
                   if (labelTitle.trim() != "") {
-                    Provider.of<Boards>(context, listen: false).createLabel(token, card.workspaceId, card.channelId, card.boardId, labelTitle, colors[selectedColor]);
+                    Provider.of<Boards>(context, listen: false).createLabel(token, card.workspaceId, card.channelId, card.boardId, labelTitle, colors[selectedColor], null);
                     setState(() {
                       onCreateLabel = false;
                       labelTitle = "";

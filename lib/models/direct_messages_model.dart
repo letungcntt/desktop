@@ -77,7 +77,8 @@ class DirectMessage with ChangeNotifier {
       false,
       0,
       {},
-      ""
+      "",
+      null
     );
   var _lengthData;
   List<Map> dataDMMessages = [];
@@ -351,7 +352,12 @@ class DirectMessage with ChangeNotifier {
       var res = response.data;
       if (res["success"]) {
         // reload direct message
-        var dm  = DirectModel(res["conversation_id"], data["users"], data["name"] ?? "", true, 0, {}, false, 0, {}, getNameDM(data["users"], userId, data["name"] ?? ""));
+        var dm  = DirectModel(
+          res["conversation_id"],
+          data["users"], data["name"] ?? "",
+          true, 0, {}, false, 0, {}, getNameDM(data["users"], userId, data["name"] ?? ""),
+          null
+        );
         // tu dong chon hoi thpai do luon
         _directMessageSelected = dm;
         if (!Utils.checkedTypeEmpty(data["isDesktop"])){
@@ -620,7 +626,8 @@ class DirectMessage with ChangeNotifier {
         conv["is_hide"] ?? false, 
         conv["update_by_message"],
         conv["user_read"],
-        getNameDM(conv["user"], currentUserId, conv["name"] ?? "")
+        getNameDM(conv["user"], currentUserId, conv["name"] ?? ""),
+        conv['avatar_url']
       );
       int deleteTime = dm.getDeleteTime(currentUserId);
       if ((dm.snippet["current_time"] ?? 0 ) <= deleteTime) dm.snippet = {};
@@ -2735,6 +2742,16 @@ class DirectMessage with ChangeNotifier {
       dm.user[indexUser]["delete_time"] = time;
       resetOneConversation(convId);
     } catch (e) {
+    }
+  }
+
+  void updateConversation(data, token, userId) {
+    int index = _data.indexWhere((DirectModel ele) => ele.id == data['conversation_id']);
+
+    if(index != -1) {
+      _data[index]..avatarUrl = data['changes']['avatar_url'];
+      if(_directMessageSelected.id == data['conversation_id']) _directMessageSelected..avatarUrl = data['changes']['avatar_url'];
+      notifyListeners();
     }
   }
 }

@@ -68,6 +68,21 @@ class Messages with ChangeNotifier {
     // khi gui tin nhan ma numberNewMessages != null => reset tin nhan ve rong roi nhan tin tiep
     "numberNewMessages": null
   };
+  
+  onUpdateMessagesChannele(data){
+    _data =_data.map((e){
+      if ("${e["workspaceId"]}" != "${data["workspace_id"]}") return e;
+      e["messages"] = (e["messages"] as List).map((ele){
+        if(ele["user_id"] == data["user_id"]){
+          ele["full_name"] = data["nickname"];
+          }
+          return ele;
+        }).toList();
+      return e;
+    }).toList();
+    notifyListeners();
+  } 
+
 
   Future<dynamic> loadMessages(var token, workspaceId, int channelId) async {
     int index = _data.indexWhere((e) => e["channelId"] == channelId);
@@ -93,14 +108,14 @@ class Messages with ChangeNotifier {
   }
 
   replaceNickName(List messages) {
-    List nickNames = Provider.of<Workspaces>(Utils.globalContext!, listen: false).members;
+    List members = Provider.of<Workspaces>(Utils.globalContext!, listen: false).members;
+    List nickNameMembers = members.where((ele) => Utils.checkedTypeEmpty(ele['nickname'])).toList();
+
     return messages.map((e) {
-
-    var index = nickNames.indexWhere((user) => user["id"]  == e["user_id"]);
-
+      int index = nickNameMembers.indexWhere((user) => user["id"]  == e["user_id"]);
       return {...e,
-      "full_name": index == -1 ? e["full_name"] :  nickNames[index]["nickname"]
-    };
+        "full_name": index == -1 ? e["full_name"] : (nickNameMembers[index]["nickname"] ?? e["full_name"])
+      };
     }).toList();
   }
 
@@ -121,7 +136,6 @@ class Messages with ChangeNotifier {
         _lengthData = responseData["messages"].length;
         currentChannelSelected["messages"] = sortMessagesByDay(MessageConversationServices.uniqById([] + await MessageConversationServices.processBlockCodeMessage(responseData["messages"]) + _data[index]["messages"]));
         currentChannelSelected["messages"] = replaceNickName(currentChannelSelected["messages"]);
-        
         currentChannelSelected["disableLoadingDown"] = _lengthData == 0;
         currentChannelSelected["last_current_time"] = _lengthData == 0 ? currentChannelSelected["last_current_time"] : (currentChannelSelected["messages"].last)["current_time"];
       } else {

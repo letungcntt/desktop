@@ -9,6 +9,7 @@ import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/utils.dart';
 import 'package:workcake/models/models.dart';
 import 'package:workcake/workview_desktop/pagination.dart';
 import 'package:workcake/workview_desktop/renderListUser.dart';
@@ -659,7 +660,7 @@ class _IssueTableState extends State<IssueTable> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      !isExpand ? Container() : InkWell(
+                                      InkWell(
                                         onTap: () {
                                           setState(() { unreadOnly = !unreadOnly; });
                                           onFilterIssue();
@@ -1353,7 +1354,7 @@ class _HiglightElementState extends State<HiglightElement> {
         child: Text(
           " ${widget.authorName} ",
           style: TextStyle(
-            color: highLight ? Color(0xff1890FF) : isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.55),
+            color: highLight ? Utils.getPrimaryColor() : isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.55),
             fontSize: 12
           )
         ),
@@ -1363,10 +1364,10 @@ class _HiglightElementState extends State<HiglightElement> {
           direction: Axis.horizontal,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Icon(CupertinoIcons.flag, size: 16, color: highLight ? Color(0xff1890FF) :  isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.55),),
+            Icon(CupertinoIcons.flag, size: 16, color: highLight ? Utils.getPrimaryColor() :  isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.55),),
             Text(
               widget.milestone["due_date"] != null ? (DateFormatter().renderTime(DateTime.parse(widget.milestone["due_date"]), type: "MMMd")) : "",
-              style: TextStyle(color: highLight ? Color(0xff1890FF) : isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.55), fontSize: 12.5)
+              style: TextStyle(color: highLight ? Utils.getPrimaryColor() : isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.55), fontSize: 12.5)
             )
           ]
         ),

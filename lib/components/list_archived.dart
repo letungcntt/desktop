@@ -1,18 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/workspaces_model.dart';
-
-import '../common/utils.dart';
-import '../models/auth_model.dart';
-import '../models/channels_model.dart';
-import '../models/messages_model.dart';
-import '../models/users_model.dart';
+import 'package:workcake/models/models.dart';
 
 class ListArchived extends StatefulWidget {
   @override
@@ -32,23 +24,16 @@ class _ListArchivedState extends State<ListArchived>{
 
   onSelectChannel(channelId, workspaceId) async {
     final auth = Provider.of<Auth>(context, listen: false);
-    final currentUser = Provider.of<User>(context, listen: false).currentUser;
     Provider.of<Workspaces>(context, listen: false).setTab(workspaceId);
     Provider.of<Workspaces>(context, listen: false).selectWorkspace(auth.token, workspaceId, context);
     Provider.of<User>(context, listen: false).selectTab("channel");
     await Provider.of<Channels>(context, listen: false).setCurrentChannel(channelId);
     Provider.of<Messages>(context, listen: false).loadMessages(auth.token, workspaceId, channelId);
     await Provider.of<Channels>(context, listen: false).selectChannel(auth.token, workspaceId, channelId);
-    Provider.of<Channels>(context, listen: false).loadCommandChannel(auth.token, workspaceId, channelId);
-    Provider.of<Channels>(context, listen: false).getChannelMemberInfo(auth.token, workspaceId, channelId, currentUser["id"]);
-    Provider.of<Workspaces>(context, listen: false).clearMentionWhenClickChannel(workspaceId, channelId);
-
     auth.channel.push(
       event: "join_channel",
       payload: {"channel_id": channelId, "workspace_id": workspaceId}
     );
-
-    if(Platform.isMacOS) Utils.updateBadge(context);
   }
   
   @override

@@ -45,10 +45,12 @@ class IssueDropBar extends StatefulWidget {
 }
 
 class _IssueDropBarState extends State<IssueDropBar> {
+
   List listAttribute = [];
   List defaultSelected = [];
   bool isShowModal = false;
   FocusNode _focusNodeInput = FocusNode();
+  TextEditingController _titleController = TextEditingController();
 
   @override
   void initState() {
@@ -83,6 +85,7 @@ class _IssueDropBarState extends State<IssueDropBar> {
   @override
   void dispose() {
     _focusNodeInput.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
@@ -223,6 +226,7 @@ class _IssueDropBarState extends State<IssueDropBar> {
                       child: TextFormField(
                         autofocus: true,
                         focusNode: _focusNodeInput,
+                        controller: _titleController,
                         decoration: InputDecoration(
                           hintText: widget.title == "Milestone" ? "Filter milestone" : widget.title == "Labels" ? "Filter labels" : "Type or choose a name",
                           hintStyle: TextStyle(color: isDark ? Color(0xFFD9D9D9) : Color.fromRGBO(0, 0, 0, 0.35),
@@ -233,6 +237,13 @@ class _IssueDropBarState extends State<IssueDropBar> {
                           contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 8),
                           enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight), borderRadius: BorderRadius.all(Radius.circular(4))),
                           focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight), borderRadius: BorderRadius.all(Radius.circular(4))),
+                          suffixIcon: InkWell(
+                              child: Icon(Icons.clear, size: 14, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
+                              onTap: () {
+                                _titleController.clear();
+                                onFilterAttribute("");
+                                setState(() {});
+                              }),
                         ),
                         style: TextStyle(color:isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 13, fontWeight: FontWeight.w400),
                         onChanged: (value) {
@@ -407,6 +418,7 @@ class _IssueDropBarState extends State<IssueDropBar> {
         });
       },
       onPop: () {
+        _titleController.clear();
         this.setState(() {
           listAttribute = reSortListAttribute();
           isShowModal = false;

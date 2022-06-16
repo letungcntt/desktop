@@ -93,7 +93,19 @@ class _DMInputShared extends State<DMInputShared> {
               var dataConv = dataToSaveConv["conv"]; 
               List dConv = [];
               for(int i =0; i< dataConv.length; i++){
-                DirectModel dm  = DirectModel(dataConv[i]["id"],[],"",false,0,dataConv[i]["snippet"] ?? {}, dataConv[i]["is_hide"] ?? false, dataConv[i]["updateByMessageTime"] ?? 0, dataConv[i]["userRead"] ?? {}, "");
+                DirectModel dm  = DirectModel(
+                  dataConv[i]["id"],
+                  [],
+                  "",
+                  false,
+                  0,
+                  dataConv[i]["snippet"] ?? {},
+                  dataConv[i]["is_hide"] ?? false,
+                  dataConv[i]["updateByMessageTime"] ?? 0,
+                  dataConv[i]["userRead"] ?? {},
+                  "",
+                  null
+                );
                 dConv = dConv + [dm];
               }
               await direct.clear();
@@ -454,7 +466,7 @@ class _DMInputShared extends State<DMInputShared> {
           ),
           status == "syncing" ? Padding(
             padding: const EdgeInsets.only(top: 24.0),
-            child: SpinKitFadingCircle(size: 24, color: Color(0xff1890FF),),
+            child: SpinKitFadingCircle(size: 24, color: Utils.getPrimaryColor(),),
           ) : Container(),
           status == "error" ? Container(
             alignment: Alignment.center,

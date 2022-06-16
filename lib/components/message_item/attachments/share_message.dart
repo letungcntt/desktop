@@ -261,15 +261,17 @@ class _ShareAttachmentsState extends State<ShareAttachments> {
                 SizedBox(width: 5),
                 Container(width: 1, height: 13, color: Colors.blueGrey),
                 SizedBox(width: 5),
-                InkWell(
-                  onTap: () {
-                    onSelectMessage({
-                      ...att["data"],
-                      "workspace_id": att["data"]["workspaceId"],
-                      "channel_id": att["data"]["channelId"]
-                    });
-                  },
-                  child: Text("View message", style: TextStyle(fontSize: 12, color: Colors.blue)),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      onSelectMessage({
+                        ...att["data"],
+                        "workspace_id": att["data"]["workspaceId"],
+                        "channel_id": att["data"]["channelId"]
+                      });
+                    },
+                    child: Text("View message", style: TextStyle(fontSize: 12, color: Colors.blue, overflow: TextOverflow.ellipsis)),
+                  ),
                 )
               ],
             ),

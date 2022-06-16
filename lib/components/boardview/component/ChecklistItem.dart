@@ -1,8 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/boardview/CardItem.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/models/models.dart';
@@ -30,14 +30,14 @@ class _ChecklistItemState extends State<ChecklistItem> {
   bool onAddTask = false;
 
   onDeleteTask(index) {
+    final token = Provider.of<Auth>(context, listen: false).token;
+    CardItem? card =  Provider.of<Boards>(context, listen: false).selectedCard;
+    if (card != null) {
+      Provider.of<Boards>(context, listen: false).deleteChecklistOrTask(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id, widget.checklist["id"],  widget.checklist["tasks"][index]["id"]);
+    }
     this.setState(() {
       widget.checklist["tasks"].removeAt(index);
     });
-
-    final token = Provider.of<Auth>(context, listen: false).token;
-    CardItem? card =  Provider.of<Boards>(context, listen: false).selectedCard;
-    if (card == null) return;
-    Provider.of<Boards>(context, listen: false).deleteChecklistOrTask(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id, widget.checklist["id"],  widget.checklist["tasks"][index]["id"]);
   }
 
   onAddNewTask(title, index) {
@@ -70,6 +70,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
   @override
   Widget build(BuildContext context) {
     var checklist = widget.checklist;
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     return Column(
       children: [
@@ -78,7 +79,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
           padding: EdgeInsets.only(left: 14, bottom: 3),
           height: 40,
           decoration: BoxDecoration(
-            color: Color(0xff2E2E2E),
+            color: isDark ? Color(0xff2E2E2E) : Color(0xffEAE8E8),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(4),
               topRight: Radius.circular(4),
@@ -87,7 +88,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(checklist["title"], style: TextStyle(color: Color(0xffC9C9C9))),
+              Text(checklist["title"], style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)),
               ShowMoreChecklistItem(indexChecklist: widget.indexChecklist, deleteChecklist: widget.deleteChecklist, onCheckAll: onCheckAll)
             ]
           )
@@ -99,12 +100,12 @@ class _ChecklistItemState extends State<ChecklistItem> {
             return TaskItem(task: task, index: index, onDeleteTask: onDeleteTask, checklist: checklist);
           }).toList(),
         ),
-        Divider(color: Color(0xff5E5E5E), height: 1),
+        Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
         onAddTask ? Container(
           padding: EdgeInsets.only(left: 4, bottom: 2),
           height: 40,
           decoration: BoxDecoration(
-            color: Color(0xff2E2E2E),
+            color: isDark ? Color(0xff2E2E2E) : Color(0xffF8F8F8),
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(4),
               bottomRight: Radius.circular(4),
@@ -130,7 +131,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
                       setState(() { onAddTask = false; });
                     }
                   },
-                  child: CupertinoTextField(
+                  child: TextFormField(
                     autofocus: true,
                     onEditingComplete: () {
                       if (taskController.text.trim() != "") {
@@ -139,45 +140,40 @@ class _ChecklistItemState extends State<ChecklistItem> {
                       taskController.clear();
                     },
                     controller: taskController,
-                    padding: EdgeInsets.only(left: 2),
-                    style: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
-                    placeholderStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
-                    placeholder: "Please input task name",
-                    decoration: BoxDecoration(
-                      color: Color(0xff2E2E2E)
+                    style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: "Please input task name",
+                      hintStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
+                      contentPadding: EdgeInsets.only(left: 2, bottom: 8),
+                      border: InputBorder.none
                     )
                   ),
                 ) 
               )
             ]
           ) 
-        ) : Column(
-          children: [
-            Divider(color: Color(0xff5E5E5E), height: 1, thickness: 1),
-            InkWell(
-              onTap: () {
-                setState(() { onAddTask = true; });
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Color(0xff4C4C4C),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(4),
-                    bottomRight: Radius.circular(4),
-                  )
-                ),
-                height: 40,
-                padding: EdgeInsets.only(left: 12),
-                child: Row(
-                  children: [
-                    Icon(PhosphorIcons.plusCircle, size: 18, color: Color(0xffC9C9C9)),
-                    SizedBox(width: 12),
-                    Text("New Task", style: TextStyle(color: Color(0xffC9C9C9), fontSize: 14)),
-                  ]
-                )
-              ),
+        ) : InkWell(
+          onTap: () {
+            setState(() { onAddTask = true; });
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Color(0xff444444) : Color(0xffF8F8F8),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(4),
+              )
             ),
-          ],
+            height: 40,
+            padding: EdgeInsets.only(left: 12),
+            child: Row(
+              children: [
+                Icon(PhosphorIcons.plusCircle, size: 18, color: isDark ? Color(0xffC9C9C9) : Color(0xff5E5E5E)),
+                SizedBox(width: 12),
+                Text("New Task", style: TextStyle(color: isDark ? Color(0xffC9C9C9) : Color(0xff5E5E5E), fontSize: 14)),
+              ]
+            )
+          ),
         )
       ]
     );
@@ -203,11 +199,13 @@ class ShowMoreChecklistItem extends StatefulWidget {
 class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return InkWell(
       onTap: () {
         showPopover(
           context: context, 
-          backgroundColor: Color(0xff2E2E2E),
+          backgroundColor: isDark ? Color(0xff2E2E2E) : Colors.white,
           transitionDuration: const Duration(milliseconds: 50),
           direction: PopoverDirection.bottom,
           barrierColor: Colors.transparent,
@@ -219,7 +217,7 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(7),
               border: Border.all(
-                color: Color(0xff5E5E5E)
+                color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)
               )
             ),
             child: Column(
@@ -235,7 +233,7 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
                     ]
                   )
                 ),
-                Divider(color: Color(0xff5E5E5E), height: 1),
+                Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
                 InkWell(
                   onTap: () {
                     widget.onCheckAll(true);
@@ -252,7 +250,7 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
                     )
                   ),
                 ),
-                Divider(color: Color(0xff5E5E5E), height: 1),
+                Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
                 InkWell(
                   onTap: () {
                     widget.onCheckAll(false);
@@ -269,7 +267,7 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
                     )
                   ),
                 ),
-                Divider(color: Color(0xff5E5E5E), height: 1),
+                Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
                 InkWell(
                   onTap: () {
                     Navigator.pop(context);
@@ -305,7 +303,7 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
       },
       child: Container(
         margin: EdgeInsets.only(right: 2),
-        child: Icon(Icons.more_vert, size: 20, color: Colors.grey[400])
+        child: Icon(Icons.more_vert, size: 20, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)
       ),
     );
   }

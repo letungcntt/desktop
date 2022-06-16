@@ -220,7 +220,7 @@ class _CreateAppViewState extends State<CreateAppView> {
                               Container(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(2),
-                                  color:  Color(0xff1890FF),
+                                  color:  Utils.getPrimaryColor(),
                                 ),
                                 child: TextButton(
                                   onPressed: () {

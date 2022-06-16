@@ -147,8 +147,8 @@ class _CustomDialogState extends State<CustomDialog> {
                         child: TextButton(
                         style: ButtonStyle(
                         shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(2))) ,
-                        backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor()),
-                        overlayColor: MaterialStateProperty.all(Color(0xff))
+                        backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor(),),
+                        overlayColor: MaterialStateProperty.all(Utils.getPrimaryColor())
                       ),
                       onPressed: () {
                         widget.onSaveString(_controller.text);

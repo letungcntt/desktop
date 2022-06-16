@@ -219,7 +219,9 @@ class _RenderMediaState extends State<RenderMedia> {
                         child: ExtendedImage.file(
                           File(e.media.target!.pathInDevice ?? ""),
                           fit: BoxFit.cover,
-                          clearMemoryCacheWhenDispose: true
+                          clearMemoryCacheWhenDispose: true,
+                          borderRadius: const BorderRadius.all(Radius.circular(4)),
+                          shape: BoxShape.rectangle
                         ),
                       ),
                     ) : InkWell(

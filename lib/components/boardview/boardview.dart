@@ -575,83 +575,85 @@ class BoardViewState extends State<BoardView> with AutomaticKeepAliveClientMixin
     }
 
     return Container(
-        child: Listener(
-            onPointerMove: (opm) {
-              if (draggedItem != null) {
-                if (dxInit == null) {
-                  dxInit = opm.position.dx;
-                }
-                if (dyInit == null) {
-                  dyInit = opm.position.dy;
-                }
-                dx = opm.position.dx;
-                dy = opm.position.dy;
-                if(mounted) {
-                  setState(() {});
-                }
-              }
-            },
-            onPointerDown: (opd) {
-              RenderBox box = context.findRenderObject() as RenderBox;
-              Offset pos = box.localToGlobal(opd.position);
-              offsetX = pos.dx;
-              offsetY = pos.dy;
-              pointer = opd;
-              if(mounted) {
-                setState(() {});
-              }
-            },
-            onPointerUp: (opu) {
-              if (onDropItem != null) {
-                int? tempDraggedItemIndex = draggedItemIndex;
-                int? tempDraggedListIndex = draggedListIndex;
-                int? startDraggedItemIndex = startItemIndex;
-                int? startDraggedListIndex = startListIndex;
+      child: Listener(
+        onPointerMove: (opm) {
+          if (draggedItem != null) {
+            if (dxInit == null) {
+              dxInit = opm.position.dx;
+            }
+            if (dyInit == null) {
+              dyInit = opm.position.dy;
+            }
+            dx = opm.position.dx;
+            dy = opm.position.dy;
+            if(mounted) {
+              setState(() {});
+            }
+          }
+        },
+        onPointerDown: (opd) {
+          RenderBox box = context.findRenderObject() as RenderBox;
+          Offset pos = box.localToGlobal(opd.position);
+          offsetX = pos.dx;
+          offsetY = pos.dy;
+          pointer = opd;
+          if(mounted) {
+            setState(() {});
+          }
+        },
+        onPointerUp: (opu) {
+          if (onDropItem != null) {
+            int? tempDraggedItemIndex = draggedItemIndex;
+            int? tempDraggedListIndex = draggedListIndex;
+            int? startDraggedItemIndex = startItemIndex;
+            int? startDraggedListIndex = startListIndex;
 
-                if(_isInWidget && widget.onDropItemInMiddleWidget != null){
-                  onDropItem!(startDraggedListIndex, startDraggedItemIndex);
-                  widget.onDropItemInMiddleWidget!(startDraggedListIndex, startDraggedItemIndex,opu.position.dx/MediaQuery.of(context).size.width);
-                }else{
-                  onDropItem!(tempDraggedListIndex, tempDraggedItemIndex);
-                }
-              }
-              if (onDropList != null) {
-                int? tempDraggedListIndex = draggedListIndex;
-                if(_isInWidget && widget.onDropItemInMiddleWidget != null){
-                  onDropList!(tempDraggedListIndex);
-                  widget.onDropItemInMiddleWidget!(tempDraggedListIndex,null,opu.position.dx/MediaQuery.of(context).size.width);
-                }else{
-                  onDropList!(tempDraggedListIndex);
-                }
-              }
-              draggedItem = null;
-              offsetX = null;
-              offsetY = null;
-              initialX = null;
-              initialY = null;
-              dx = null;
-              dy = null;
-              draggedItemIndex = null;
-              draggedListIndex = null;
-              onDropItem = null;
-              onDropList = null;
-              dxInit = null;
-              dyInit = null;
-              leftListX = null;
-              rightListX = null;
-              topListY = null;
-              bottomListY = null;
-              topItemY = null;
-              bottomItemY = null;
-              startListIndex = null;
-              startItemIndex = null;
-              if(mounted) {
-                setState(() {});
-              }
-            },
-            child: new Stack(
-              children: stackWidgets,
-            )));
+            if(_isInWidget && widget.onDropItemInMiddleWidget != null){
+              onDropItem!(startDraggedListIndex, startDraggedItemIndex);
+              widget.onDropItemInMiddleWidget!(startDraggedListIndex, startDraggedItemIndex,opu.position.dx/MediaQuery.of(context).size.width);
+            }else{
+              onDropItem!(tempDraggedListIndex, tempDraggedItemIndex);
+            }
+          }
+          if (onDropList != null) {
+            int? tempDraggedListIndex = draggedListIndex;
+            if(_isInWidget && widget.onDropItemInMiddleWidget != null){
+              onDropList!(tempDraggedListIndex);
+              widget.onDropItemInMiddleWidget!(tempDraggedListIndex,null,opu.position.dx/MediaQuery.of(context).size.width);
+            }else{
+              onDropList!(tempDraggedListIndex);
+            }
+          }
+          draggedItem = null;
+          offsetX = null;
+          offsetY = null;
+          initialX = null;
+          initialY = null;
+          dx = null;
+          dy = null;
+          draggedItemIndex = null;
+          draggedListIndex = null;
+          onDropItem = null;
+          onDropList = null;
+          dxInit = null;
+          dyInit = null;
+          leftListX = null;
+          rightListX = null;
+          topListY = null;
+          bottomListY = null;
+          topItemY = null;
+          bottomItemY = null;
+          startListIndex = null;
+          startItemIndex = null;
+          if(mounted) {
+            setState(() {});
+          }
+        },
+        child: new Stack(
+          children: stackWidgets,
+        )
+      )
+    );
   }
 
   void run() {

@@ -50,6 +50,7 @@ class ImageDirect {
               return customBuild(data[contentUrl]["path"]);
             }
             return Container(
+              alignment: Alignment.centerLeft,
               child: ExtendedImage.file(
                 File(data[contentUrl]["path"]),
                 fit: BoxFit.contain,

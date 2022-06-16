@@ -192,7 +192,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                                       ),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(4.0),
-                                        color: isDark ? Color(0xff1F2933) : Colors.white,
+                                        color: isDark ? Color(0xff1E1E1E) : Colors.white,
                                       ),
                                       child: TextFormField(
                                         controller: _titleController,
@@ -227,7 +227,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                                       padding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(4),
-                                        color: isDark ? Color(0xff1F2933) : Colors.white,
+                                        color: isDark ? Color(0xff1E1E1E) : Colors.white,
                                         border: Border.all(color: isDark ? Color(0xff52606D) : Color(0xffCBD2D9))
                                       ),
                                       child: InkWell(
@@ -269,7 +269,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                                   height: 32.0,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(4.0),
-                                    color: isDark ? Color(0xff1F2933) : Colors.white,
+                                    color: isDark ? Color(0xff1E1E1E) : Colors.white,
                                   ),
                                   child: TextFormField(
                                     controller: _descriptionController,

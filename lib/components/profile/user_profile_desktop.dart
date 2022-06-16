@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -10,12 +11,15 @@ import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/components/splash_screen.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
 import 'package:workcake/models/models.dart';
+
+import '../message_item/attachments/text_file.dart';
 
 class UserProfileDesktop extends StatefulWidget {
   final userId;
@@ -63,14 +67,7 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
           {"user_id": currentUser["id"],"full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true}, 
           {"user_id": user["user_id"] ?? user["id"], "avatar_url": user["avatar_url"],  "full_name": user["full_name"] ?? user["name"], "is_online": user["is_online"]}
         ], 
-        "", 
-        false, 
-        0, 
-        {}, 
-        false,
-        0,
-        {},
-        user["full_name"] ?? user["name"]
+        "", false, 0, {}, false, 0, {}, user["full_name"] ?? user["name"], null
       );
     }
     Provider.of<DirectMessage>(context, listen: false).setSelectedDM(dm, "");
@@ -215,18 +212,18 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                               curve: isHoverMessenger ? Curves.easeOutCubic : Curves.easeInCirc,
                               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isHoverMessenger ? isDark ? Color(0xffFAAD14) : Color(0xff1890FF)
+                                color: isHoverMessenger ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor()
                                 : isDark ? Color(0xff4C4C4C) : Color(0xffF8F8F8),
                                 borderRadius: BorderRadius.circular(isHoverMessenger ? 5 : 5 ),
                               ),
                               child: Row(
                                 children: [
-                                  SvgPicture.asset('assets/icons/comment.svg', color: isDark ? isHoverMessenger ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverMessenger ? Color(0xffFFFFFF) : Color(0xff1890FF), width: 15, height: 15),
+                                  SvgPicture.asset('assets/icons/comment.svg', color: isDark ? isHoverMessenger ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverMessenger ? Color(0xffFFFFFF) : Utils.getPrimaryColor(), width: 15, height: 15),
                                   SizedBox(width: 8),
                                   Text(
                                     S.current.messages,
                                     style: TextStyle(
-                                      color: isDark ? isHoverMessenger ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverMessenger ? Color(0xffFFFFFF) : Color(0xff1890FF),
+                                      color: isDark ? isHoverMessenger ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverMessenger ? Color(0xffFFFFFF) : Utils.getPrimaryColor(),
                                       fontSize: 14
                                     )
                                   ),
@@ -245,18 +242,18 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                               curve: isHoverCall ? Curves.easeOutCubic : Curves.easeInCirc,
                               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isHoverCall ? isDark ? Color(0xffFAAD14) : Color(0xff1890FF)
+                                color: isHoverCall ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor()
                                 : isDark ? Color(0xff4C4C4C) : Color(0xffF8F8F8),
                                 borderRadius: BorderRadius.circular(isHoverCall  ? 5 : 5 ),
                               ),
                               child: Row(
                                 children: [
-                                  SvgPicture.asset('assets/icons/phone.svg', color: isDark ? isHoverCall ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverCall ? Color(0xffFFFFFF) : Color(0xff1890FF), width: 15, height: 15),
+                                  SvgPicture.asset('assets/icons/phone.svg', color: isDark ? isHoverCall ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverCall ? Color(0xffFFFFFF) : Utils.getPrimaryColor(), width: 15, height: 15),
                                   SizedBox(width: 8),
                                   Text(
                                     S.current.call,
                                     style: TextStyle(
-                                      color: isDark ? isHoverCall ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverCall ? Color(0xffFFFFFF) : Color(0xff1890FF),
+                                      color: isDark ? isHoverCall ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverCall ? Color(0xffFFFFFF) : Utils.getPrimaryColor(),
                                       fontSize: 14
                                     )
                                   ),
@@ -272,7 +269,7 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                               if (convId == null){
                                 convId = MessageConversationServices.shaString([currentUser["id"], otherUser["user_id"] ?? otherUser["id"]]);
                               }
-                              p2pManager.createVideoCall(otherUser, convId);
+                              p2pManager.createVideoCall(context, otherUser, convId);
                             },
                             onHover: (hover){
                               setState(() {
@@ -284,18 +281,18 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                               curve: isHoverVideo ? Curves.easeOutCubic : Curves.easeInCirc,
                               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isHoverVideo ? isDark ? Color(0xffFAAD14) : Color(0xff1890FF) 
+                                color: isHoverVideo ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor() 
                                 : isDark ? Color(0xff4C4C4C) : Color(0xffF8F8F8),
                                 borderRadius: BorderRadius.circular(isHoverVideo  ? 5 : 5 ),
                               ),
                               child: Row(
                                 children: [
-                                  SvgPicture.asset('assets/icons/video.svg', color: isDark ? isHoverVideo ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverVideo ? Color(0xffFFFFFF) : Color(0xff1890FF), width: 15, height: 15),
+                                  SvgPicture.asset('assets/icons/video.svg', color: isDark ? isHoverVideo ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverVideo ? Color(0xffFFFFFF) : Utils.getPrimaryColor(), width: 15, height: 15),
                                   SizedBox(width: 8),
                                   Text(
                                     S.current.videoCall,
                                     style: TextStyle(
-                                      color: isDark ? isHoverVideo ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverVideo ? Color(0xffFFFFFF) : Color(0xff1890FF),
+                                      color: isDark ? isHoverVideo ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHoverVideo ? Color(0xffFFFFFF) : Utils.getPrimaryColor(),
                                       fontSize: 14
                                     )
                                   ),
@@ -356,10 +353,21 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                               width: 222, height: 40,
                               padding: EdgeInsets.symmetric(vertical: 10),
                               alignment: Alignment.center,
-                              child: Text(
-                                otherUser["email"] != null ? otherUser["email"] : "Not set",
-                                style: TextStyle(color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E), fontSize: 14, fontWeight: FontWeight.w400),
-                                overflow: TextOverflow.ellipsis,
+                              child: ListAction(
+                                child: InkWell(
+                                  onTap: () => Clipboard.setData(ClipboardData(text: otherUser["email"] != null ? otherUser["email"] : "")),
+                                  child: Text(
+                                    otherUser["email"] != null ? otherUser["email"] : "Not set",
+                                    style: TextStyle(
+                                      color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E),
+                                      fontSize: 14, fontWeight: FontWeight.w400,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                isDark: isDark,
+                                colorHover: Colors.transparent,
+                                action: 'Copy email',
                               ),
                             )
                           ],
@@ -446,11 +454,19 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                                 width: 144, height: 40,
                                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                                 alignment: Alignment.center,
-                                child: Text(
-                                  (otherUser["phone_number"] == null || otherUser["phone_number"] == "") ? "Not set" : '${otherUser["phone_number"]}',
-                                  style: TextStyle(
-                                    color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E), fontSize: 14,fontWeight: FontWeight.w400
-                                  )
+                                child: ListAction(
+                                  child: InkWell(
+                                    onTap: () => Clipboard.setData(ClipboardData(text: (otherUser["phone_number"] == null || otherUser["phone_number"] == "") ? "" : otherUser["phone_number"])),
+                                    child: Text(
+                                      (otherUser["phone_number"] == null || otherUser["phone_number"] == "") ? "Not set" : '${otherUser["phone_number"]}',
+                                      style: TextStyle(
+                                        color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E), fontSize: 14,fontWeight: FontWeight.w400
+                                      )
+                                    ),
+                                  ),
+                                  isDark: isDark,
+                                  colorHover: Colors.transparent,
+                                  action: 'Copy',
                                 ),
                               )
                             ],
@@ -559,22 +575,22 @@ class _FriendStatusState extends State<FriendStatus> {
         curve: isHover ? Curves.easeOutCubic : Curves.easeInCirc,
         padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: isHover ? isDark ? Color(0xffFAAD14) : Color(0xff1890FF)
+          color: isHover ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor()
           : isDark ? Color(0xff4C4C4C) : Color(0xffF8F8F8),
           borderRadius: BorderRadius.circular(isHover ? 5 : 5 ),
         ),
         child: Row(
           children: [
             (isRequested == true && isSended == true)
-              ? Icon(Icons.check, size: 16, color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Color(0xff1890FF))
+              ? Icon(Icons.check, size: 16, color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Utils.getPrimaryColor())
               : (isRequested == true || isSended == true)
-                ? Icon(Icons.replay, size: 16, color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Color(0xff1890FF))
-                : SvgPicture.asset('assets/icons/AddMember.svg', color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Color(0xff1890FF), width: 15, height: 15),
+                ? Icon(Icons.replay, size: 16, color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Utils.getPrimaryColor())
+                : SvgPicture.asset('assets/icons/AddMember.svg', color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Utils.getPrimaryColor(), width: 15, height: 15),
             SizedBox(width: 8),
             Text(
               (isRequested == true && isSended == true ) ? S.current.accepted : isRequested == true ? S.current.response : isSended ? S.current.cancel : S.current.addFriend,
               style: TextStyle(
-                color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Color(0xff1890FF),
+                color: isDark ? isHover ? Color(0xff3D3D3D) : Color(0xffFAAD14) : isHover ? Color(0xffFFFFFF) : Utils.getPrimaryColor(),
                 fontSize: 14
               )
             ),

@@ -8,6 +8,7 @@ import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:workcake/channels/create_channel_desktop.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/palette.dart';
@@ -60,8 +61,10 @@ class _ForwardMessageState extends State<ForwardMessage> {
         Map<String, dynamic> item = {
           'id': listUser[i]["user_id"],
           'type': 'user',
-          'display': listUser[i]["full_name"],
-          'full_name': listUser[i]["full_name"],
+          'display': Utils.getUserNickName(listUser[i]["user_id"]) ?? listUser[i]["full_name"],
+          'full_name': Utils.checkedTypeEmpty(Utils.getUserNickName(listUser[i]["user_id"]))
+              ? "${Utils.getUserNickName(listUser[i]["user_id"])} • ${listUser[i]["full_name"]}"
+              : listUser[i]["full_name"],
           'photo': listUser[i]["avatar_url"]
         };
         index[listUser[i]["user_id"]] = true;
@@ -130,7 +133,7 @@ class _ForwardMessageState extends State<ForwardMessage> {
       "isDesktop": true,
       "show": true,
       "time_create": DateTime.now().add(new Duration(hours: -7)).toIso8601String(),
-      "current_time": DateTime.now().microsecond,
+      "current_time": DateTime.now().microsecondsSinceEpoch,
       "count": 0,
       "isSend": true,
       "sending": true,

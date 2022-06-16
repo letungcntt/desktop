@@ -261,14 +261,15 @@ class User extends ChangeNotifier {
       final extractedData = json.decode(response.body);
       
       if (extractedData['success'] == true) {
-        Map user = Map.from(_otherUser!);
+        Map user = Map.from(_otherUser ?? {});
         user["is_sended"] = 1;
         _otherUser = user;
+        fetchAndGetMe(token);
       }
 
       notifyListeners();
-    } catch (e) {
-      print(e);
+    } catch (e, trace) {
+      print("$e\n$trace");
       // sl.get<Auth>().showErrorDialog(e.toString());
     }
   }
@@ -280,7 +281,7 @@ class User extends ChangeNotifier {
       final extractedData = json.decode(response.body);
 
       if (extractedData['success'] == true) {
-        Map user = Map.from(_otherUser!);
+        Map user = Map.from(_otherUser ?? {});
         user["is_requested"] = 0;
         user["is_sended"] = 0;
         _otherUser = user;

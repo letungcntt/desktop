@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/models/models.dart';
 
+import '../message_item/attachments/text_file.dart';
+
 
 class FriendList extends StatefulWidget {
   final type;
@@ -88,7 +90,6 @@ class _FriendListState extends State<FriendList> {
   }
 
   _invite(user) {
-    final currentUser = Provider.of<User>(context, listen: true).currentUser;
     String email = user["email"];
 
     if (widget.type == 'toWorkspace') {
@@ -97,7 +98,7 @@ class _FriendListState extends State<FriendList> {
       if (currentChannel["is_private"]) {
         Provider.of<Channels>(context, listen: false).inviteToChannel(token, currentWorkspace["id"], currentChannel["id"], email, 1, user["id"]);
       } else {
-        Provider.of<Channels>(context, listen: false).joinChannelByInvitation(token, currentWorkspace["id"], currentChannel["id"], currentUser["id"], null);
+        Provider.of<Channels>(context, listen: false).inviteToPubChannel(token, currentWorkspace["id"], currentChannel["id"], user["id"]);
       }
     }
   }
@@ -144,50 +145,82 @@ class _FriendListState extends State<FriendList> {
           ),
         )
       ) : Container(
-        padding: EdgeInsets.symmetric(vertical: 8),
+        padding: EdgeInsets.symmetric(vertical: 0),
+        decoration: BoxDecoration(
+          border: Border( 
+            top: BorderSide( 
+              color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+              width: 0.5,
+            ),
+            bottom: BorderSide( 
+              color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+              width: 0.5,
+            ),
+          ), 
+        ),
         child: ListView.builder(
           controller: _controller,
           scrollDirection: Axis.vertical,
           itemCount: friendList.length,
           itemBuilder: (context, index) {
-            return ListTile(
-              leading: CachedAvatar(
-                friendList[index]["avatar_url"],
-                height: 35, width: 35,
-                isRound: true,
-                name: friendList[index]["full_name"],
-              ),
-              title: Text("${friendList[index]["full_name"]}", style: TextStyle(fontSize: 14.0, fontFamily: "Roboto")),
-              trailing: Container(
+            return ListAction(
+              isDark: isDark,
+              action: "",
+              child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(5),
-                  color: isDark ? Color(0xff5E5E5E) : Color(0xffEDEDED),
+                  border: Border( 
+                    left: BorderSide( 
+                      width: 1.0,
+                      color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                    ),
+                    right: BorderSide( 
+                      color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                      width: 1.0,
+                    ),
+                    bottom: BorderSide( 
+                      color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                      width: 0.5,
+                    ),
+                  ), 
                 ),
-                height: 34,
-                width: 80,
-                
-                child: doneChecking == false ? null : validate(friendList[index]["id"]) == false ? 
-                  Center(child: Text(currentChannel["is_private"] ? S.current.acceptInvite : S.current.added, style: TextStyle(fontSize: 13, color: Colors.grey)))
-                  : friendList[index]["invite"] == "Invite" ? TextButton( // thay condition
-                      style: ButtonStyle(
-                        shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                          side: BorderSide(color: isDark ? Color(0xffEAE8E8) : Color(0xff5E5E5E)),
-                        )),
-                      ),
-                      child: Text(currentChannel["is_private"] ? S.current.invite : S.current.add, style: TextStyle(fontSize: 13, color: isDark ? Color(0xffEAE8E8) : Color(0xff5E5E5E))),
-                      onPressed: () {
-                        _invite(friendList[index]);
-                        this.setState(() {
-                          friendList[index]['invite'] = "Invited";
-                        });
-                      }
-                  ) : Center(
-                    child: Text(
-                      S.current.invited, style: TextStyle(fontSize: 13, color: Colors.grey)
-                    )
+                child: ListTile(
+                  leading: CachedAvatar(
+                    friendList[index]["avatar_url"],
+                    height: 32, width: 32,
+                    isRound: true,
+                    name: friendList[index]["full_name"],
+                  ),
+                  title: Text("${Utils.getUserNickName(friendList[index]["id"]) ?? friendList[index]["full_name"]}", style: TextStyle(fontSize: 14.0, fontFamily: "Roboto")),
+                  trailing: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                    ),
+                    height: 28,
+                    width: 90,
+                    child: doneChecking == false ? null : validate(friendList[index]["id"]) == false ? 
+                      Center(child: Text(currentChannel["is_private"] ? S.current.acceptInvite : S.current.added, style: TextStyle(fontSize: 13, color: Colors.grey)))
+                      : friendList[index]["invite"] == "Invite" ? TextButton( // thay condition
+                          style: ButtonStyle(
+                            shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(5),
+                            )),
+                          ),
+                          child: Text(currentChannel["is_private"] ? S.current.invite : S.current.add, style: TextStyle(fontSize: 13, color: isDark ? Color(0xffEAE8E8) : Color(0xff5E5E5E))),
+                          onPressed: () {
+                            _invite(friendList[index]);
+                            this.setState(() {
+                              friendList[index]['invite'] = "Invited";
+                            });
+                          }
+                      ) : Center(
+                        child: Text(
+                          S.current.invited, style: TextStyle(fontSize: 13, color: Colors.grey)
+                        )
+                      )
                   )
-              )
+                ),
+              ),
             );
           }
         ),

@@ -362,7 +362,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
               constraints: BoxConstraints(
                 minHeight: 120, maxHeight: 210
               ),
-              decoration: BoxDecoration(color: isDark ? Color(0xff5E5E5E) : Color(0xffEDEDED),),
+              decoration: BoxDecoration( color: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),),
               child: textSearch != ""
                 ? !searching
                   ? members.length != 0
@@ -427,7 +427,10 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
                         )
                       ))
                   : Container()
-                : FriendList(type: widget.type)
+                : Padding(
+                  padding: const EdgeInsets.only(left: 13, right: 13),
+                  child: FriendList(type: widget.type),
+                )
             ),
             if (widget.type == "toWorkspace") Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,7 +473,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
                             disableVibration: validEmailOrNumberPhone,
                             style: ButtonStyle(
                               shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))),
-                              backgroundColor: MaterialStateProperty.all(Color(0xff1890FF) ),
+                              backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor() ),
                               overlayColor: MaterialStateProperty.all(Color(0xff))
                             ),
                             onPressed: () {
@@ -689,7 +692,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
                 style: ButtonStyle(
                   shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))) ,
                   backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor()),
-                  overlayColor: MaterialStateProperty.all(Color(0xff))
+                  overlayColor: MaterialStateProperty.all(Utils.getPrimaryColor())
                 ),
                 onPressed: () {
                   joinChannelByCode();

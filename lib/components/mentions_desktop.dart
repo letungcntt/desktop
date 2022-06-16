@@ -42,7 +42,7 @@ class _MentionsDesktopState extends State<MentionsDesktop> {
 
       onTap: () async {
         Provider.of<Workspaces>(context, listen: false).setNumberUnreadMentions(currentWorkspace["id"]);
-        Provider.of<Channels>(context, listen: false).clearBadge(null, true);
+        Provider.of<Channels>(context, listen: false).clearBadge(null, currentWorkspace['id'], true);
         Provider.of<User>(context, listen: false).selectTab("mention");
         if(keyScaffold.currentState!.isEndDrawerOpen) keyScaffold.currentState!.openDrawer();
         auth.channel.push(

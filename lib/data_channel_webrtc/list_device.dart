@@ -9,8 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:workcake/E2EE/e2ee.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
 import 'package:workcake/models/device_provider.dart';
+import 'package:workcake/models/models.dart';
 import '../common/utils.dart';
-import '../models/auth_model.dart';
 import 'device_socket.dart';
 
 class ListDevices extends StatefulWidget {

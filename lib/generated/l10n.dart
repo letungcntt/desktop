@@ -2412,70 +2412,70 @@ class S {
     );
   }
 
-  /// `🎬  sent a video.`
+  /// `sent a video.`
   String get sentAVideo {
     return Intl.message(
-      '🎬  sent a video.',
+      'sent a video.',
       name: 'sentAVideo',
       desc: '',
       args: [],
     );
   }
 
-  /// `🎬  sent {count} videos.`
+  /// `sent {count} videos.`
   String sentVideos(Object count) {
     return Intl.message(
-      '🎬  sent $count videos.',
+      'sent $count videos.',
       name: 'sentVideos',
       desc: '',
       args: [count],
     );
   }
 
-  /// `📂  sent a file.`
+  /// `sent a file.`
   String get sentAFile {
     return Intl.message(
-      '📂  sent a file.',
+      'sent a file.',
       name: 'sentAFile',
       desc: '',
       args: [],
     );
   }
 
-  /// `📂  sent {count} files.`
+  /// `sent {count} files.`
   String sentFiles(Object count) {
     return Intl.message(
-      '📂  sent $count files.',
+      'sent $count files.',
       name: 'sentFiles',
       desc: '',
       args: [count],
     );
   }
 
-  /// `📷  sent an image.`
+  /// `sent an image.`
   String get sentAnImage {
     return Intl.message(
-      '📷  sent an image.',
+      'sent an image.',
       name: 'sentAnImage',
       desc: '',
       args: [],
     );
   }
 
-  /// `📷  sent {count} images.`
+  /// `sent {count} images.`
   String sentImages(Object count) {
     return Intl.message(
-      '📷  sent $count images.',
+      'sent $count images.',
       name: 'sentImages',
       desc: '',
       args: [count],
     );
   }
 
-  /// `💬  sent attachments.`
+  /// `sent attachments.`
   String get sentAttachments {
     return Intl.message(
-      '💬  sent attachments.',
+      'sent attachments.',
       name: 'sentAttachments',
       desc: '',
       args: [],

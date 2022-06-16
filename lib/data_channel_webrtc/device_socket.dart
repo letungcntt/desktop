@@ -66,6 +66,10 @@ class DeviceSocket {
 
   void sendRequestQrCode() async {
     var deviceInfo = await Utils.getDeviceInfo();
+    if (channel == null) {
+      await Future.delayed(Duration(milliseconds: 2000));
+      return sendRequestQrCode();
+    }
     channel!.push(event: "gen_qr_code_login_device", payload: {"device_info": deviceInfo});
   }
 
@@ -78,6 +82,9 @@ class DeviceSocket {
 
   Future reconnect() async {
     channel!.leave();
+    channel = null;
+    dataQRCode = null;
+    qrCodeStreamController.add(null);
     socket!.disconnect();
     await Utils.initPairKeyBox();
     await initPanchatDeviceSocket();
@@ -98,8 +105,16 @@ class DeviceSocket {
       var identityKey  = await boxKey.get("identityKey");
       // device_public_key laf signedKey
       currentDevice = await Utils.getDeviceId();
+print("identityKey....=====: $identityKey");
+      print("is correntc $currentDevice ${MessageConversationServices.shaString([
+         identityKey["pubKey"],
+          await Utils.getDeviceIdentifier(),
+          // key nay se ko dc truyen di theo bat ky api nao, ko dc thay doi
+          "fhl9gBRZa8jLmT2wwTmMdS2M6YHiqLsHNpb85oEStNM="
+      ])}");
       channel = socket!.channel("device_id:$currentDevice", {
-        "device_public_key": identityKey["pubKey"]
+        "device_public_key": identityKey["pubKey"],
+        "device_identifier": await Utils.getDeviceIdentifier()
       });
       channel!.join();
       channel!.on("set_ice_candidate", (payload, ref, joinRef) {
@@ -218,8 +233,8 @@ class DeviceSocket {
       });
       initLocalPeerConnection();
     
-    } catch (e) {
-      print("initPanchatDeviceSocket: $e");
+    } catch (e, trace) {
+      print("initPanchatDeviceSocket: $e  $trace");
     }
   }
 
@@ -344,7 +359,7 @@ class DeviceSocket {
               await MessageConversationServices.saveJsonDataMessage(json.decode(total));
               syncDataWebrtcStreamController.add(DataWebrtcStreamStatus("Done", currentDevice ?? "", targetDevice ?? "", sharedKeyCurrentVSTarget ?? ""));
               await Future.delayed(Duration(milliseconds: 1000));
-              DeviceSocket.instance.setPairDeviceId("", "", "");
+              DeviceSocket.instance.setPairDeviceId("", currentDevice!, "");
             }
             else DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
               "Recieving ${data["page"]}/${data["total"]}",

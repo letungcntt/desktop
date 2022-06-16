@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/bottom_sheet_server.dart';
 import 'package:workcake/generated/l10n.dart';
@@ -48,14 +49,14 @@ class _CustomConfirmDialogState extends State<CustomConfirmDialog> {
           children: [
             Container(
               height: 44,
-              color: Color(0xff5E5E5E),
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
               padding: EdgeInsets.only(top: 10, bottom: 10, left: 16),
               child: Row(children: [
-                Text(widget.title, style: TextStyle(color: Color(0xffF5F7FA), fontWeight: FontWeight.w600, fontSize: 15))
+                Text(widget.title, style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontWeight: FontWeight.w600, fontSize: 15))
               ])
             ),
             Container(
-              color: Color(0xff3D3D3D),
+              color: isDark ? Color(0xff3D3D3D) : null,
               width: 432,
               padding: EdgeInsets.only(left: 16, top: 16, right: 16),
               height: 96,
@@ -70,7 +71,7 @@ class _CustomConfirmDialogState extends State<CustomConfirmDialog> {
             ),
             Divider(height: 1, thickness: 1),
             Container(
-              color: Color(0xff3D3D3D),
+              color: isDark ? Color(0xff3D3D3D) : null,
               height: 59,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -106,7 +107,7 @@ class _CustomConfirmDialogState extends State<CustomConfirmDialog> {
                         Navigator.of(context, rootNavigator: true).pop("Discard");
                         widget.onConfirm();
                       },
-                      child: Text("${widget.title}", style: TextStyle(color: Color(0xffF57572), fontSize: 13))
+                      child: Text(widget.title, style: TextStyle(color: Color(0xffF57572), fontSize: 13))
                     ),
                   )
                 ],
@@ -328,9 +329,9 @@ class _CustomDialogWsState extends State<CustomDialogWs> {
                      },
                      child: Container(
                        decoration: BoxDecoration(
-                         color: Color(0xff1890FF),
+                         color: Utils.getPrimaryColor(),
                          border: Border.all(
-                           color: Color(0xff1890FF),
+                           color: Utils.getPrimaryColor(),
                            width: 1,
                            ),
                            borderRadius: BorderRadius.circular(5),

@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/friends/custom_friend_dialog.dart';
 import 'package:workcake/components/friends/friends_desktop.dart';
 import 'package:workcake/emoji/emoji.dart';
@@ -84,6 +85,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
     final auth = Provider.of<Auth>(context);
     final friendList = Provider.of<User>(context, listen: true).friendList;
     final pendingUsers = Provider.of<User>(context, listen: true).pendingList;
+    // final sendingUsers = Provider.of<User>(context,listen: true).sendingList;
 
     sendFriendRequest() async {
       final usernameTag = controller.text;
@@ -102,6 +104,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
         return Stack(
           children: [
             Container(
+
               color: isDark ? Color(0xFF2e2e2e) : Color(0xFFF3F3F3),
               child: Column(
                 children: [
@@ -138,69 +141,84 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                     ],)
                   ),
                   SizedBox(height: 16,),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: (){
-                          setState(() {
-                            selectedSearch = !selectedSearch;
-                          });
-                        },
-                        child: Center(
-                          child: selectedSearch ? Container(
-                            width: 128,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: Color(0xff1890FF),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: HoverItem(
-                              colorHover: Color(0xffD9D9D9).withAlpha(20) ,
-                              child: Center(child: Text("Add Friend", style: TextStyle(fontSize: 14,color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)
-                           )),
-                            ),
-                          ): Container(
-                            width: 128,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              color: isDark ? Color(0xff505050) : Color.fromARGB(255, 211, 207, 207),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: HoverItem(
-                              colorHover: isDark ? Color(0xffD9D9D9).withAlpha(20) : Color.fromARGB(255, 199, 195, 195),
-                              child: Center(child: Text("Add Friend", style: TextStyle(fontSize: 14,color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)
-                           )),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: 16,),
-                      InkWell(
-                        onTap: () => setState(() {
-                         selectedFriendRequest = !selectedFriendRequest;
-                          
-                        }),
-                        child: Container(
-                          width: 128,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: isDark ? Color(0xff505050) : Color.fromARGB(255, 211, 207, 207),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          // padding: EdgeInsets.symmetric(vertical: 8,horizontal: 26),
-                          child: HoverItem(
-                            colorHover: isDark ? Color(0xffD9D9D9).withAlpha(20) : Color.fromARGB(255, 199, 195, 195),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: (){
+                              setState(() {
+                                selectedSearch = !selectedSearch;
+                              });
+                            },
                             child: Center(
-                              child: Text(
-                                " Request (${pendingUsers.length.toString()})",
-                                style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
-                               ),
+                              child: selectedSearch ? Container(
+                                decoration: BoxDecoration(
+                                  color: Utils.getPrimaryColor(),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                child: HoverItem(
+                                  colorHover: Color(0xffD9D9D9).withAlpha(20) ,
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 10),
+                                    child: Center(child: Text("Add Friend", style: TextStyle(fontSize: 14,color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)
+                               )),
+                                  ),
+                                ),
+                              ): Container(
+                                decoration: BoxDecoration(
+                                  color: isDark ? Color(0xff505050) : Color.fromARGB(255, 211, 207, 207),
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                                child: HoverItem(
+                                  colorHover: isDark ? Color(0xffD9D9D9).withAlpha(20) : Color.fromARGB(255, 199, 195, 195),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 10),
+                                    child: Center(child: Text("Add Friend", style: TextStyle(fontSize: 14,color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)
+                               )),
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      )
-                    ],
+                        SizedBox(width: 16,),
+                        Expanded(
+                          child: InkWell(
+                            onTap: pendingUsers.length > 0 ? () => setState(() {selectedFriendRequest = !selectedFriendRequest;}) : null,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xff505050) : Color.fromARGB(255, 211, 207, 207),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              // padding: EdgeInsets.symmetric(vertical: 8,horizontal: 26),
+                              child: HoverItem(
+                                colorHover: pendingUsers.length > 0 ? Palette.hoverColorDefault : null, radius: 4.0, isRound: true,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 10),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        " Request",
+                                        style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                                       ),
+                                       SizedBox(width: 2,),
+                                       Text(
+                                        "(${pendingUsers.length.toString()})",
+                                        style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 11.5),
+                                       ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
                   ),
                   selectedSearch ? Container(
                     margin: EdgeInsets.only(left: 14,right: 14,top: 20,bottom: 6),
@@ -216,18 +234,23 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                       children: [
                         Expanded(
                           child: Container(
-                            child: TextField(
-                              focusNode: FocusNode(),
-                              controller: controller,
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                errorBorder: InputBorder.none,
-                                disabledBorder: InputBorder.none,
-                                contentPadding: EdgeInsets.only(left: 10, bottom: 8, top: 8, right: 15),
-                                hintText: "Enter a Username#0000",
-                                hintStyle: TextStyle(fontSize: 14.0, color: isDark ? Colors.white24 : Color.fromRGBO(0, 0, 0, 0.30))
+                            child: Focus(
+                              onFocusChange: (value) {
+                                Provider.of<Windows>(context, listen: false).isOtherFocus = value;
+                              },
+                              child: TextField(
+                                focusNode: FocusNode(),
+                                controller: controller,
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  errorBorder: InputBorder.none,
+                                  disabledBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.only(left: 10, bottom: 8, top: 8, right: 15),
+                                  hintText: "Enter a Username#0000",
+                                  hintStyle: TextStyle(fontSize: 14.0, color: isDark ? Colors.white24 : Color.fromRGBO(0, 0, 0, 0.30))
+                                ),
                               ),
                             ),
                           ),
@@ -248,7 +271,13 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 18,vertical: 8),
-                            child: Row(children: [Text("All friend (${friendList.length})",style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: isDark ? Colors.white70 : Color(0xff2E2E2E)))],),
+                            child: Row(
+                              children: [
+                                Text("All friends",style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: isDark ? Colors.white70 : Color(0xff2E2E2E))),
+                                SizedBox(width: 2,),
+                                Text("(${friendList.length})",style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: isDark ? Colors.white70 : Color(0xff2E2E2E)))
+                              ],
+                            ),
                           ),
                           ListFriends(friendList: sortTimeList(friendList), auth: auth, widget: widget, isRequest: false,),
                         ],
@@ -305,9 +334,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                     ),
                     Expanded(
                       child: Container(
-                        margin: EdgeInsets.only(top: 10),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
@@ -327,17 +354,72 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                                 ),
                                 Row(
                                   children: [
-                                    Text("Friend Request (${pendingUsers.length.toString()})", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                                    Text("Friend Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                                    SizedBox(width: 3,),
+                                    Text("(${pendingUsers.length.toString()})", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
                                   ],
                                 ),
                               ],
                             ),
-                            SizedBox(height: 10,),
-                            ListFriends(friendList: pendingUsers, auth: auth, widget: widget, isRequest: true),
+                            pendingUsers.length > 0 ? ListFriends(friendList: pendingUsers, auth: auth, widget: widget, isRequest: true): Container(
+                              height: 60,
+                              margin: EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.symmetric(horizontal: 44, vertical: 22),
+                              decoration: BoxDecoration(
+                                color: isDark ? Palette.backgroundRightSiderDark : Palette.topicTile,
+                                borderRadius: BorderRadius.all(Radius.circular(2))
+                              ),
+                              child: Text(
+                                'No Incoming Friend Request ....',
+                                style: TextStyle(
+                                  color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                  fontSize: 13.5
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           ],
-                        )
+                        ),
                       ),
-                    )
+                    ),
+
+                    // Expanded(
+                    //   child: Container(
+                    //     child: Column(
+                    //       children: [
+                    //         Row(
+                    //           children: [
+                    //             SizedBox(width: 20,),
+                    //             Icon(PhosphorIcons.userPlus,size: 20,),
+                    //             SizedBox(width: 14,),
+                    //             Text("Outgoing Friend Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                    //           ],
+                    //         ),
+                    //         SizedBox(height: 10,),
+                    //         sendingUsers.length > 0 ? 
+                    //         ListFriends(friendList: sendingUsers, auth: auth, widget: widget, isRequest: true)
+                    //         :Container(
+                    //           height: 60,
+                    //           margin: EdgeInsets.only(bottom: 12),
+                    //           padding: EdgeInsets.symmetric(horizontal: 44, vertical: 22),
+                    //           decoration: BoxDecoration(
+                    //             color: isDark ? Palette.backgroundRightSiderDark : Palette.topicTile,
+                    //             borderRadius: BorderRadius.all(Radius.circular(2))
+                    //           ),
+                    //           child: Text(
+                    //             'No Outgoing Friend Request ....',
+                    //             style: TextStyle(
+                    //               color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                    //               fontSize: 13.5
+                    //             ),
+                    //             textAlign: TextAlign.center,
+                    //           ),
+                    //         ),
+                    //       ],
+                    //     ),
+                    //   ),
+                    // ),
+
                   ],
                 ),
               ),

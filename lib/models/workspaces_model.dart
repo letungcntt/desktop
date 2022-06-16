@@ -608,13 +608,17 @@ class Workspaces with ChangeNotifier {
     }
   }
 
-  updateWorkspaceMember(data) {
+  updateWorkspaceMember(bool isProFile ,data) {
     final index = members.indexWhere((e) => e["id"] == data["user_id"]);
     if(index != -1) {
-      members[index]["avatar_url"] = data["avatar_url"];
-      members[index]["full_name"] = data["full_name"];
-    }
-
+        if(isProFile) {
+          members[index]["avatar_url"] = data["avatar_url"];
+          members[index]["full_name"] = data["full_name"];
+        } else {
+          members[index]["role_id"] = data["role_id"];
+          members[index]["nickname"] = data["nickname"];
+        }
+      }
     notifyListeners();
   }
   // can xu ly cho truowng hop ko trong workspace, nhuwg co mention => data.length > 0 => ko goi api

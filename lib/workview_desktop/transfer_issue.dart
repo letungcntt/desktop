@@ -67,7 +67,7 @@ class _TransferIssueState extends State<TransferIssue> {
     final channels = data.where((e) => e["workspace_id"] == currentWorkspace["id"] && (widget.issue["id"] != null && e["id"] != widget.issue["channel_id"])).toList();
 
     return HoverItem(
-      colorHover: isDark ? Color(0xff323F4B): Colors.grey[100],
+      colorHover: isDark ? Colors.white.withOpacity(0.15): Colors.grey[100],
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: InkWell(
@@ -81,17 +81,22 @@ class _TransferIssueState extends State<TransferIssue> {
                       elevation: 0,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isDark ? Color(0xff1F2933) : Colors.white,
+                          color: isDark ? Color(0xff3D3D3D) : Color(0xfffffffff),
+                          borderRadius: BorderRadius.circular(5)
                         ),
                         width: 460,
-                        height: 400,
+                        height: 215,
                         child: Column(
                           children: [
                             Container(
-                                color: Color(0xff52606D),
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                                borderRadius: BorderRadius.only(
+                                  topRight: Radius.circular(5),
+                                  topLeft: Radius.circular(5),
+                                ),
+                              ),
                               padding: EdgeInsets.only(
-                                top: 8.0,
-                                bottom: 8.0,
                                 left: 20.0
                               ),
                               child: Row(
@@ -99,35 +104,43 @@ class _TransferIssueState extends State<TransferIssue> {
                                 children: [
                                   Text(
                                     "Transfer this issue", 
-                                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Colors.white.withOpacity(0.85))
+                                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: isDark ? Colors.white.withOpacity(0.85) : Color(0xff3D3D3D))
                                   ),
-                                  IconButton(
-                                    splashColor: Colors.transparent,
-                                    focusColor: Colors.transparent,
-                                    highlightColor: Colors.transparent,
-                                    hoverColor: Colors.transparent,
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                    },
-                                    icon: Icon(Icons.close, size: 16, color: Colors.white,)
+                                  HoverItem(
+                                    colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
+                                    child: IconButton(
+                                      splashColor: Colors.transparent,
+                                      focusColor: Colors.transparent,
+                                      highlightColor: Colors.transparent,
+                                      hoverColor: Colors.transparent,
+                                      onPressed: () {
+                                        Navigator.pop(context);
+                                      },
+                                      icon: Icon(Icons.close, size: 16, color: isDark ? Colors.white : Color(0xff3D3D3D),)
+                                    ),
                                   )
                                 ],
                               )
+                            ),
+                            Container(
+                              height: 1,
+                              color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 Container(
                                   padding: EdgeInsets.all(6),
-                                  margin: EdgeInsets.symmetric(vertical: 20, horizontal: 18),
+                                  margin: EdgeInsets.only(top: 39, left: 18, right: 18, bottom: 39),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Colors.grey[300]!, width: 1),
-                                    borderRadius: BorderRadius.circular(3)
+                                    border: Border.all(color: isDark ? Color(0xff9E9696) : Color(0xffA6A6A6), width: 1),
+                                    borderRadius: BorderRadius.circular(4)
                                   ),
-                                  width: 178,
+                                  width: 225,
                                   child: DropdownButton<String>(
                                     hint: Text("Choose a channel"),
-                                    dropdownColor: isDark ? Color(0xff1F2933) : Color(0xffF5F7FA),
+                                    dropdownColor: isDark ? Color(0xff3D3D3D) : Color(0xffF5F7FA),
+                                    borderRadius: BorderRadius.circular(5),
                                     isDense: true,
                                     underline: Container(),
                                     // alignment: AlignmentDirectional.centerStart,
@@ -138,7 +151,7 @@ class _TransferIssueState extends State<TransferIssue> {
                                         return HoverItem(
                                           colorHover: null,
                                           child: Container(
-                                            width: 140,
+                                            width: 185,
                                             child: Text(
                                               "${channel["name"]}",
                                               overflow: TextOverflow.ellipsis,
@@ -151,9 +164,7 @@ class _TransferIssueState extends State<TransferIssue> {
                                     items: channels.map((var channel) {
                                       return DropdownMenuItem<String>(
                                         // alignment: AlignmentDirectional.centerStart,
-                                        child: Container(
-                                          child: Text("${channel["name"]}")
-                                        ),
+                                        child: Text("${channel["name"]}"),
                                         value: channel["id"].toString(),
                                       );
                                     }).toList(),
@@ -162,7 +173,7 @@ class _TransferIssueState extends State<TransferIssue> {
                               ],
                             ),
                             Container(
-                              margin: EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+                              margin: EdgeInsets.only( left: 18, right: 18, ),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(3)
                               ),
@@ -178,7 +189,7 @@ class _TransferIssueState extends State<TransferIssue> {
                                   style: TextStyle(fontSize: 15, color: selectedItem == null ? Color(0xff9AA5B1) : Colors.white),
                                 ),
                                 style: ButtonStyle(
-                                  backgroundColor: selectedItem == null ? isDark ? MaterialStateProperty.all(Color(0xff616E7C)) : MaterialStateProperty.all(Color(0xffE4E7EB)) : MaterialStateProperty.all(Color(0xff2A5298))
+                                  backgroundColor: selectedItem == null ? isDark ? MaterialStateProperty.all(Color(0xff5E5E5E)) : MaterialStateProperty.all(Color.fromARGB(255, 203, 206, 209)) : MaterialStateProperty.all(Color(0xff1888C7))
                                 ),
                               )
                             )

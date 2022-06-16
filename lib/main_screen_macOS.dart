@@ -15,18 +15,18 @@ import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/update_services.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/ResponseSideBar.dart';
 import 'package:workcake/components/apps/app_screen_macOS.dart';
 import 'package:workcake/components/main_menu/file.dart';
 import 'package:workcake/components/main_menu/task_download.dart';
 import 'package:workcake/components/message_item/attachments/text_file.dart';
+import 'package:workcake/components/responsesizebar_widget.dart';
 import 'package:workcake/components/right_sider.dart';
 import 'package:workcake/components/saved_items/saved_messages.dart';
 import 'package:workcake/components/search_bar_navigation.dart';
 import 'package:workcake/models/models.dart';
 import 'package:workcake/services/socket.dart';
-import 'components/call_center/call_view.dart';
 import 'components/notification_macOS.dart';
 import 'components/notify_focus_app.dart';
 import 'components/profile/edit_profile_dialog.dart';
@@ -75,7 +75,6 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
       subscriptionNetwork = Connectivity().onConnectivityChanged.listen(_handleChangeConnect);
     });
     FocusInputStream.instance.initObject();
-    Provider.of<P2PModel>(context, listen: false).initStartCallback();
     socketListener();
   }
 
@@ -256,8 +255,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
   Widget build(BuildContext context) {
     final isDark = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
     final currentUser = Provider.of<User>(context).currentUser;
-    final tab = Provider.of<Workspaces>(context, listen: false).tab;
-    final state = Provider.of<P2PModel>(context, listen: true).state;
+    final tab = Provider.of<Workspaces>(context, listen: true).tab;
     final pendingUsers = Provider.of<User>(context, listen: true).pendingList;
     final showFriends = Provider.of<Channels>(context, listen: true).showFriends;
     super.build(context);
@@ -434,8 +432,11 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                     children: <Widget>[
                       NotificationMacOS(),
                       NotifyFocusApp(),
-                      ResponseSideBar(
-                        dragAtLeft: false,
+                      ResponseSidebarItem(
+                        separateSide: "right",
+                        constraints: BoxConstraints(maxWidth: 1000, minWidth: 240),
+                        itemKey: 'leftSider',
+                        zeroSize: 70,
                         child: Container(
                           decoration: BoxDecoration(
                             color: Palette.backgroundTheardDark,
@@ -461,9 +462,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                                           padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
                                         ),
                                         child: SvgPicture.asset('assets/icons/ArchiveBox.svg'),
-                                        onPressed: () {
-                                          onUpdate(true);
-                                        }
+                                        onPressed: () => UpdateServices.checkForUpdate()
                                       ),
                                       // TextButton(
                                       //   style: ButtonStyle(
@@ -480,7 +479,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                                           overlayColor: MaterialStateProperty.all(Palette.hoverColorDefault),
                                           padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
                                         ),
-                                        child: SvgPicture.asset('assets/icons/file.svg'),
+                                        child: SvgPicture.asset('assets/icons/FM1.svg'),
                                         onPressed: () async {
                                           openDrawer("file");
                                         }
@@ -525,7 +524,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                               Expanded(
                                 child: Stack(
                                   children: [
-                                      Provider.of<Workspaces>(context, listen: true).tab != 0
+                                      tab != 0
                                         ? WorkspaceMessagesViewMacOs(openDrawer: openDrawer)
                                         : DirectMessagesViewMacOS(),
                                     Positioned(
@@ -552,7 +551,6 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
               ),
             ],
           ),
-          if (state == CallState.CallStateConnected || state == CallState.CallStateRinging) CallLayout()
         ],
       )
     );
@@ -560,13 +558,28 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
   @override
   bool get wantKeepAlive => true;
 }
-class WindowButtons extends StatelessWidget{
+class WindowButtons extends StatefulWidget{
+  @override
+  State<WindowButtons> createState() => _WindowButtonsState();
+}
+
+class _WindowButtonsState extends State<WindowButtons> {
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         SizedBox(width: 38, child: MinimizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.white))),
-        SizedBox(width: 38, child: MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.white))),
+        SizedBox(width: 38, child: appWindow.isMaximized ?
+          RestoreWindowButton(colors: WindowButtonColors(iconNormal: Colors.white),
+           onPressed: () => setState((){
+             appWindow.maximizeOrRestore();
+           }),
+          )
+          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]), 
+            onPressed: () => setState(() {
+              appWindow.maximizeOrRestore();
+            }))
+          ),
         SizedBox(width: 38, child: CloseWindowButton(colors: WindowButtonColors(iconNormal: Colors.white, mouseOver: Colors.red)))
       ],
     );
@@ -925,9 +938,4 @@ class _LeftSiderState extends State<LeftSider> {
       ),
     );
   }
-}
-
-onUpdate(bool arg){
-  MethodChannel _channel = MethodChannel("update");
-  _channel.invokeMethod("get_update", arg);
 }

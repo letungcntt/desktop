@@ -18,7 +18,6 @@ import 'package:workcake/components/crop_image_dialog.dart';
 import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/login_macOS.dart';
 import 'package:workcake/models/models.dart';
 
 class EditProfileDialog extends StatefulWidget {
@@ -936,15 +935,16 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                     ),
                     onPressed: () async {
                       // try {
+                        Navigator.pop(context);
                         await Provider.of<Auth>(context, listen: false).logout();
                         await Provider.of<Workspaces>(context, listen: false).resetData();
                         await Provider.of<DirectMessage>(context, listen: false).resetData();
                         await Provider.of<Channels>(context, listen: false).openChannelSetting(false);
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LoginMacOS()
-                          ));
+                        // await Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //     builder: (context) => LoginMacOS()
+                        //   ));
                       // } catch (e) {
                       //   print(e);
                       // }
@@ -1019,25 +1019,19 @@ class _UploadIconState extends State<UploadIcon> {
 
       if(resultList.length > 0) {
         final image = resultList[0];
-        if (image["file"].lengthInBytes > 10000000) {
-          showDialog(
-            context: context, 
-            builder: (BuildContext context){
-              return Dialog(
-                child: CropImageDialog(image: image, token: auth.token, workspaceId: workspaceId),
-              );
-            }
-          );
-        } else {
-          showDialog(
-            context: context, 
-            builder: (BuildContext context){
-              return Dialog(
-                child: CropImageDialog(image: image, token: auth.token, workspaceId: workspaceId),
-              );
-            }
-          );
-        }
+        showDialog(
+          context: context, 
+          builder: (BuildContext context){
+            return Dialog(
+              child: CropImageDialog(
+                image: image,
+                onCropped: (uploadFile) {
+                  Provider.of<User>(context, listen: false).uploadAvatar(auth.token, workspaceId, uploadFile, "image");
+                }
+              ),
+            );
+          }
+        );
       }
     } on Exception catch (e) {
       print("$e Cancel");
@@ -1062,7 +1056,7 @@ class _UploadIconState extends State<UploadIcon> {
           shape: BoxShape.circle,
         ),
         child: IconButton(
-          onPressed: (){
+          onPressed: () {
             openFileSelector(workspaceId);
           },
           icon: SvgPicture.asset('assets/icons/camera_icon.svg', color: widget.isDark ? Palette.defaultTextDark : Palette.fillerText)

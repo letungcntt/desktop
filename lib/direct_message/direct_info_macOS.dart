@@ -1,16 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
+import 'package:http/http.dart' as http;
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/channels/channel_member.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/create_direct_message.dart';
+import 'package:workcake/components/crop_image_dialog.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/components/custom_dialog.dart';
 import 'package:workcake/components/message_item/attachments/text_file.dart';
@@ -75,6 +80,68 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
     setState((){
       selectedFile = !selectedFile;
     });
+  }
+
+  updateAvatarGroup(uploadFile) async{
+    final auth = Provider.of<Auth>(context, listen: false);
+
+    final body = {
+      "file": uploadFile,
+      "content_type": 'image'
+    };
+
+    final urlUploadImage = Utils.apiUrl + 'workspaces/0/contents?token=${auth.token}';
+    try {
+      final response = await http.post(Uri.parse(urlUploadImage), headers: Utils.headers, body: json.encode(body));
+      final responseData = json.decode(response.body);
+      final avatarUrl = responseData["content_url"];
+
+      if (responseData["success"] == true) {
+        final DirectModel directMessage = Provider.of<DirectMessage>(context, listen: false).directMessageSelected;
+        LazyBox box  = Hive.lazyBox('pairKey');
+
+        final urlUploadAvatarGroupDM = "${Utils.apiUrl}direct_messages/${directMessage.id}/update_dm?token=${auth.token}&device_id=${await box.get("deviceId")}";
+        Dio().post(urlUploadAvatarGroupDM, data: {"data":  await Utils.encryptServer({"avatar_url": avatarUrl})});
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  openFileSelector() async {
+    List resultList = [];    
+    try {
+      var myMultipleFiles =  await Utils.openFilePicker([
+        XTypeGroup(
+          extensions: ['jpg', 'jpeg', 'png'],
+        )
+      ]);
+      for (var e in myMultipleFiles) {
+        Map newFile = {
+          "name": e["name"],
+          "file": e["file"],
+          "path": e["path"]
+        };
+        resultList.add(newFile);
+      }
+
+      if(resultList.length > 0) {
+        final image = resultList[0];
+        showDialog(
+          context: context, 
+          builder: (BuildContext context){
+            return Dialog(
+              child: CropImageDialog(
+                image: image,
+                onCropped: updateAvatarGroup
+              ),
+            );
+          }
+        );
+      }
+    } on Exception catch (e) {
+      print("$e Cancel");
+    }
   }
 
   @override
@@ -167,8 +234,48 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                 ) : Column(
                   children: [
                     Container(
-                      padding: EdgeInsets.only(top: 16, bottom: 12, left: 52),
-                      child: ListMember()
+                      padding: EdgeInsets.only(top: 14),
+                      child: directMessage.avatarUrl != null ? Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              border: Border(
+                                left: BorderSide(color: isDark ? Colors.transparent : Color(0xffE4E7EB), width: 0.5)
+                              )
+                            ),
+                            padding: const EdgeInsets.only(top: 4),
+                            child: CachedImage(
+                              directMessage.avatarUrl,
+                              width: 132,
+                              height: 132,
+                              radius: 66,
+                              name: directMessage.name,
+                              fontSize: 20
+                            )
+                          ),
+                          Positioned(
+                            left: 100,
+                            bottom: 98,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Palette.borderSideColorDark : Color(0xffEDEDED),
+                                borderRadius: const BorderRadius.all(Radius.circular(16))
+                              ),
+                              child: HoverItem(
+                                colorHover: Palette.hoverColorDefault,
+                                isRound: true, radius: 16.0,
+                                child: InkWell(
+                                  onTap: () => openFileSelector(),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(7),
+                                    child: Icon(PhosphorIcons.cameraThin, color: isDark ? Colors.grey[200] : Colors.grey[800], size: 18)
+                                  ),
+                                ),
+                              ),
+                            )
+                          )
+                        ],
+                      ) : ListMember()
                     ),
                     Container(
                       padding: EdgeInsets.symmetric(horizontal: 32),
@@ -186,7 +293,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                               ), overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          SizedBox(width: 4),
+                          SizedBox(width: 2),
                           HoverItem(
                             colorHover: Palette.hoverColorDefault,
                             isRound: true, radius: 4.0,
@@ -197,7 +304,18 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                                 child: SvgPicture.asset('assets/icons/EditButton.svg', color: isDark ? Colors.grey[200] : Colors.grey[800])
                               ),
                             ),
-                          )
+                          ),
+                          if(directMessage.avatarUrl == null) HoverItem(
+                            colorHover: Palette.hoverColorDefault,
+                            isRound: true, radius: 4.0,
+                            child: InkWell(
+                              onTap: () => openFileSelector(),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(PhosphorIcons.cameraThin, color: isDark ? Colors.grey[200] : Colors.grey[800], size: 18)
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     )
@@ -257,10 +375,10 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.person_add_alt_1_sharp,
+                                  SvgPicture.asset(
+                                    'assets/icons/Invite.svg',
                                     color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                                    size: 18.0,
+                                    width: 16.0, height: 16.0,
                                   ),
                                   SizedBox(width: 8),
                                   Text(directMessage.user.length > 2 ? 'Invite people' : S.current.createGroup, style: TextStyle(color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark)),
@@ -278,12 +396,12 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                         }),
                       ),
                       SizedBox(height: 12),
-                      if(users.length > 2) Container(
+                      Container(
                         padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Divider(height: 0.5)
                       ),
                       SizedBox(height: 24),
-                      if(users.length > 2) Container(
+                      Container(
                         margin: EdgeInsets.symmetric(horizontal: 16),
                         child: ListAction(
                           action: '', radius: 4.0, isRound: true,  isDark: isDark,
@@ -299,7 +417,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(S.current.leaveGroup, style: TextStyle(color: Color(0xffEF5350))),
+                                  Text(users.length > 2 ? S.current.leaveGroup : 'Leave conversation', style: TextStyle(color: Color(0xffEF5350))),
                                   SvgPicture.asset('assets/icons/LeaveChannel.svg', width: 18, color: Colors.red)
                                 ],
                               )
@@ -337,12 +455,14 @@ class ListMember extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final DirectModel directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
-    final users = directMessage.user;
+    // .getUser() de lay tat ca nguoi dang trong hoi thoaij
+    // .user lay tat ca nguoi dung (trong ht va da roi hoi thoai)
+    final users = directMessage.getUser();
     final isDark = Provider.of<Auth>(context).theme == ThemeType.DARK;
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 12),
-      width: users.length > 3 ? 400 : 240,
+      width: users.length > 3 ? 280 : 240,
       height: 100,
       child: Stack(
         alignment: AlignmentDirectional.centerStart,
@@ -594,7 +714,7 @@ class _MembersTileState extends State<MembersTile> {
   Widget build(BuildContext context) {
     final currentUser = Provider.of<User>(context, listen: true).currentUser;
     final DirectModel directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
-    final users = directMessage.user;
+    final users = directMessage.getUser();
 
     return open == null ? Container() : ExpansionTile(
       childrenPadding: EdgeInsets.symmetric(horizontal: 16),
@@ -751,8 +871,7 @@ showInputDialog(context) {
       return Navigator.pop(context);
     }
     LazyBox box  = Hive.lazyBox('pairKey');
-    final url =
-        "${Utils.apiUrl}direct_messages/${directMessage.id}/update?token=$token&device_id=${await box.get("deviceId")}";
+    final url = "${Utils.apiUrl}direct_messages/${directMessage.id}/update?token=$token&device_id=${await box.get("deviceId")}";
     try {
       var response = await Dio().post(url, data: {"data":  await Utils.encryptServer({"name": value})});
       var dataRes = response.data;
@@ -768,7 +887,8 @@ showInputDialog(context) {
           directMessage.archive, 
           directMessage.updateByMessageTime,
           directMessage.userRead,
-          directMessage.displayName
+          directMessage.displayName,
+          directMessage.avatarUrl
         );
         Provider.of<DirectMessage>(context, listen: false).setSelectedDM(newD, token);
       }
@@ -797,9 +917,10 @@ inviteDirectModel(context, directMessage) {
       context: context, 
       builder: (BuildContext context){
         return AlertDialog(
+          contentPadding: EdgeInsets.zero,
           content: Container(
-            height: 600.0,
-            width: 500.0,
+            height: 700.0,
+            width: 550.0,
             child: CreateDirectMessage(
               defaultList: directMessage.user.map((ele) => Utils.mergeMaps([
                 ele, {"id": ele["user_id"]}
@@ -814,7 +935,7 @@ inviteDirectModel(context, directMessage) {
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        backgroundColor: isDark ? Color(0xFF36393f) : Colors.white,
+        backgroundColor: isDark ? Color(0xFF3D3D3D) : Colors.white,
         contentPadding: EdgeInsets.all(0),
         content: Container(
           height: 600.0,

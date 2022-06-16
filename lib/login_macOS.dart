@@ -88,11 +88,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
       form!.save();
       
       if (form.validate()) {
-        final data = await Provider.of<Auth>(context, listen: false).loginUserPassword(_emailController.text, _passwordController.text, context);
-
-        if (data == true) {
-          await Navigator.of(context).pushNamedAndRemoveUntil("/main_screen_macOS", (Route<dynamic> route) => false);
-        }
+        await Provider.of<Auth>(context, listen: false).loginUserPassword(_emailController.text, _passwordController.text, context);
       }
       setState(() {
         loginProcess = false;
@@ -322,14 +318,29 @@ class _LoginMacOSState extends State<LoginMacOS> {
   }
 }
 
-class WindowButtons extends StatelessWidget{
+class WindowButtons extends StatefulWidget{
+  @override
+  State<WindowButtons> createState() => _WindowButtonsState();
+}
+
+class _WindowButtonsState extends State<WindowButtons> {
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(width: 30,child: MinimizeWindowButton( colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]))),
-        SizedBox(width: 30,child: MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]))),
-        SizedBox(width: 30,child: CloseWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400])))
+        SizedBox(width: 38, child: MinimizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.white))),
+        SizedBox(width: 38, child: appWindow.isMaximized ?
+          RestoreWindowButton(colors: WindowButtonColors(iconNormal: Colors.white),
+           onPressed: () => setState((){
+             appWindow.maximizeOrRestore();
+           }),
+          )
+          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]), 
+            onPressed: () => setState(() {
+              appWindow.maximizeOrRestore();
+            }))
+          ),
+        SizedBox(width: 38, child: CloseWindowButton(colors: WindowButtonColors(iconNormal: Colors.white, mouseOver: Colors.red)))
       ],
     );
   }

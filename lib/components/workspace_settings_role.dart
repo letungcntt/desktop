@@ -344,9 +344,9 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                                 margin: EdgeInsets.symmetric(vertical: 12),
                                 padding: EdgeInsets.only(top: 5, bottom: 5, left: 16, right: 16),
                                 decoration: BoxDecoration(
-                                  color: Color(0xff1890FF),
+                                  color: Utils.getPrimaryColor(),
                                   border: Border.all(
-                                    color: Color(0xff1890FF)
+                                    color: Utils.getPrimaryColor()
                                   ),
                                   borderRadius: BorderRadius.all(Radius.circular(2))
                                 ),

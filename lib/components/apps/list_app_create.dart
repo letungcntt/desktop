@@ -140,7 +140,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(
-                              color: highLight ? isDark ?Color(0xffFAAD14) :Color(0xff1890FF)  : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                              color: highLight ? isDark ?Color(0xffFAAD14) :Utils.getPrimaryColor()  : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                               width: 1,
                             ),
                           ),
@@ -247,7 +247,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(
-                              color: highLightbankapp ? isDark ?Color(0xffFAAD14) :Color(0xff1890FF) : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                              color: highLightbankapp ? isDark ?Color(0xffFAAD14) :Utils.getPrimaryColor() : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                               width: 1,
                             ),
                           ),
@@ -309,7 +309,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                                 margin: EdgeInsets.only(bottom: 27),
                                 color: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),
                                 child: HoverItem(
-                                  colorHover: isDark ? Color(0xffFAAD14) :Color(0xff1890FF),
+                                  colorHover: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),
                                   child: TextButton(
                                     style: ButtonStyle(
                                       shape: MaterialStateProperty.all(
@@ -347,7 +347,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(
-                              color: highLightcustomapp ? isDark ?Color(0xffFAAD14) :Color(0xff1890FF) : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                              color: highLightcustomapp ? isDark ?Color(0xffFAAD14) :Utils.getPrimaryColor() : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                               width: 1,
                             ),
                           ),
@@ -408,7 +408,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                                 margin: EdgeInsets.only(bottom: 27),
                                 color: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),
                                 child: HoverItem(
-                                  colorHover: isDark ? Color(0xffFAAD14) :Color(0xff1890FF),
+                                  colorHover: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),
                                   child: TextButton(
                                     style: ButtonStyle(
                                       shape: MaterialStateProperty.all(

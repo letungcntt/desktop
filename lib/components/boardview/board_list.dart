@@ -10,7 +10,6 @@ import 'package:workcake/models/models.dart';
 
 import 'board_item.dart';
 import 'boardview.dart';
-import 'create_card_modal.dart';
 
 typedef void OnDropList(int? listIndex,int? oldListIndex);
 typedef void OnTapList(int? listIndex);
@@ -82,18 +81,6 @@ class BoardListState extends State<BoardList> with AutomaticKeepAliveClientMixin
     }
   }
 
-  showDialogCreateCard(context) {
-    final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
-    final listCardId = selectedBoard["list_cards"][widget.index]["id"];
-    
-    showDialog(context: context, builder: (BuildContext context) {
-      return Dialog(
-        insetPadding: EdgeInsets.all(0),
-        child: CreateCard(listCardId: listCardId)
-      );
-    });
-  }
-
   @override
   bool get wantKeepAlive => true;
 
@@ -120,10 +107,11 @@ class BoardListState extends State<BoardList> with AutomaticKeepAliveClientMixin
   bool onAddCard = false;
   TextEditingController controller = TextEditingController();
   Timer? timer;
+  ScrollController scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+    // final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     List<Widget> listWidgets = [];
 
     if (widget.header != null) {
@@ -172,104 +160,112 @@ class BoardListState extends State<BoardList> with AutomaticKeepAliveClientMixin
     }
     if (widget.items != null) {
       listWidgets.add(Container(
-        child: Flexible(
-            fit: FlexFit.loose,
-            child: Wrap(
-              children: [
-                new ListView.builder(
-                  shrinkWrap: true,
-                  physics: ClampingScrollPhysics(),
-                  controller: boardListController,
-                  itemCount: widget.items!.length,
-                  itemBuilder: (ctx, index) {
-                    if (widget.items![index].boardList == null ||
-                        widget.items![index].index != index ||
-                        widget.items![index].boardList!.widget.index != widget.index 
-                        // || widget.items![index].boardList != this
-                      ) {
-                      widget.items![index] = new BoardItem(
-                        boardList: this,
-                        item: widget.items![index].item,
-                        draggable: widget.items![index].draggable,
-                        index: index,
-                        onDropItem: widget.items![index].onDropItem,
-                        onTapItem: widget.items![index].onTapItem,
-                        onDragItem: widget.items![index].onDragItem,
-                        onStartDragItem: widget.items![index].onStartDragItem,
-                      );
-                    }
-                    if (widget.boardView!.draggedItemIndex == index &&
-                        widget.boardView!.draggedListIndex == widget.index) {
-                      return Opacity(
-                        opacity: 0.0,
-                        child: widget.items![index],
-                      );
-                    } else {
-                      return widget.items![index];
-                    }
-                  },
-                ),
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey[800] : Colors.white,
-                    borderRadius: BorderRadius.circular(3)
-                  ),
-                  margin: EdgeInsets.all(4),
-                  padding: EdgeInsets.all(2),
-                  child: onAddCard ? Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      CupertinoTextField(
-                        padding: EdgeInsets.all(4),
-                        controller: controller,
-                        autofocus: true,
-                        placeholder: "Enter card title",
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(2),
-                          border: Border.all(color: Colors.blueGrey[300]!)
-                        ),
-                        onEditingComplete: () {
-                          if (controller.text.trim() != "") createNewCard(controller.text);
-                        }
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 6),
-                            color: Colors.lightBlue,
-                            child: TextButton(
-                              onPressed: () {
-                                createNewCard(controller.text);
-                              }, 
-                              child: Text("Add card", style: TextStyle(color: Colors.white))
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          InkWell(
-                            onTap: () {
-                              setState(() { onAddCard = false; });
-                            },
-                            child: Icon(Icons.close, color: Colors.grey[600], size: 20)
-                          )
-                        ]
-                      )
-                    ]
-                  ) : TextButton(
-                    onPressed: () {
-                      showDialogCreateCard(context, );
-                      // setState(() { onAddCard = true; });
-                    }, 
-                    child: Text("+ Add a card", style: TextStyle(color: isDark ? Colors.white : Colors.grey[800], fontWeight: FontWeight.w400, fontSize: 13))
-                  )
-                )
-              ]
-            )
-          )
+        padding: EdgeInsets.only(left: 12, right: 12, bottom: 12),
+        child: Wrap(
+          children: [
+            new ListView.builder(
+              shrinkWrap: true,
+              physics: ClampingScrollPhysics(),
+              controller: boardListController,
+              itemCount: widget.items!.length,
+              itemBuilder: (ctx, index) {
+                if (widget.items![index].boardList == null ||
+                    widget.items![index].index != index ||
+                    widget.items![index].boardList!.widget.index != widget.index 
+                    // || widget.items![index].boardList != this
+                  ) {
+                  widget.items![index] = new BoardItem(
+                    boardList: this,
+                    item: widget.items![index].item,
+                    draggable: widget.items![index].draggable,
+                    index: index,
+                    onDropItem: widget.items![index].onDropItem,
+                    onTapItem: widget.items![index].onTapItem,
+                    onDragItem: widget.items![index].onDragItem,
+                    onStartDragItem: widget.items![index].onStartDragItem,
+                  );
+                }
+                if (widget.boardView!.draggedItemIndex == index &&
+                    widget.boardView!.draggedListIndex == widget.index) {
+                  return Opacity(
+                    opacity: 0.0,
+                    child: widget.items![index],
+                  );
+                } else {
+                  return widget.items![index];
+                }
+              },
+            ),
+            // Container(
+            //   width: double.infinity,
+            //   decoration: BoxDecoration(
+            //     color: isDark ? Colors.grey[800] : Colors.white,
+            //     borderRadius: BorderRadius.circular(3)
+            //   ),
+            //   child: onAddCard ? Column(
+            //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //     children: [
+            //       CupertinoTextField(
+            //         padding: EdgeInsets.all(4),
+            //         controller: controller,
+            //         autofocus: true,
+            //         placeholder: "Enter card title",
+            //         decoration: BoxDecoration(
+            //           color: Colors.white,
+            //           borderRadius: BorderRadius.circular(2),
+            //           border: Border.all(color: Colors.blueGrey[300]!)
+            //         ),
+            //         onEditingComplete: () {
+            //           if (controller.text.trim() != "") createNewCard(controller.text);
+            //         }
+            //       ),
+            //       SizedBox(height: 8),
+            //       Row(
+            //         mainAxisAlignment: MainAxisAlignment.start,
+            //         crossAxisAlignment: CrossAxisAlignment.center,
+            //         children: [
+            //           Container(
+            //             color: Colors.lightBlue,
+            //             child: TextButton(
+            //               onPressed: () {
+            //                 createNewCard(controller.text);
+            //               }, 
+            //               child: Text("Add card", style: TextStyle(color: Colors.white))
+            //             ),
+            //           ),
+            //           SizedBox(width: 12),
+            //           InkWell(
+            //             onTap: () {
+            //               setState(() { onAddCard = false; });
+            //             },
+            //             child: Icon(Icons.close, color: Colors.grey[600], size: 20)
+            //           )
+            //         ]
+            //       )
+            //     ]
+            //   ) : InkWell(
+            //     onTap: () {
+            //       setState(() { onAddCard = true; });
+            //     }, 
+            //     child: Container(
+            //       height: 44,
+            //       color: Color(0xff2E2E2E),
+            //       child: Center(
+            //         child: Wrap(
+            //           crossAxisAlignment: WrapCrossAlignment.center,
+            //           children: [
+            //             Icon(PhosphorIcons.plusCircle, size: 18),
+            //             SizedBox(width: 10),
+            //             Text("Add Card", style: TextStyle(color: isDark ? Colors.white : Colors.grey[800], fontWeight: FontWeight.w400, fontSize: 13))
+            //           ],
+            //         ),
+            //       )
+            //     )
+            //   )
+            // )
+          
+          ]
+        )
         )
       );
     }
@@ -289,12 +285,18 @@ class BoardListState extends State<BoardList> with AutomaticKeepAliveClientMixin
     widget.boardView!.listStates.insert(widget.index!, this);
 
     return Container(
-      margin: EdgeInsets.all(8),
-      decoration: BoxDecoration(color: backgroundColor),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: listWidgets,
+      margin: EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4)
+      ),
+      child: SingleChildScrollView(
+        controller: scrollController,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: listWidgets
+        )
       )
     );
   }

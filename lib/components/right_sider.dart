@@ -11,16 +11,15 @@ import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:workcake/channels/channel_info_macOS.dart';
 import 'package:workcake/components/friends/list_friends.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/components/ResponseSideBar.dart';
 import 'package:workcake/components/dropdown_overlay.dart';
 import 'package:workcake/components/filter_mentions.dart';
-import 'package:workcake/components/friends/friends_desktop.dart';
 import 'package:workcake/components/icon_badge.dart';
 import 'package:workcake/components/list_mention_conversation.dart';
 import 'package:workcake/components/list_mentions_desktop.dart';
 import 'package:workcake/components/list_threads_desktop.dart';
 import 'package:workcake/components/message_item/attachments/text_file.dart';
 import 'package:workcake/components/pinned_message_desktop.dart';
+import 'package:workcake/components/responsesizebar_widget.dart';
 import 'package:workcake/components/thread_desktop.dart';
 import 'package:workcake/direct_message/direct_info_macOS.dart' hide MembersTile;
 import 'package:workcake/direct_message/message_view_macOS.dart';
@@ -31,6 +30,7 @@ import 'package:workcake/workspaces/conversation_macOS.dart';
 import 'package:workcake/workview_desktop/create_issue.dart';
 import 'package:workcake/workview_desktop/workview_desktop.dart';
 
+import 'call_center/p2p_manager.dart';
 import 'call_center/room.dart';
 
 class RightSider extends StatefulWidget {
@@ -65,8 +65,14 @@ class _RightSiderState extends State<RightSider> {
     final Map? issuesSelected = Provider.of<Channels>(context, listen: false).issueSelected;
     final bool isShowMention = Provider.of<Auth>(context, listen: false).isShowMention;
     final int tab = Provider.of<Workspaces>(context, listen: false).tab;
+    final bool openSearchbar = Provider.of<Windows>(context, listen: false).openSearchbar;
+    final bool isBlockEscape = Provider.of<Windows>(context, listen: false).isBlockEscape;
 
     if(keyEvent.isKeyPressed(LogicalKeyboardKey.escape) && keyEvent is RawKeyDownEvent) {
+      if(openSearchbar) {
+        Provider.of<Windows>(context, listen: false).openSearchbar = false;
+        return KeyEventResult.ignored;
+      }
       if (issuesSelected != null) {
         final NavigatorState stateNavigator = Navigator.maybeOf(context)!;
         final OverlayState? overlayState = stateNavigator.overlay;
@@ -84,9 +90,9 @@ class _RightSiderState extends State<RightSider> {
         bool isOpenDrawer = (keyScaffold.currentState?.isEndDrawerOpen) ?? false;
         bool isOpenThread = Provider.of<Messages>(context, listen: false).openThread;
         Map messageImage = Provider.of<Messages>(context, listen: false).messageImage;
-        if (isOpenDrawer) {
+        if (isOpenDrawer && !isBlockEscape) {
           Navigator.maybePop(context);
-        } else if (isOpenThread && messageImage['id'] == null) {
+        } else if (isOpenThread && messageImage['id'] == null && !isBlockEscape) {
           Provider.of<Messages>(context, listen: false).openThreadMessage(false, {});
         }
         // 
@@ -117,10 +123,22 @@ class _RightSiderState extends State<RightSider> {
   rightSideInfo(openThread, showDirectSetting, parentMessage , showFriends , showChannelPinned, showChannelMember, showChannelSetting, isDark, deviceHeight) {
     final directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
 
-    return (openThread ||  showChannelSetting || showChannelMember ||showFriends || showChannelPinned) ? ResponseSideBar(
-        maxWidth: 1000,
-        minWidth: 300,
-        dragAtLeft: true,
+    return (openThread || showChannelSetting ||showFriends || showChannelMember || showChannelPinned) ? showFriends ?
+     Container(
+       width: 330,
+       child: ListMemberFriends(isDark: isDark,))
+       :ResponseSidebarItem(
+        itemKey: 'rightSider',
+        separateSide: 'left',
+        canZero: false,
+        constraints: BoxConstraints(minWidth: 300, maxWidth: 700),
+        elevation: 1,
+        callOnRemove: () {
+          Provider.of<Channels>(context, listen: false).openChannelSetting(false);
+          Provider.of<Channels>(context, listen: false).openChannelPinned(false);
+          Provider.of<Channels>(context, listen: false).openChannelMember(false);
+          Provider.of<Messages>(context, listen: false).openThreadMessage(false, {});
+        },
         child: openThread 
           ? ThreadDesktop(parentMessage: parentMessage)
           : Container(
@@ -172,7 +190,6 @@ class _RightSiderState extends State<RightSider> {
   Widget build(BuildContext context) {
     final currentChannel = Provider.of<Channels>(context, listen: true).currentChannel;
     final directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
-    final selectedFriend = Provider.of<DirectMessage>(context, listen: true).selectedFriend;
     final selectedMentionDM = Provider.of<DirectMessage>(context, listen: true).selectedMentionDM;
     var currentTab = Provider.of<Workspaces>(context, listen: true).tab;
     final data = Provider.of<DirectMessage>(context, listen: true).data;
@@ -286,33 +303,39 @@ class _RightSiderState extends State<RightSider> {
                     color: Palette.backgroundRightSiderDark,
                   ),
                   height: 56,
-                  child: selectedTab != "channel"
-                    ? _headerMentionsOrThread()
-                    : Provider.of<Workspaces>(context, listen: false).tab == 0
-                        ? CoverHeaderMenu() : WorkspaceName(),
+                  child: Row(
+                    children: [
+                      ForceShowButtonForItemResponseSidebar(itemKey: 'leftSider'),
+                      Expanded(
+                        child: selectedTab != "channel"
+                        ? _headerMentionsOrThread()
+                        : Provider.of<Workspaces>(context, listen: false).tab == 0
+                            ? CoverHeaderMenu() : WorkspaceName(),
+                      ),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: Container(
                     color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
                     child: currentTab == 0 ?
-                      selectedFriend
-                      ? FriendsDesktop()
-                      :  selectedMentionDM ? SelectableScope(child: ListMentionsConversation())
-                      : (data.length > 0)
-                        ? MessageViewMacOS(
-                          dataDirectMessage: directMessage,
-                          id: directMessage.id,
-                          name: getFieldOfListUser(directMessage.user, "full_name"),
-                          avatarUrl: "",
-                          idMessageToJump: idMessageToJump
-                        ) : Container() : Container(
-                        child: selectedTab == "mention"
-                          ? ListMentionsDesktop()
-                          : selectedTab == "thread"
-                            ? ListThreadsDesktop(workspaceId: currentWorkspace["id"])
-                            : currentChannel["id"] != null
-                              ? ConversationMacOS(id: currentChannel['id'], name: currentChannel['name'])
-                              : Container()
+                      selectedMentionDM
+                        ? SelectableScope(child: ListMentionsConversation())
+                        : (data.length > 0)
+                          ? MessageViewMacOS(
+                            dataDirectMessage: directMessage,
+                            id: directMessage.id,
+                            name: getFieldOfListUser(directMessage.user, "full_name"),
+                            avatarUrl: "",
+                            idMessageToJump: idMessageToJump
+                          ) : Container() : Container(
+                          child: selectedTab == "mention"
+                            ? ListMentionsDesktop()
+                            : selectedTab == "thread"
+                              ? ListThreadsDesktop(workspaceId: currentWorkspace["id"])
+                              : currentChannel["id"] != null
+                                ? ConversationMacOS(id: currentChannel['id'], name: currentChannel['name'])
+                                : Container()
                     )
                   ),
                 ),
@@ -460,37 +483,25 @@ class _WorkspaceNameState extends State<WorkspaceName> {
                   child: HoverItem(
                     colorHover: Palette.hoverColorDefault,
                     child: Container(
-                      width: 36, height: 36,
+                      width: 30, height: 30,
                       child: Transform.rotate(
                         angle: 5.6,
                         child: InkWell(
                           onHover: (hover) => setState(() {
                             tooltipPinButton = hover;
                           }),
-                          onDoubleTap: () async{
+                          onTap: () async{
                             Map member = Map.from(currentMember);
                             member["pinned"] = !member["pinned"];
                             await Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, currentWorkspace["id"], currentChannel["id"], member);
                             await Provider.of<Channels>(context, listen: false).updatePinnedChannel(currentChannel["id"]);
                           },
-                          child: IconButton(
-                            padding: EdgeInsets.only(top: 4),
-                            icon: (currentChannel["pinned"] == true) ? Icon(CupertinoIcons.pin) : Icon(CupertinoIcons.pin_slash),
-                            color: Palette.defaultTextDark,
-                            iconSize: 14,
-                            onPressed: () async {
-                              Map member = Map.from(currentMember);
-                              member["pinned"] = !member["pinned"];
-                              await Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, currentWorkspace["id"], currentChannel["id"], member);
-                              await Provider.of<Channels>(context, listen: false).updatePinnedChannel(currentChannel["id"]);
-                            }
-                          ),
+                          child: Icon(currentChannel["pinned"] == true ? CupertinoIcons.pin : CupertinoIcons.pin_slash, size: 15, color: Palette.topicTile),
                         ),
                       ),
                     ),
                   ),
                 ),
-                SizedBox(width: 4),
                 SimpleTooltip(
                   arrowTipDistance: -5.0,
                   tooltipDirection: TooltipDirection.down,
@@ -510,19 +521,12 @@ class _WorkspaceNameState extends State<WorkspaceName> {
                       onHover: (hover) => setState(() {
                         tooltipInviteMember = hover;
                       }),
-                      onDoubleTap: (){
+                      onTap: (){
                         onShowInviteChannelDialog(context);
                       },
                       child: Container(
-                        width: 36, height: 36,
-                        child: IconButton(
-                          icon: Icon(Icons.person_add_alt_1_sharp ),
-                          color: Color(0xffF0F4F8),
-                          iconSize: 18.5,
-                          onPressed: () {
-                            onShowInviteChannelDialog(context);
-                          }
-                        ),
+                        width: 30, height: 30,
+                        child: Icon(PhosphorIcons.userPlus, size: 17, color: Palette.topicTile),
                       ),
                     )
                   ),
@@ -608,59 +612,6 @@ class _CoverHeaderMenuState extends State<CoverHeaderMenu> {
     return Provider.of<RoomsModel>(context, listen: true).rooms.any((element) => element["id"] == id && element["isActive"] == true);
   }
 
-  Widget _headerMenu(buttonName) {
-    final friendTab = Provider.of<Friend>(context, listen: false);
-
-    return Stack(
-      children: [
-        Container(
-          margin: EdgeInsets.symmetric(horizontal: 5, vertical: 12),
-          padding: EdgeInsets.only(right: buttonName == "Friends" ? 35 : 0),
-          decoration: BoxDecoration(
-            border: buttonName == "Friends" ? Border(right: BorderSide(width: 1, color: Colors.white38)) : Border(),
-            color: buttonName == friendTab.tab && buttonName != "Add friend" ? Colors.green : Colors.transparent
-          ),
-          height: 30,
-          width: buttonName == "Friends" ? 150 : buttonName == "Add friend" ? 110 : 86,
-          child: TextButton(
-            style: ButtonStyle(
-              backgroundColor: MaterialStateProperty.all(buttonName == "Add friend" ? Palette.buttonColor : Color.fromRGBO(0, 0, 0, 0)),
-              overlayColor: MaterialStateProperty.all(Colors.transparent),
-              shadowColor: MaterialStateProperty.all(Color(0xff)),
-            ),
-            onPressed: buttonName != "Friends" ? () async{
-              await Provider.of<DirectMessage>(context, listen: false).onChangeSelectedFriend(true);
-              friendTab.setTab(buttonName);
-            } : null,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: EdgeInsets.only(right: buttonName == "Friends" ? 10 : 0),
-                    child: buttonName == "Friends" ? Icon(CupertinoIcons.person_2, color: Colors.white, size: 18) : null
-                  ),
-                  Text(
-                    '$buttonName',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white
-                    )
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // pendingUsers.length > 0 ? Container() : Positioned(
-        //   right: 0, bottom: 22,
-        //   child: IconBadge()
-        // )
-      ],
-    );
-  }
   @override
   Widget build(BuildContext context) {
     final selectedFriend = Provider.of<DirectMessage>(context, listen: true).selectedFriend;
@@ -685,22 +636,7 @@ class _CoverHeaderMenuState extends State<CoverHeaderMenu> {
                     color: Colors.white
                   ),
                 )
-              )
-              : ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  Container(
-                    padding: EdgeInsets.only(left: 12), 
-                    child: _headerMenu("Friends")
-                  ),
-                  _headerMenu("Online"),
-                  _headerMenu("All"),
-                  // _headerMenu("Pending"),
-                  _headerMenu("Blocked"),
-                  SizedBox(width: 27,),
-                  _headerMenu("Add friend"),
-                ]
-              ),
+              ): Container()
           ),
           if (!selectedFriend && directMessage.user.length == 2) TextButton(
             child: Icon(PhosphorIcons.phoneLight, color: Colors.white, size: 22),
@@ -715,7 +651,7 @@ class _CoverHeaderMenuState extends State<CoverHeaderMenu> {
               if (users.length == 2) {
                 final index = users.indexWhere((e) => e["user_id"] != currentUser["id"]);
                 final otherUser = index  == -1 ? {} : users[index];
-                p2pManager.createAudioCall(otherUser, directMessage.id);
+                p2pManager.createAudioCall(context, otherUser, directMessage.id);
               }
             }
           ),
@@ -732,7 +668,7 @@ class _CoverHeaderMenuState extends State<CoverHeaderMenu> {
               if (users.length == 2) {
                 final index = users.indexWhere((e) => e["user_id"] != currentUser["id"]);
                 final otherUser = index  == -1 ? {} : users[index];
-                p2pManager.createVideoCall(otherUser, directMessage.id);
+                p2pManager.createVideoCall(context, otherUser, directMessage.id);
               } else if (users.length > 2) {
                 String roomCreated = directMessage.id.toString();
                 

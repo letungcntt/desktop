@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:lottie/lottie.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/models/models.dart';
 
@@ -37,6 +39,7 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
   void initState() {
     _controller.addListener(_scrollListener);
     super.initState();
+    search("", Provider.of<Auth>(context, listen: false).token);
   }
 
   _scrollListener() {
@@ -126,6 +129,9 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
     final token = Provider.of<Auth>(context, listen: false).token;
     final userId = Provider.of<Auth>(context, listen: false).userId;
     final dm = widget.directMessage;
+    final auth = Provider.of<Auth>(context, listen: false);
+    final isDark = auth.theme == ThemeType.DARK;
+
     resultSearch.removeWhere((element) {
       return element["id"] == userId;
     });
@@ -134,34 +140,58 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
       onTap: () {
         FocusScope.of(context).unfocus();
       },
-      child: Column(children: <Widget>[
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
         Container(
           padding: EdgeInsets.only(left: 16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.only(topLeft: Radius.circular(4.5), topRight: Radius.circular(4.5)),
-            color: Colors.grey[900]
           ),
-          height: 40,
-          width: 500,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(dm.user.length > 2 ? "Invite to conversation" : "Create a group with ", style: TextStyle(color: Colors.white, fontSize: 16)),
+              Text(dm.user.length > 2 ? "Invite people" : "Create a group with ", style: TextStyle(color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E) , fontSize: 16 ,fontWeight: FontWeight.w600)),
+              Container(
+                padding: EdgeInsets.only(right: 2),
+                alignment: Alignment.centerRight,
+                child: HoverItem(
+                  colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
+                  child: IconButton(
+                    onPressed: (){
+                      Navigator.of(context).pop();
+                    },
+                    icon: Icon(
+                      PhosphorIcons.xCircle,
+                      size: 20.0,
+                      color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)
+                    ),
+                  )
+                )
+              ),
             ],
           ),
         ),
         Container(
-          height: 64,
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 14),
+          height: 1,
+          color:isDark ? Color(0xff1E1F20) : Color(0xffA6A6A6),
+        ),
+        Container(
+          height: 50,
+          padding: EdgeInsets.fromLTRB(16, 10, 16, 6),
           child: CupertinoTextField(
             controller: controller,
             autofocus: true,
+            prefix:Container(
+              child: Icon(Icons.search, color: Colors.grey[500], size: 18),
+              padding: EdgeInsets.only(left: 15)
+            ),
             placeholder: "Search user",
-            style: TextStyle(fontSize: 15, color: Colors.white),
+            style: TextStyle(fontSize: 15, color: isDark ? Colors.white : Color(0xff1E1F20)),
             padding: EdgeInsets.symmetric(horizontal: 12),
-            suffix: Container(
-              margin: EdgeInsets.only(right: 12),
-              child: Icon(Icons.search, color: Colors.grey[500], size: 18)
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(5),
+              color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
             ),
             onChanged: (value) {
               if (_debounce?.isActive ?? false) _debounce.cancel();
@@ -171,46 +201,39 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
             },
           )
         ),
-        Divider(thickness: 1),
+        Container(
+          padding: EdgeInsets.only(left: 18,top: 4),
+          child: Text("Your Friends",
+            style: TextStyle(
+              fontSize: 14, 
+              fontWeight: FontWeight.w500,
+              color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)
+            ),
+          )
+        ),
         Container(
           height: 464,
-          child: controller.text == "" ? Container(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset('assets/icons/searchIcon.svg', width: 120,),
-                SizedBox(height: 30),
-                Text.rich(TextSpan(children: [
-                  TextSpan(text: "Suggestion\n", style: TextStyle(color: Colors.grey[700], fontSize: 40)), 
-                  TextSpan(text: "Typing to search other...", style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic))]
-                ), 
-                textAlign: TextAlign.center),
-                SizedBox(height: 120)
-              ],
-            ),
-          ) 
-          : resultSearch.length == 0 
-          ?  Container(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SvgPicture.asset('assets/icons/searchIcon.svg', width: 120,),
-                SizedBox(height: 30),
-                Text.rich(TextSpan(children: [
-                  TextSpan(text: "No result found\n", style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic, fontSize: 40)), 
-                ]
-                ), 
-                textAlign: TextAlign.center),
-                SizedBox(height: 120)
-              ],
-            ),
-          ) 
-          : ListView.builder(
+          child: resultSearch.length == 0 
+          ? Container(
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset('assets/icons/searchIcon.svg', width: 120,),
+                  SizedBox(height: 30),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(text: "No result found\n", style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic, fontSize: 40)), 
+                   ]
+                  ), 
+                  textAlign: TextAlign.center),
+                  SizedBox(height: 120)
+                ],
+              ),
+            ):ListView.builder(
             padding: EdgeInsets.symmetric(horizontal: 18),
             itemCount: resultSearch.length,
             itemBuilder: (context, index) {
-              var selected = dm.user.where((e) {return e["user_id"] == resultSearch[index]["id"]; }).length > 0;
-
+              var selected = dm.user.where((e) {return e["user_id"] == resultSearch[index]["id"]  && e["user_id"] == "in_conversation"; }).length > 0;
               return Container(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -229,19 +252,19 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
                         ),
                         Text(
                           resultSearch[index]["full_name"],
-                          style: TextStyle(fontSize: 16)
+                          style: TextStyle(fontSize: 16, color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E))
                         )
                       ]
                     ),
                     GestureDetector(
                       onTap: () {
-                        !selected && invite(resultSearch[index], token, dm.id);
+                        if(!selected) invite(resultSearch[index], token, dm.id);
                       },
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.all(Radius.circular(12)),
-                          color: handleUser != null ? Colors.blueAccent : selected ? Color(0xffEF5350) : Colors.blueAccent,
+                          borderRadius: BorderRadius.all(Radius.circular(5)),
+                          color: handleUser != null ? Colors.blueAccent : selected ? Color(0xff575757) : Colors.blueAccent,
                         ),
                         child: Row(
                           children: [
@@ -250,8 +273,8 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
                               alignment: Alignment.center,
                               child: Lottie.network("https://assets4.lottiefiles.com/datafiles/riuf5c21sUZ05w6/data.json")
                             ) : Text(
-                              selected ? "Joined" : "Add",
-                              style: TextStyle(fontSize: 13)
+                              selected ? "Invited" : "Invite",
+                              style: TextStyle(fontSize: 13, color: Color(0xffffffff))
                             )
                           ]
                         )
@@ -260,9 +283,9 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
                   ]
                 ),
               );
-            }
-          )
-        ),
+             }
+            )
+          ),
         SizedBox(height: 16)
       ])
     );

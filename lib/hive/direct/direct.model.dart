@@ -53,8 +53,12 @@ class DirectModel {
   //  truong nay dc su dung de hien thi ten hoi thaoi khi ma this.name  = ""
   @HiveField(9, defaultValue: "")
   String displayName;
+
+  //  truong nay dc su dung de hien thi ten hoi thaoi khi ma this.name  = ""
+  @HiveField(10)
+  String? avatarUrl;
   
-  DirectModel(this.id, this.user, this.name, this.seen, this.newMessageCount, this.snippet, this.archive, this.updateByMessageTime, this.userRead, this.displayName);
+  DirectModel(this.id, this.user, this.name, this.seen, this.newMessageCount, this.snippet, this.archive, this.updateByMessageTime, this.userRead, this.displayName, this.avatarUrl);
 
   Map toJson(){
     return {
@@ -64,7 +68,8 @@ class DirectModel {
       "seen": this.seen,
       "snippet": this.snippet,
       "updateByMessageTime": this.updateByMessageTime,
-      "displayName": this.displayName
+      "displayName": this.displayName,
+      'avatarUrl': this.avatarUrl
     };
   }
 
@@ -218,4 +223,7 @@ class DirectModel {
     }
   }
 
+  getUser(){
+    return user.where((element) => element["status"] == "in_conversation").toList();
+  }
 }

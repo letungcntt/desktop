@@ -27,6 +27,7 @@ class DirectModelAdapter extends TypeAdapter<DirectModel> {
       fields[7] == null ? 0 : fields[7] as int,
       fields[8] == null ? {} : (fields[8] as Map).cast<dynamic, dynamic>(),
       fields[9] == null ? '' : fields[9] as String,
+      fields[10] as String?,
     );
   }
 

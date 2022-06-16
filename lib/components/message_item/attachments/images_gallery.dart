@@ -129,7 +129,7 @@ class _ImagesGalleryState extends State<ImagesGallery> {
                   ? (messageImage['id'] != null ?  messageImage : widget.message)
                   : (widget.message ?? {})
                 );
-                if((Utils.checkedTypeEmpty(widget.message) && widget.message['id'] !=  messageImage['id']) || widget.message == null) Navigator.push(context, PageRouteBuilder(
+                if(Utils.checkedTypeEmpty(widget.message)) Navigator.push(context, PageRouteBuilder(
                   barrierColor: Colors.black.withOpacity(1.0),
                   barrierLabel: '',
                   opaque: false,
@@ -385,7 +385,9 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
   bool isRightHovered = false;
   bool isLeftHovered = false;
   bool hideCopied = true;
-  bool hideActionButton = false;
+  bool showActionButton = false;
+  int lastTime = 0;
+  bool hoveredActionButton = false;
 
   @override
   void initState() {
@@ -393,19 +395,8 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 100),
       vsync: this,
     );
-
+    onPointerHover();
     animation = Tween(begin: 0.0, end: 1.0).animate(_controller!);
-
-    this.setState(() {
-      page = widget.page;
-    });
-    // Future.delayed(Duration(seconds: 4), () {
-    //   if(mounted) {
-    //     setState(() {
-    //       hideActionButton = true;
-    //     });
-    //   } 
-    // });
 
     pageController = PageController(initialPage: widget.page);
     RawKeyboard.instance.addListener(handleEvent);
@@ -435,6 +426,26 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
     _controller!.dispose();
     RawKeyboard.instance.removeListener(handleEvent);
     super.dispose();
+  }
+
+  onPointerHover() {
+    if(!showActionButton && this.mounted) {
+      setState(() {
+        showActionButton = true;
+      });
+      lastTime = DateTime.now().microsecondsSinceEpoch;
+      if(!hoveredActionButton) {
+        Future.delayed(Duration(seconds: 4), () {
+          if(DateTime.now().microsecondsSinceEpoch > (lastTime + 4000000)) {
+            if(this.mounted) {
+              setState(() {
+                showActionButton = false;
+              });
+            }
+          }
+        });
+      }
+    }
   }
 
   onRotateImage(String action) {
@@ -467,80 +478,87 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
     }
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     final deviceHeight = MediaQuery?.of(context).size.height;
     final url = widget.att["data"][page]["content_url"];
     final name = widget.att["data"][page]["name"] ?? widget.att["data"][page]["filename"];
     final keyEncrypt =  widget.att["data"][page]["key_encrypt"] ?? "";
-  
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           return Stack(
             children: [
-              RotationTransition(
-                turns: animation!,
-                child: ExtendedImageGesturePageView.builder(
-                  itemBuilder: (BuildContext context, int index) {
-                    var item = widget.att["data"][index]["content_url"];
-                    GestureConfig initGestureConfigHandler(state) {
-                        return GestureConfig(
-                          minScale: 0.9,
-                          animationMinScale: 0.7,
-                          maxScale: 3.0,
-                          animationMaxScale: 3.5,
-                          speed: 1.0,
-                          inertialSpeed: 100.0,
-                          initialScale: 1.0,
-                          inPageView: true,
-                          initialAlignment: InitialAlignment.center,
-                        );
-                      }
-                    Widget image = ExtendedImage.network(
-                      item,
-                      fit: BoxFit.contain,
-                      cache: true,
-                      initGestureConfigHandler: initGestureConfigHandler
-                    );
-                    image = Container(
-                      child: image,
-                      padding: EdgeInsets.all(5.0),
-                    );
-                    if (index == page) {
-                      var tag = widget.tags[index];
-                      return Hero(
-                        tag: tag,
-                        child: widget.isConversation ? ImageDirect.build(context, item, customBuild: (String localPath){
-                          return ExtendedImage.file(
-                            File(localPath),
-                            fit: BoxFit.contain,
-                            mode: ExtendedImageMode.gesture,
-                            initGestureConfigHandler: initGestureConfigHandler
+              Listener(
+                onPointerHover: (event) {
+                  onPointerHover();
+                  // print(mou);
+                },
+                child: RotationTransition(
+                  turns: animation!,
+                  child: ExtendedImageGesturePageView.builder(
+                    itemBuilder: (BuildContext context, int index) {
+                      var item = widget.att["data"][index]["content_url"];
+                      GestureConfig initGestureConfigHandler(state) {
+                          return GestureConfig(
+                            minScale: 0.9,
+                            animationMinScale: 0.7,
+                            maxScale: 3.0,
+                            animationMaxScale: 3.5,
+                            speed: 1.0,
+                            inertialSpeed: 100.0,
+                            initialScale: 1.0,
+                            inPageView: true,
+                            initialAlignment: InitialAlignment.center,
                           );
-                        }) : image,
+                        }
+                      Widget image = ExtendedImage.network(
+                        item,
+                        fit: BoxFit.contain,
+                        cache: true,
+                        initGestureConfigHandler: initGestureConfigHandler
                       );
-                    } else {
-                      return widget.isConversation ? ImageDirect.build(context, item, customBuild: (String localPath){
-                          return ExtendedImage.file(
-                            File(localPath),
-                            fit: BoxFit.contain,
-                            mode: ExtendedImageMode.gesture,
-                            initGestureConfigHandler: initGestureConfigHandler
-                          );
-                        }) : image;
-                    }
-                  },
-                  itemCount: widget.att["data"].length,
-                  onPageChanged: (int index) {
-                    this.setState(() {
-                      page = index;
-                    });
-                  },
-                  controller: pageController,
-                  scrollDirection: Axis.horizontal
-                )
+                      image = Container(
+                        child: image,
+                        padding: EdgeInsets.all(5.0),
+                      );
+                      if (index == page) {
+                        var tag = widget.tags[index];
+                        return Hero(
+                          tag: tag,
+                          child: widget.isConversation ? ImageDirect.build(context, item, customBuild: (String localPath){
+                            return ExtendedImage.file(
+                              File(localPath),
+                              fit: BoxFit.contain,
+                              mode: ExtendedImageMode.gesture,
+                              initGestureConfigHandler: initGestureConfigHandler
+                            );
+                          }) : image,
+                        );
+                      } else {
+                        return widget.isConversation ? ImageDirect.build(context, item, customBuild: (String localPath){
+                            return ExtendedImage.file(
+                              File(localPath),
+                              fit: BoxFit.contain,
+                              mode: ExtendedImageMode.gesture,
+                              initGestureConfigHandler: initGestureConfigHandler
+                            );
+                          }) : image;
+                      }
+                    },
+                    itemCount: widget.att["data"].length,
+                    onPageChanged: (int index) {
+                      this.setState(() {
+                        page = index;
+                      });
+                    },
+                    controller: pageController,
+                    scrollDirection: Axis.horizontal
+                  )
+                ),
               ),
               (page + 1 < widget.att["data"].length) ? Positioned(
                 top: 0, right: 0,
@@ -615,18 +633,18 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                   ),
                 ),
               ) : Positioned(child: Container()),
-              if(!hideActionButton) AnimatedPositioned(
+              if(showActionButton) AnimatedPositioned(
                 duration: Duration(milliseconds: 200),
                 top: 0,
                 child: HoverItem(
                   onHover: () {
                     setState(() {
-                      hideActionButton = false;
+                      hoveredActionButton = true;
                     });
                   },
                   onExit: () {
                     setState(() {
-                      hideActionButton = true;
+                      hoveredActionButton = false;
                     });
                   },
                   child: Container(
@@ -710,18 +728,18 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                   ),
                 )
               ),
-              if(!hideActionButton) AnimatedPositioned(
+              if(showActionButton) AnimatedPositioned(
                 duration: Duration(milliseconds: 300),
                 bottom: 0,
                 child: HoverItem(
                   onHover: () {
                     setState(() {
-                      hideActionButton = false;
+                      hoveredActionButton = true;
                     });
                   },
                   onExit: () {
                     setState(() {
-                      hideActionButton = true;
+                      hoveredActionButton = false;
                     });
                   },
                   child: Container(
@@ -784,36 +802,6 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                   ),
                 )
               ),
-              Positioned(
-                child: HoverItem(
-                  onHover: () {
-                    setState(() {
-                      hideActionButton = false;
-                    });
-                  },
-                  
-                  child: Container(
-                    width: MediaQuery.of(context).size.width,
-                    height: 4,
-                  ),
-                ),
-                top: 0,
-              ),
-              Positioned(
-                child: HoverItem(
-                  onHover: () {
-                    setState(() {
-                      hideActionButton = false;
-                    });
-                  },
-                  
-                  child: Container(
-                    width: MediaQuery.of(context).size.width,
-                    height: 4,
-                  ),
-                ),
-                bottom: 0,
-              )
             ]
           );
         }

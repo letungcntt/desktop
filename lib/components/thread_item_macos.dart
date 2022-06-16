@@ -181,7 +181,9 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
         'id': channelMembers[i]["id"],
         'type': 'user',
         'display': Utils.getUserNickName(channelMembers[i]["id"]) ?? channelMembers[i]["full_name"],
-        'full_name': Utils.getUserNickName(channelMembers[i]["id"]) ?? channelMembers[i]["full_name"],
+        'full_name': Utils.checkedTypeEmpty(Utils.getUserNickName(channelMembers[i]["id"]))
+            ? "${Utils.getUserNickName(channelMembers[i]["id"])} • ${channelMembers[i]["full_name"]}"
+            : channelMembers[i]["full_name"],
         'photo': channelMembers[i]["avatar_url"]
       };
       if (auth.userId != channelMembers[i]["id"]) suggestionMentions += [item];

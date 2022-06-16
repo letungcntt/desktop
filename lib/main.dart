@@ -8,6 +8,7 @@ import 'package:flutter_portal/flutter_portal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:stacked_services/stacked_services.dart';
 import 'package:workcake/common/themes.dart';
+import 'package:workcake/common/update_services.dart';
 import 'package:workcake/components/call_center/room.dart';
 import 'package:workcake/components/dialog_ui.dart';
 import 'package:workcake/emoji/emoji.dart';
@@ -18,6 +19,7 @@ import 'package:workcake/objectbox.g.dart';
 import 'package:workcake/route.dart';
 import 'package:workcake/service_locator.dart';
 import 'common/drop_zone.dart';
+import 'components/responsesizebar_widget.dart';
 import 'data_channel_webrtc/device_socket.dart';
 import 'generated/l10n.dart';
 import 'package:provider/provider.dart';
@@ -56,6 +58,7 @@ void main() async {
   });
 
   AppRoutes.setupRouter();
+  UpdateServices.initUpdater();
   setupServiceLocator();
   setupDialogUI();
   var newDir = await getApplicationSupportDirectory();
@@ -126,72 +129,74 @@ class PancakeChat extends StatelessWidget {
                 child: Builder(
                   builder: (context) {
                     Utils.loginContext = context;
-                    return MaterialApp(
-                      debugShowCheckedModeBanner: false,
-                      navigatorKey: StackedService.navigatorKey,
-                      localizationsDelegates: [
-                        S.delegate,
-                        GlobalMaterialLocalizations.delegate,
-                        GlobalWidgetsLocalizations.delegate,
-                        GlobalCupertinoLocalizations.delegate,
-                      ],
-                      supportedLocales: S.delegate.supportedLocales,
-                      locale: Locale(locale),
-                      theme: auth.theme == ThemeType.DARK
-                          ? Themes.darkTheme
-                          : Themes.lightTheme,
-                      home: ContextMenuOverlay(
-                        cardBuilder: (_, children) => Container(
-                          decoration: BoxDecoration(
-                            color: auth.theme == ThemeType.DARK ? Color(0xff1E1E1E) : Colors.white,
-                            border: auth.theme != ThemeType.DARK ? Border.all(
-                              color: Color(0xffEAE8E8)
-                            ) : null,
-                            borderRadius: BorderRadius.all(Radius.circular(6))
+                    return ResponseSidebarBox(
+                      child: MaterialApp(
+                        debugShowCheckedModeBanner: false,
+                        navigatorKey: StackedService.navigatorKey,
+                        localizationsDelegates: [
+                          S.delegate,
+                          GlobalMaterialLocalizations.delegate,
+                          GlobalWidgetsLocalizations.delegate,
+                          GlobalCupertinoLocalizations.delegate,
+                        ],
+                        supportedLocales: S.delegate.supportedLocales,
+                        locale: Locale(locale),
+                        theme: auth.theme == ThemeType.DARK
+                            ? Themes.darkTheme
+                            : Themes.lightTheme,
+                        home: ContextMenuOverlay(
+                          cardBuilder: (_, children) => Container(
+                            decoration: BoxDecoration(
+                              color: auth.theme == ThemeType.DARK ? Color(0xff1E1E1E) : Colors.white,
+                              border: auth.theme != ThemeType.DARK ? Border.all(
+                                color: Color(0xffEAE8E8)
+                              ) : null,
+                              borderRadius: BorderRadius.all(Radius.circular(6))
+                            ),
+                            padding: EdgeInsets.all(6),
+                            child: Column(children: children)
                           ),
-                          padding: EdgeInsets.all(6),
-                          child: Column(children: children)
-                        ),
-                        buttonBuilder: (_, config, [__]) => Container(
-                          padding: EdgeInsets.symmetric(vertical: 2),
-                          child: HoverItem(
-                            radius: 4.0,
-                            isRound: true,
-                            colorHover: auth.theme == ThemeType.DARK ? Color(0xff0050b3) : Color(0xff91d5ff),
-                            child: InkWell(
-                              onTap: config.onPressed,
-                              child: Container(
-                                width: double.infinity,
-                                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.only(right: 8),
-                                      child: config.icon,
-                                    ),
-                                    Text(
-                                      config.label,
-                                      style: TextStyle(
-                                        color: auth.theme == ThemeType.DARK ? Color(0xffDBDBDB) : Color(0xff5E5E5E),
-                                        fontSize: 12
+                          buttonBuilder: (_, config, [__]) => Container(
+                            padding: EdgeInsets.symmetric(vertical: 2),
+                            child: HoverItem(
+                              radius: 4.0,
+                              isRound: true,
+                              colorHover: auth.theme == ThemeType.DARK ? Color(0xff0050b3) : Color(0xff91d5ff),
+                              child: InkWell(
+                                onTap: config.onPressed,
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: EdgeInsets.only(right: 8),
+                                        child: config.icon,
                                       ),
-                                    )
-                                  ],
-                                )
+                                      Text(
+                                        config.label,
+                                        style: TextStyle(
+                                          color: auth.theme == ThemeType.DARK ? Color(0xffDBDBDB) : Color(0xff5E5E5E),
+                                          fontSize: 12
+                                        ),
+                                      )
+                                    ],
+                                  )
+                                ),
                               ),
                             ),
                           ),
+                          child: auth.isAuth
+                            ? MainScreenMacOS() 
+                            : FutureBuilder(
+                                future: auth.tryAutoLogin(),
+                                builder: (ctx, authResultSnapshot) =>
+                                    authResultSnapshot.connectionState == ConnectionState.waiting
+                                        ? SplashScreen()
+                                        : LoginMacOS()),
                         ),
-                        child: auth.isAuth
-                          ? MainScreenMacOS() 
-                          : FutureBuilder(
-                              future: auth.tryAutoLogin(),
-                              builder: (ctx, authResultSnapshot) =>
-                                  authResultSnapshot.connectionState == ConnectionState.waiting
-                                      ? SplashScreen()
-                                      : LoginMacOS()),
+                        onGenerateRoute: AppRoutes.router.generator
                       ),
-                      onGenerateRoute: AppRoutes.router.generator
                     );
                   }
                 ),

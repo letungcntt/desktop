@@ -417,53 +417,49 @@ class FlutterMentionsState extends State<FlutterMentions> {
 
       // thay the mention hien tai = mention moi (neu da o mention)
 
-      var indexMentionOld = checkIsInOldMention(dataParses,  selectedMention.start  ?? -1);
+      var indexMentionOld = checkIsInOldMention(dataParses, selectedMention.start ?? -1);
       if (indexMentionOld  == -1){
-          // khoi tao lai chuoi trai
-          var leftStr = leftNewString(dataParses, selectedMention.start!);
+        // khoi tao lai chuoi trai
+        var leftStr = leftNewString(dataParses, selectedMention.start!);
 
-          //  khoi tao chuoi phai
-          var rightStr = rightNewString(dataParses, text.length - selectedMention.end!);
+        //  khoi tao chuoi phai
+        var rightStr = rightNewString(dataParses, text.length - selectedMention.end!);
 
-          // khoi tao chuoi giua
-          var innerStr = getMarkUpFromParse([{
-            "type": value["type"],
-            "value": value["id"],
-            "trigger": _list.trigger,
-            "name": value["display"]
-          }]);
+        // khoi tao chuoi giua
+        var innerStr = getMarkUpFromParse([{
+          "type": value["type"],
+          "value": value["id"],
+          "trigger": _list.trigger,
+          "name": value["display"]
+        }]);
 
-          // print("keft: $leftStr \n right: $rightStr \n inner: $innerStr");
+        _textMarkUp = (leftStr + innerStr + (widget.appendSpaceOnAdd ? " " : "") + rightStr);
+        autoDetectMention();
 
-          _textMarkUp = (leftStr + innerStr + (widget.appendSpaceOnAdd ? " " : "") + rightStr);
-          autoDetectMention();
+        controller!.text = controller!.value.text.replaceRange(
+          selectedMention.start!,
+          selectedMention.end,
+          "${_list.trigger}${value['display']}${widget.appendSpaceOnAdd ? ' ' : ''}",
+        );
 
-          // print("onaddMention: ,$_textMarkUp,");
+        if (widget.onMentionAdd != null) widget.onMentionAdd!(value);
 
-          controller!.text = controller!.value.text.replaceRange(
-            selectedMention.start!,
-            selectedMention.end,
-            "${_list.trigger}${value['display']}${widget.appendSpaceOnAdd ? ' ' : ''}",
-          );
-
-          if (widget.onMentionAdd != null) widget.onMentionAdd!(value);
-
-          // Move the cursor to next position after the new mentioned item.
-          var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
-          if (widget.appendSpaceOnAdd) nextCursorPosition++;
-          controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));            
-        } else {
-          dataParses[indexMentionOld] = {
-            "type": value["type"],
-            "trigger": _list.trigger,
-            "value": value["id"],
-            "name": value["display"]
-          };
-          if (indexMentionOld == (dataParses.length - 2)) dataParses += [{"type": "text", "value": " "}];
-          _textMarkUp = getMarkUpFromParse(dataParses);
-          controller!.text = getStringFromParse(dataParses);
-          var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
-          controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition + 1 > controller!.text.length ? nextCursorPosition : nextCursorPosition + 1)); 
+        // Move the cursor to next position after the new mentioned item.
+        var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
+        if (widget.appendSpaceOnAdd) nextCursorPosition++;
+        controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));            
+      } else {
+        dataParses[indexMentionOld] = {
+          "type": value["type"],
+          "trigger": _list.trigger,
+          "value": value["id"],
+          "name": value["display"]
+        };
+        if (indexMentionOld == (dataParses.length - 2)) dataParses += [{"type": "text", "value": " "}];
+        _textMarkUp = getMarkUpFromParse(dataParses);
+        controller!.text = getStringFromParse(dataParses);
+        var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
+        controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition + 1 > controller!.text.length ? nextCursorPosition : nextCursorPosition + 1)); 
       }
     }
   }
@@ -726,8 +722,8 @@ class FlutterMentionsState extends State<FlutterMentions> {
       //   ));
 
       //   double dx = offsetCaret.dx + widthOptionList >= context.size!.width
-      //                 ? (context.size!.width/2 - (context.size!.width - widthOptionList))/widthOptionList*2 - (isMentionIssue ? 1 : 0.75)
-      //                 : (context.size!.width/2 - offsetCaret.dx)/widthOptionList*2 - (isMentionIssue ? 1 : 0.75);
+      //                 ? (context.size!.width/2 - (context.size!.width - widthOptionList))/widthOptionList*2 - (isMentionIssue ? 1 : 0.9)
+      //                 : (context.size!.width/2 - offsetCaret.dx)/widthOptionList*2 - (isMentionIssue ? 1 : 0.9);
       //   double dy = 1.1 - offsetCaret.dy/(heightOptionList/2);
       //   alignment = Alignment(dx, dy);
       // }
@@ -1005,7 +1001,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
           : widget.mentions[0];
 
       final data = _selectedMention != null ? list.data.where((e) {
-        final ele =  Utils.unSignVietnamese(e["display"] ?? "");
+        final ele =  Utils.unSignVietnamese(e["full_name"] ?? e["display"] ?? "");
         final str = _selectedMention!.str!
           .replaceAll(RegExp(_pattern), '');
         

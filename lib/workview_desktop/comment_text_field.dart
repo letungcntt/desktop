@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-// import 'package:file_picker_cross/file_picker_cross.dart';
 import 'package:dio/dio.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -336,15 +334,15 @@ class CommentTextFieldState extends State<CommentTextField> {
           // return KeyEventResult.handled;
         }
       } else if (this.mounted && keyId.clamp(33, 126) == keyId) {
-        GlobalKey<ScaffoldState> keyScaffold = Provider.of<Auth>(context, listen: false).keyDrawer;
-        final selectedTab = Provider.of<User>(context, listen: false).selectedTab;
-        if (!(FocusManager.instance.primaryFocus?.context?.widget is EditableText) && selectedTab == "channel" && keyScaffold.currentState != null && keyScaffold.currentState!.isEndDrawerOpen && key.currentState != null && !widget.editComment) {
-          // if (key.currentState!.isFocus) return KeyEventResult.ignored;
-          bool openSearchbar = Provider.of<Windows>(context, listen: false).openSearchbar;
-          if(!openSearchbar) {
-            // key.currentState!.focusNode.requestFocus();
-          }
-        }
+        // GlobalKey<ScaffoldState> keyScaffold = Provider.of<Auth>(context, listen: false).keyDrawer;
+        // final selectedTab = Provider.of<User>(context, listen: false).selectedTab;
+        // if (!(FocusManager.instance.primaryFocus?.context?.widget is EditableText) && selectedTab == "channel" && keyScaffold.currentState != null && keyScaffold.currentState!.isEndDrawerOpen && key.currentState != null && !widget.editComment) {
+        //   // if (key.currentState!.isFocus) return KeyEventResult.ignored;
+        //   bool openSearchbar = Provider.of<Windows>(context, listen: false).openSearchbar;
+        //   if(!openSearchbar) {
+        //     // key.currentState!.focusNode.requestFocus();
+        //   }
+        // }
       } else if(event.isKeyPressed(LogicalKeyboardKey.tab) && key.currentState!.isFocus) {
         widget.handleOpenAssigneeDropdown();
       }
@@ -427,7 +425,9 @@ class CommentTextFieldState extends State<CommentTextField> {
         'id': channelMembers[i]["id"],
         'type': 'user',
         'display': Utils.getUserNickName(channelMembers[i]["id"]) ?? channelMembers[i]["full_name"],
-        'full_name': Utils.getUserNickName(channelMembers[i]["id"]) ?? channelMembers[i]["full_name"],
+        'full_name': Utils.checkedTypeEmpty(Utils.getUserNickName(channelMembers[i]["id"]))
+            ? "${Utils.getUserNickName(channelMembers[i]["id"])} • ${channelMembers[i]["full_name"]}"
+            : channelMembers[i]["full_name"],
         'photo': channelMembers[i]["avatar_url"]
       };
       suggestionMentions += [item];
@@ -476,9 +476,9 @@ class CommentTextFieldState extends State<CommentTextField> {
     
     try {
       var myMultipleFiles = await Utils.openFilePicker([
-        XTypeGroup(
-          extensions: ['jpg', 'jpeg', 'gif', 'png', 'mov', 'mp4'],
-        )
+        // XTypeGroup(
+        //   extensions: ['jpg', 'jpeg', 'gif', 'png', 'mov', 'mp4'],
+        // )
       ]);
       for (var e in myMultipleFiles) {
         Map newFile = {

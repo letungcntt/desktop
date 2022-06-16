@@ -133,7 +133,7 @@ class BoardItemState extends State<BoardItem> with AutomaticKeepAliveClientMixin
           widget.onTapItem!(widget.boardList!.widget.index, widget.index, this);
         }
       },
-      onPanDown: (_) {
+      onLongPress: () {
         timer = Timer(Duration(milliseconds: 100), () { 
           if(!widget.boardList!.widget.boardView!.widget.isSelecting && widget.draggable && !onTap) {
             _startDrag(widget, context);

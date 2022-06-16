@@ -76,11 +76,11 @@ class MessageLookup extends MessageLookupByLibrary {
 
   static String m23(type) => "Search ${type}";
 
-  static String m24(count) => "📂  sent ${count} files.";
+  static String m24(count) => "sent ${count} files.";
 
-  static String m25(count) => "📷  sent ${count} images.";
+  static String m25(count) => "sent ${count} images.";
 
-  static String m26(count) => "🎬  sent ${count} videos.";
+  static String m26(count) => "sent ${count} videos.";
 
   static String m27(count) => "Show ${count} more comments";
 
@@ -497,12 +497,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "selectChannel": MessageLookupByLibrary.simpleMessage("Select Channel"),
         "selectMember": MessageLookupByLibrary.simpleMessage("Select member"),
         "sent": MessageLookupByLibrary.simpleMessage("Sent"),
-        "sentAFile": MessageLookupByLibrary.simpleMessage("📂  sent a file."),
-        "sentAVideo": MessageLookupByLibrary.simpleMessage("🎬  sent a video."),
-        "sentAnImage":
-            MessageLookupByLibrary.simpleMessage("📷  sent an image."),
+        "sentAFile": MessageLookupByLibrary.simpleMessage("sent a file."),
+        "sentAVideo": MessageLookupByLibrary.simpleMessage("sent a video."),
+        "sentAnImage": MessageLookupByLibrary.simpleMessage("sent an image."),
         "sentAttachments":
-            MessageLookupByLibrary.simpleMessage("💬  sent attachments."),
+            MessageLookupByLibrary.simpleMessage("sent attachments."),
         "sentFiles": m24,
         "sentImages": m25,
         "sentVideos": m26,

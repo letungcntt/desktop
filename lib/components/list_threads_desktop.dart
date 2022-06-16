@@ -54,30 +54,32 @@ class _ListThreadsDesktopState extends State<ListThreadsDesktop> {
     int index = dataThreads.indexWhere((e) => e["workspaceId"] == widget.workspaceId);
     List currentDataThreads = index != -1 ? dataThreads[index]["threads"] : [];
     List channels = Provider.of<Channels>(context, listen: true).data;
-    // var token = Provider.of<Auth>(context, listen: true).token;
+    var token = Provider.of<Auth>(context, listen: true).token;
 
     return index != -1 ? SingleChildScrollView(
       padding: EdgeInsets.all(24),
       controller: controller,
-      child: Column(
-        children: currentDataThreads.map<Widget>((e) {
-          final index = channels.indexWhere((ele) => ele["id"].toString() == e["channel_id"].toString());
-          if (index != -1) e["is_archived"] = channels[index]["is_archived"];
+      child: currentDataThreads.length > 0
+        ? Column(
+            children: currentDataThreads.map<Widget>((e) {
+              final index = channels.indexWhere((ele) => ele["id"].toString() == e["channel_id"].toString());
+              if (index != -1) e["is_archived"] = channels[index]["is_archived"];
 
-          if (e["unread"] == true && e["issue_id"] != null) {
-            // var workspaceId = e["workspace_id"];
-            // var channelId = e["channel_id"];
-            // Provider.of<Threads>(context, listen: false).updateThreadUnread(workspaceId, channelId, e, token);
-          }
+              if (e["unread"] == true && e["issue_id"] != null) {
+                var workspaceId = e["workspace_id"];
+                var channelId = e["channel_id"];
+                Provider.of<Threads>(context, listen: false).updateThreadUnread(workspaceId, channelId, e, token);
+              }
 
-          return e["issue_id"] != null
-            ? ThreadIssueItem(issue: e, key: Key(e["issue_id"].toString()))
-            : ThreadItemMacos(
-              key: Key(e["id"].toString()),
-              parentMessage: e
-            );
-        }).toList()
-      )
+              return e["issue_id"] != null
+                ? ThreadIssueItem(issue: e, key: Key(e["issue_id"].toString()))
+                : ThreadItemMacos(
+                  key: Key(e["id"].toString()),
+                  parentMessage: e
+                );
+            }).toList()
+          )
+        : Container()
     ) : Container();
   }
 }

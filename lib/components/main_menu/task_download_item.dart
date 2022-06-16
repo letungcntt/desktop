@@ -34,7 +34,8 @@ class _TaskDownloadItem extends State<TaskDownloadItem>{
 
   void openFinder(String fileUri) async{
     try {
-      Process.runSync('open', ['-R', fileUri]);
+      if(Platform.isMacOS) Process.runSync('open', ['-R', fileUri]);
+      else if (Platform.isWindows) Process.runSync('explorer', ['/select,','$fileUri'], runInShell: true);
     } catch (e) {
     }
     setState(() {

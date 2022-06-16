@@ -6,6 +6,8 @@ class Windows extends ChangeNotifier{
   double _channelWidth = 230.0;
   double _threadWidth= 300.0;
   bool _openSearchbar = false;
+  bool _isOtherFocus = false ;
+  bool _isBlockEscape = false;
 
   Size get deviceInfo => _deviceInfo;
 
@@ -13,6 +15,13 @@ class Windows extends ChangeNotifier{
   double get threadWidth => _threadWidth;
 
   bool get openSearchbar => _openSearchbar;
+  bool get isOtherFocus => _isOtherFocus;
+  bool get isBlockEscape => _isBlockEscape;
+
+  set isBlockEscape(bool value) {
+    _isBlockEscape = value;
+    notifyListeners();
+  }
 
   set channelWidth(width) {
     _channelWidth = width;
@@ -31,6 +40,11 @@ class Windows extends ChangeNotifier{
 
   set openSearchbar(bool value) {
     _openSearchbar = value;
+    notifyListeners();
+  }
+
+  set isOtherFocus(bool value) {
+    _isOtherFocus = value;
     notifyListeners();
   }
 

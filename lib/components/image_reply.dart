@@ -2,7 +2,7 @@ import 'package:context_menus/context_menus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/ResponseSideBar.dart';
+import 'package:workcake/components/responsesizebar_widget.dart';
 import 'package:workcake/components/thread_desktop.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/models/models.dart';
@@ -110,10 +110,13 @@ class _ImageReplyState extends State<ImageReply> {
               )
             )
           ),
-          (isShowThread && parentMessage['id'] != null) ? ResponseSideBar(
-            maxWidth: 1000,
-            minWidth: 300,
-            dragAtLeft: true,
+          (isShowThread && parentMessage['id'] != null) ? ResponseSidebarItem(
+            itemKey: 'rightSider',
+            separateSide: 'left',
+            canZero: false,
+            constraints: BoxConstraints(minWidth: 300, maxWidth: 700),
+            elevation: 1,
+            deAttackable: false,
             child: Scaffold(
               body: ThreadDesktop(parentMessage: parentMessage, isMessageImage: true)
             )

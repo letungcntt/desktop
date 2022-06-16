@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/models/models.dart';
@@ -190,7 +191,7 @@ class _OptionNotificationModeState extends State<OptionNotificationMode> {
                       // color: Color(0xff1890FF),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(3),
-                        color: Color(0xff1890FF)  
+                        color: Utils.getPrimaryColor()  
                       ),
                       child: TextButton(
                         onPressed: () {
@@ -386,7 +387,7 @@ class _NotificationDMState extends State<NotificationDM> {
                       // color: Color(0xff1890FF),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(3),
-                        color: Color(0xff1890FF)  
+                        color: Utils.getPrimaryColor() 
                       ),
                       child: TextButton(
                         onPressed: (){

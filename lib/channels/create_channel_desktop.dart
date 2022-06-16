@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/models/models.dart';
 
@@ -322,49 +324,52 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
                     onTap: (){
                       handleUserToChannel(resultSearch[index], selected);
                     },
-                    child: Container(
-                      height: 45,
-                      padding: EdgeInsets.symmetric(vertical: 10,horizontal: 11),
-                      decoration: BoxDecoration(
-                        border: Border( 
-                          left: BorderSide( 
-                            width: 1.0,
-                            color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
-                          ),
-                          right: BorderSide( 
-                            color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
-                            width: 1.0,
-                          ),
-                          bottom: BorderSide( 
-                            color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
-                            width: 0.5,
-                          ),
-                        ), 
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          Row(
-                            children: [
-                              CachedImage(
-                                resultSearch[index]["avatar_url"],
-                                radius: 24,
-                                isRound: true,
-                                name: resultSearch[index]["full_name"]
-                              ),
-                              Container(
-                                width: 10,
-                              ),
-                              Container(
-                                child: Text(resultSearch[index]["full_name"],
-                                    style: TextStyle(fontSize: 14)),
-                              ),
-                            ],
-                          ),
-                          selected ? Container(
-                           child: Icon(PhosphorIcons.checkCircleFill, size: 19, color:isDark ? Color(0xffFAAD14) : Color(0xff1890FF),)
-                           ) : SizedBox()
-                        ]
+                    child: HoverItem(
+                      colorHover: Palette.hoverColorDefault,
+                      child: Container(
+                        height: 45,
+                        padding: EdgeInsets.symmetric(vertical: 10,horizontal: 11),
+                        decoration: BoxDecoration(
+                          border: Border( 
+                            left: BorderSide( 
+                              width: 1.0,
+                              color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                            ),
+                            right: BorderSide( 
+                              color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                              width: 1.0,
+                            ),
+                            bottom: BorderSide( 
+                              color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                              width: 0.5,
+                            ),
+                          ), 
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Row(
+                              children: [
+                                CachedImage(
+                                  resultSearch[index]["avatar_url"],
+                                  radius: 24,
+                                  isRound: true,
+                                  name: resultSearch[index]["full_name"]
+                                ),
+                                Container(
+                                  width: 10,
+                                ),
+                                Container(
+                                  child: Text( Utils.getUserNickName(resultSearch[index]["id"]) ?? resultSearch[index]["full_name"],
+                                      style: TextStyle(fontSize: 14)),
+                                ),
+                              ],
+                            ),
+                            selected ? Container(
+                             child: Icon(PhosphorIcons.checkCircleFill, size: 19, color:isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor(),)
+                             ) : SizedBox()
+                          ]
+                        ),
                       ),
                     ),
                   );

@@ -849,7 +849,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                         child: TextButton(
                           style: ButtonStyle(
                             backgroundColor: MaterialStateProperty.all(
-                             Color(0xff1890FF) 
+                             Utils.getPrimaryColor() 
                             ),
                             shape: MaterialStateProperty.all(
                               RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))

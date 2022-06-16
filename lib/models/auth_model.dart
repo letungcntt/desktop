@@ -16,6 +16,7 @@ import 'package:workcake/E2EE/e2ee.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/window_manager.dart';
+import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/components/call_center/room.dart';
 import 'package:workcake/components/dialog_ui.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
@@ -201,17 +202,33 @@ class Auth extends ChangeNotifier {
   }
 
   Future<dynamic> loginUserPassword(String email, String password, context) async {
+    if (email == "" || password == "") return showAlertDialog(context, "Email/phone or password is not empty");
     await Utils.initPairKeyBox();
+    String deviceIdentifier = await Utils.getDeviceIdentifier();
     var box =  Hive.lazyBox('pairKey');
     var deviceId  = await box.get('deviceId');
     var identityKey  = await box.get('identityKey');
     final url = Utils.apiUrl + 'users/authorization';
+    final currentTime = DateTime.now().microsecondsSinceEpoch;
     try {
       final response = await Dio().post(url, data: {
         "user_identity_key": identityKey["pubKey"],
         "device_id" : deviceId,
         "email": email,
         "password": password,
+        "device_identifier": deviceIdentifier,
+        "current_time": currentTime,
+        "hash": await MessageConversationServices.shaString([
+          identityKey["pubKey"],
+          deviceId,
+          deviceIdentifier,
+          email,
+          password,
+          currentTime.toString(),
+          // 1 string ngau nhien o ca client va server
+          // key nay se ko dc truyen di theo bat ky api nao, ko dc thay doi
+          "oAA6dRwf0fLpn5ecY1AyhV1inY1Y2EmLny1xIUdplm0="
+        ], typeOutPut: "base64Url"),
         "device_info": Utils.checkedTypeEmpty(Utils.dataDevice) ? Utils.dataDevice : await Utils.getDeviceInfo()
       });
       final responseData = response.data;
@@ -287,7 +304,7 @@ class Auth extends ChangeNotifier {
       autofocus: true,
       style: ButtonStyle(
         padding: MaterialStateProperty.all(const EdgeInsets.all(10.0)),
-        backgroundColor: MaterialStateProperty.all(const Color(0xff1890FF))
+        backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor())
       ),
       child: const Text("Try again", style: TextStyle(color: Colors.white),),
       onPressed: () {
@@ -484,7 +501,7 @@ class Auth extends ChangeNotifier {
       LazyBox box = Hive.lazyBox('pairKey');
       String? deviceId  = await box.get("deviceId");
       var boxLast = Hive.box('lastSelected');
-      boxLast.clear();
+      await boxLast.clear();
       var dataToSend = {
         "data": await Utils.encryptServer({"device_id": deviceId}),
         "device_id": deviceId
@@ -510,7 +527,7 @@ class Auth extends ChangeNotifier {
       String url = "${Utils.apiUrl}users/logout?token=$to";
       await Dio().post(url, data: dataToSend);
       StreamSyncData.instance.initValue();
-      DeviceSocket.instance.reconnect();
+      await DeviceSocket.instance.reconnect();
     } catch (e) {
       _token = "";
       _userId = "";
@@ -521,7 +538,7 @@ class Auth extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       prefs.remove('userData');
       prefs.remove('cur_tab');
-      DeviceSocket.instance.reconnect();
+      await DeviceSocket.instance.reconnect();
       StreamSyncData.instance.initValue();
       print("error cloase $e");
       // sl.get<Auth>().showErrorDialog(e.toString());
@@ -629,13 +646,12 @@ class Auth extends ChangeNotifier {
       if (token != "") {
         Provider.of<DirectMessage>(context, listen: false).resetStatus(token, _userId),
         Provider.of<Messages>(context, listen: false).resetStatus(token, context),
-        Provider.of<User>(context, listen: false).fetchAndGetMe(token),
+        Provider.of<User>(context, listen: false).fetchAndGetMe(token).then((_) => p2pManager.init(_channel, this._userId)),
         Provider.of<User>(context, listen: false).getListSavedMessage(token),
         Provider.of<Workspaces>(context, listen: false).getPreloadIssue(token),
         Provider.of<Workspaces>(context, listen: false).getListWorkspace(context ,token),
         Provider.of<DirectMessage>(context, listen: false).getDataDirectMessage(token, _userId, isReset: true),
         Provider.of<RoomsModel>(context, listen: false).getRoomIds(token),
-        p2pManager.init(_channel, this._userId),
         rejoinChannel(context),
         Provider.of<User>(context, listen: false).fetchUserMentionInDirect(token),
         notifyListeners()
@@ -659,6 +675,22 @@ class Auth extends ChangeNotifier {
 
     channel.on("update_workspace", (data, _ref, _joinRef){
       Provider.of<Workspaces>(context, listen: false).updateWorkspace(data);
+    });
+
+    channel.on("update_workspace_member", (data, _ref, _joinRef){
+      Provider.of<Workspaces>(context, listen: false).updateWorkspaceMember(false,
+        {
+         "user_id" :data["user_id"],
+         "role_id" :data["role_id"],
+         "nickname" :data["changes"]['nickname']
+        },
+      );
+      Provider.of<Messages>(context, listen: false).onUpdateMessagesChannele({
+         "user_id" :data["user_id"],
+         "role_id" :data["role_id"],
+         "nickname" :data["changes"]['nickname'],
+         "workspace_id": data["workspace_id"]
+        });
     });
 
     channel.on("update_current_member", (data, _ref, _joinRef) {
@@ -716,7 +748,7 @@ class Auth extends ChangeNotifier {
 
     channel.on("broadcast_update_profile", (data, _ref, _joinRef){
       Provider.of<Channels>(context, listen: false).updateProfileChannel(data);
-      Provider.of<Workspaces>(context, listen: false).updateWorkspaceMember(data);
+      Provider.of<Workspaces>(context, listen: false).updateWorkspaceMember(true, data);
       Provider.of<Messages>(context, listen: false).onUpdateProfile(data);
       Provider.of<DirectMessage>(context, listen: false).onChangeProfileFriend(data);
       Provider.of<User>(context, listen: false).updateUserProfileData(data);
@@ -763,7 +795,7 @@ class Auth extends ChangeNotifier {
     channel.on("clear_badge_channel", (data, _ref, _joinRef){
       final channelId = data["channel_id"];
 
-      Provider.of<Channels>(context, listen: false).clearBadge(channelId, false);
+      Provider.of<Channels>(context, listen: false).clearBadge(channelId, null, false);
     });
 
     // set badge unread count
@@ -963,6 +995,10 @@ class Auth extends ChangeNotifier {
 
     channel.on("change_conversation_name", (data, _r, _f){
       Provider.of<DirectMessage>(context, listen: false).changeConversationName(data, userId);
+    });
+
+    channel.on('update_conversation', (data, _r, _f) {
+      Provider.of<DirectMessage>(context, listen: false).updateConversation(data, token, userId);
     });
 
     // cap nhat so luong hoi thoai chua doc

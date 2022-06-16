@@ -1,10 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/auth_model.dart';
+import 'package:workcake/models/models.dart';
 
 
 class ActionInput extends StatelessWidget {
@@ -38,7 +40,7 @@ class ActionInput extends StatelessWidget {
               }
             )
           ),
-          if (!isThreadTab) Container(
+          if (!isThreadTab && Platform.isMacOS) Container(
             width: 30,
             height: 30,
             margin: EdgeInsets.only(left: 4),

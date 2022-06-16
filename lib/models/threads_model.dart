@@ -13,7 +13,6 @@ import 'models.dart';
 class Threads extends ChangeNotifier {
   List _dataThreads = [];
   bool _isOnThreads = false;
-  bool _fetchingThread = false;
 
   List get dataThreads => _dataThreads;
   bool get isOnThreads => _isOnThreads;
@@ -22,41 +21,35 @@ class Threads extends ChangeNotifier {
     final url = Utils.apiUrl + 'workspaces/$workspaceId/get_threads_workspace_v3?token=$token';
     final index = _dataThreads.indexWhere((e) => e["workspaceId"] == workspaceId);
 
-    if ((index == -1 || isUpdate) && !_fetchingThread ) {
-      try {
-        _fetchingThread = true;
-        final response = await Utils.getHttp(url);
+    try {
+      final response = await Utils.getHttp(url);
 
-        if (response["success"] == true) {
-          if (index == -1) {
-            final newdata = {
+      if (response["success"] == true) {
+        if (index == -1) {
+          final newdata = {
+            "workspaceId" : workspaceId,
+            "threads": await processDataThread(response["threads"]),
+            "page": 1,
+            "lastLength": response["threads"].length
+          };
+          _dataThreads.add(newdata);
+        } else {
+          if (isUpdate) {
+            _dataThreads[index] = {
               "workspaceId" : workspaceId,
               "threads": await processDataThread(response["threads"]),
               "page": 1,
               "lastLength": response["threads"].length
             };
-            _dataThreads.add(newdata);
-          } else {
-            if (isUpdate) {
-              _dataThreads[index] = {
-                "workspaceId" : workspaceId,
-                "threads": await processDataThread(response["threads"]),
-                "page": 1,
-                "lastLength": response["threads"].length
-              };
-            }
           }
-
-          _fetchingThread = false;
-          notifyListeners();
-        } else {
-          _fetchingThread = false;
-          throw HttpException(response['message']);
         }
-      } catch (e) {
-        _fetchingThread = false;
-        print(e);
+
+        notifyListeners();
+      } else {
+        throw HttpException(response['message']);
       }
+    } catch (e) {
+      print(e);
     }
   }
 
@@ -74,12 +67,11 @@ class Threads extends ChangeNotifier {
   loadMoreThread(token, workspaceId) async {
     final index = _dataThreads.indexWhere((e) => e["workspaceId"] == workspaceId);
 
-    if (index != -1 && !_fetchingThread && _dataThreads[index]["lastLength"] >= 6) {
+    if (index != -1 && _dataThreads[index]["lastLength"] >= 6) {
       var page = _dataThreads[index]["page"] + 1;
       final url = Utils.apiUrl + 'workspaces/$workspaceId/get_threads_workspace_v3?token=$token&page=$page';
 
       try {
-        _fetchingThread = true;
         final response = await Utils.getHttp(url);
 
         if (response["success"] == true) {
@@ -87,14 +79,11 @@ class Threads extends ChangeNotifier {
           _dataThreads[index]["threads"] = _dataThreads[index]["threads"] + await processDataThread(response["threads"]);
           _dataThreads[index]["lastLength"] = response["threads"].length;
 
-          _fetchingThread = false;
           notifyListeners();
         } else {
-          _fetchingThread = false;
           throw HttpException(response['message']);
         }
       } catch (e) {
-        _fetchingThread = false;
         print(e);
       }
     }

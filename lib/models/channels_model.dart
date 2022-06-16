@@ -315,6 +315,24 @@ class Channels extends ChangeNotifier {
     return _message;
   }
 
+  Future<dynamic> inviteToPubChannel(token, workspaceId, channelId, receiverId) async {
+    Uri url = Uri.parse(Utils.apiUrl + 'workspaces/$workspaceId/channels/$channelId/invite_to_public_channel?token=$token');
+    try {
+      final body = {
+        "receiver_id": receiverId
+      };
+      final response = await http.post(url, headers: Utils.headers, body: json.encode(body));
+      final responseData = json.decode(response.body);
+      _message = responseData["message"] ?? "";
+      if (responseData["success"] == false) {
+        throw HttpException(responseData['message']);
+      }
+      notifyListeners();
+    } catch(e) {
+      print(e);
+    }
+  }
+
   Future<dynamic> addDevicesToken(
       String token, workspaceId, String? firebaseToken, String platform) async {
     _fbToken = firebaseToken;
@@ -1367,10 +1385,11 @@ class Channels extends ChangeNotifier {
     notifyListeners();
   }
 
-  clearBadge(channelId, isAll) {
+  clearBadge(channelId,  workspaceId, isAll) {
     if (isAll) {
-      for (var i = 0; i < _data.length; i++) {
-        _data[i]["new_message_count"] = 0;
+      final List channels = _data.where((ele) => ele['workspace_id'] == workspaceId).toList();
+      for (var i = 0; i < channels.length; i++) {
+        channels[i]["new_message_count"] = 0;
       }
     } else {
       final index = _data.indexWhere((e) => e["id"] == channelId);
@@ -1434,8 +1453,6 @@ class Channels extends ChangeNotifier {
       // sl.get<Auth>().showErrorDialog(e.toString());
     }
   }
-
-  
 
   Future<dynamic> updateUnreadIssue(token, workspaceId, channelId, issueId, userId) async {
     final url = Utils.apiUrl + 'workspaces/$workspaceId/channels/$channelId/issues/update_unread_issue?token=$token';

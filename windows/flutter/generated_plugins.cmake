@@ -6,11 +6,11 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bitsdojo_window_windows
   connectivity_plus_windows
   dart_vlc
-  file_selector_windows
   flutter_native_view
   flutter_webrtc
   isar_flutter_libs
   objectbox_flutter_libs
+  platform_device_id_windows
   syncfusion_pdfviewer_windows
   url_launcher_windows
   window_manager

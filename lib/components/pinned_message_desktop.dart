@@ -221,6 +221,7 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
     final channelId = Provider.of<Channels>(context, listen: true).currentChannel["id"];
     final workspaceId = Provider.of<Workspaces>(context, listen: true).currentWorkspace["id"];
     final currentUser = Provider.of<User>(context, listen: true).currentUser;
+    final customColor = currentUser["custom_color"];
     return MouseRegion(
       onEnter: (event) {
         setState(() {
@@ -266,8 +267,14 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
                       children: [
                         Row(
                           children: [
-                            Text(widget.item["full_name"], style: TextStyle(fontWeight: FontWeight.w700, color: Constants.checkColorRole(getUser(widget.item["user_id"])["role_id"], widget.isDark), fontSize: 14)),
-                            const SizedBox(width: 5),
+                            Text(widget.item["full_name"], 
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700, 
+                                color: widget.item["user_id"] == currentUser["id"] && (customColor != "default" && customColor != null)
+                                  ? Color(int.parse("0xFF$customColor")) 
+                                  : Constants.checkColorRole(getUser(widget.item["user_id"])["role_id"], widget.isDark), 
+                                fontSize: 14)),
+                            SizedBox(width: 5),
                             Padding(
                               padding: const EdgeInsets.only(top: 2.0),
                               child: Text(widget.item["inserted_at"] != null ? (DateFormatter().renderTime(DateTime.parse(widget.item["inserted_at"]), type: "dd/MM/yyyy")) : "", style: TextStyle(color: widget.isDark ? Palette.defaultBackgroundLight : Palette.defaultBackgroundDark,fontSize: 11)),

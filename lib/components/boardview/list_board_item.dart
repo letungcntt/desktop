@@ -1,7 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/boardview/card_detail.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/models/models.dart';
@@ -12,11 +13,13 @@ class ListBoardItem extends StatefulWidget {
   const ListBoardItem({
     Key? key,
     this.workspaceId,
-    this.channelId
+    this.channelId,
+    this.collapseListBoard
   }) : super(key: key);
 
   final workspaceId;
   final channelId;
+  final collapseListBoard;
 
   @override
   State<ListBoardItem> createState() => _ListBoardItemState();
@@ -198,23 +201,15 @@ class _ListBoardItemState extends State<ListBoardItem> {
                 children: [
                   Container(
                     child: Wrap(
-                      children: members.map((e) {
-                        CardMember member = e;
-                        return Container(margin: EdgeInsets.only(right: 4) ,child: CachedAvatar(member.avatarUrl, name: member.name, width: 24, height: 24, radius: 50));
-                      }).toList(),
-                    ),
-                  ),
-                  Container(
-                    child: Wrap(
                       children: [
                         if (cardItem.commentsCount > 0) Row(
                           children: [
-                            Icon(CupertinoIcons.bubble_right, size: 13, color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45)),
+                            Icon(PhosphorIcons.chatCircleDots, size: 13, color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45)),
                             SizedBox(width: 3),
-                            Text(cardItem.commentsCount.toString(), style: TextStyle(fontSize: 13))
+                            Text(cardItem.commentsCount.toString(), style: TextStyle(fontSize: 13)),
+                            SizedBox(width: 10)
                           ]
                         ),
-                        SizedBox(width: 10),
                         if (cardItem.tasks.length > 0) Row(
                           children: [
                             Icon(Icons.check_box_outlined, size: 14, color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45)),
@@ -223,6 +218,14 @@ class _ListBoardItemState extends State<ListBoardItem> {
                           ]
                         )
                       ]
+                    )
+                  ),
+                  Container(
+                    child: Wrap(
+                      children: members.map((e) {
+                        CardMember member = e;
+                        return Container(margin: EdgeInsets.only(right: 4) ,child: CachedAvatar(member.avatarUrl, name: member.name, width: 24, height: 24, radius: 50));
+                      }).toList(),
                     )
                   )
                 ]
@@ -244,109 +247,92 @@ class _ListBoardItemState extends State<ListBoardItem> {
   Widget build(BuildContext context) {
     final data = Provider.of<Boards>(context, listen: true).data;
     final selectedBoard = Provider.of<Boards>(context, listen: true).selectedBoard;
-    final isDark = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
+    final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     return Container(
-      padding: EdgeInsets.only(top: 8, left : 12),
-      width: MediaQuery.of(context).size.width,
+      decoration: BoxDecoration(
+        color: isDark ? Color(0xff262626) : Color(0xffF3F3F3),
+        border: Border(
+          right: BorderSide(
+            color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)
+          )
+        )
+      ),
+      height: MediaQuery.of(context).size.height - 38,
+      width: widget.collapseListBoard ? 64 : 256,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Your boards:", style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[700], fontSize: 18, fontWeight: FontWeight.w600)),
-          SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Wrap(
-                children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(3)
-                    ),
-                    child: TextButton(
-                      style: ButtonStyle(overlayColor: MaterialStateProperty.all(Colors.transparent)),
-                      onPressed: () {  
-                        showDialogCreateBoard(context);
-                      },
-                      child: Text("Add New Board", style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[800], fontSize: 15))
-                    )
-                  ),
-                  Container(
-                    width: 500,
-                    height: 34,
-                    child: ReorderableListView(
-                      scrollDirection: Axis.horizontal,
-                      children: data.map<Widget>((e) {
-                        return Container(
-                          margin: EdgeInsets.symmetric(horizontal: 6),
-                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: selectedBoard["id"] == e["id"] ? Colors.blue : Colors.grey),
-                            borderRadius: BorderRadius.circular(3)
-                          ),
-                          key: Key("${e["id"]}"), 
-                          child: TextButton(
-                            style: ButtonStyle(overlayColor: MaterialStateProperty.all(Colors.transparent)),
-                            onPressed: () {  
-                              Provider.of<Boards>(context, listen: false).onChangeBoard(e);
-                            },
-                            child: Text(e["title"], style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[800], fontSize: 15))
-                          )
-                        );
-                      }).toList(),
-
-                      onReorder: (int start, int current) {
-                        if (start < current) {
-                          int end = current - 1;
-                          var startItem = data[start];
-                          int i = 0;
-                          int local = start;
-                          do {
-                            data[local] = data[++local];
-                            i++;
-                          } while (i < end - start);
-                          data[end] = startItem;
-                        } else if (start > current) {
-                          var startItem = data[start];
-                          for (int i = start; i > current; i--) {
-                            data[i] = data[i - 1];
-                          }
-                          data[current] = startItem;
-                        }
-
-                        onArrangeBoard(data);
-                      }
-                    )
-                  )
-                ]
-              ),
-              Container(
-                margin: EdgeInsets.only(right: 10),
-                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(3)
-                ),
-                child: TextButton(
-                  style: ButtonStyle(overlayColor: MaterialStateProperty.all(Colors.transparent)),
-                  onPressed: () {  
-                    onShowArchivedCard();
-                  },
-                  child: Text("Archived cards", style: TextStyle(color: isDark ? Colors.grey[300] : Colors.grey[800], fontSize: 15))
-                )
-              ),
-            ]
+          widget.collapseListBoard ? Container(height: 56) : Padding(
+            padding: EdgeInsets.only(top: 19, left: 24, bottom: 18),
+            child: Container(
+              child: Text("BOARD:", style: TextStyle(color: isDark ? Color(0xffC9C9C9) : Color(0xff828282), fontSize: 16, fontWeight: FontWeight.w600))
+            )
           ),
-          SizedBox(height: 8),
-          Divider(height: 5, thickness: 1)
+          Divider(thickness: 1, color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
+          Container(
+            width: 256,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: data.map<Widget>((e) {
+                int index = data.indexOf(e);
+
+                return InkWell(
+                  onTap: () {  
+                    Provider.of<Boards>(context, listen: false).onChangeBoard(e);
+                  },
+                  child: BoardTitle(selectedBoard: selectedBoard, board: e, index: index, collapseListBoard: widget.collapseListBoard)
+                );
+              }).toList()
+            )
+          ),
+          SizedBox(height: 16),
+          widget.collapseListBoard ? InkWell(
+            onTap: () {
+              showDialogCreateBoard(context);
+            },
+            child: Container(
+              margin: EdgeInsets.only(left: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xff4C4C4C) : Color(0xffDBDBDB),
+                borderRadius: BorderRadius.circular(4)
+              ),
+              width: 40,
+              height: 40,
+              child: Center(child: Icon(PhosphorIcons.plus)),
+            ),
+          ) : Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              width: 256 - 48,
+              padding: EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark ? Color(0xff4C4C4C) : Colors.white,
+                borderRadius: BorderRadius.circular(4)
+              ),
+              child: TextButton(
+                style: ButtonStyle(overlayColor: MaterialStateProperty.all(Colors.transparent)),
+                onPressed: () {  
+                  showDialogCreateBoard(context);
+                },
+                child: Wrap(
+                  children: [
+                    Icon(PhosphorIcons.plus, size: 18, color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                    SizedBox(width: 12),
+                    Text("New Board", style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 16, fontWeight: FontWeight.w400))
+                  ]
+                )
+              )
+            )
+          )
         ]
       )
     );
   }
 
   showDialogCreateBoard(context) {
+    final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+ 
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -354,58 +340,174 @@ class _ListBoardItemState extends State<ListBoardItem> {
         final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
         final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
         final controller = TextEditingController();
-        final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
         return Dialog(
           child: Container(
-            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            width: 220,
-            height: 156,
+            width: 332,
+            height: 184,
             child: Column(
               children: [
-                Text(S.current.createNewBoard, style: TextStyle(fontSize: 16, color: isDark ? Colors.grey[300] : Colors.grey[800])),
-                SizedBox(height: 16),
-                CupertinoTextField(
-                  autofocus: true,
-                  style: TextStyle(color: Colors.grey[700]),
-                  controller: controller,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey[500]!),
-                    color: isDark ? Colors.grey[300] : Colors.white
-                  ),
-                  onEditingComplete: () async {
-                    if (controller.text.trim() == "") return;
-                    await Provider.of<Boards>(context, listen: false).createNewBoard(token, currentWorkspace["id"], currentChannel["id"], controller.text);
-                    Navigator.pop(context);
-                  },
+                Container(
+                  width: 332,
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  height: 40,
+                  color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                  child: Text(S.current.createNewBoard, style: TextStyle(fontSize: 14))
                 ),
-                SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      }, 
-                      child: Text(S.current.cancel, style: TextStyle(color: Colors.grey[800]))
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  child: TextFormField (
+                    autofocus: true,
+                    controller: controller,
+                    style: TextStyle(color: isDark ? Colors.white : Color(0xffA6A6A6)),
+                    decoration: InputDecoration(
+                      hintText: "Name board",
+                      hintStyle: TextStyle(fontSize: 14, color: Color(0xffA6A6A6)),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                        borderRadius: BorderRadius.all(Radius.circular(4))
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        borderRadius: BorderRadius.all(Radius.circular(4))
+                      )
                     ),
-                    SizedBox(width: 16),
-                    TextButton(
-                      onPressed: () async {
-                        if (controller.text.trim() == "") return;
-                        await Provider.of<Boards>(context, listen: false).createNewBoard(token, currentWorkspace["id"], currentChannel["id"], controller.text);
-                        Navigator.pop(context);
-                      }, 
-                      child: Text(S.current.confirm, style: TextStyle(color: Colors.lightBlue))
-                    )
-                  ]
+                    onEditingComplete: () async {
+                      if (controller.text.trim() == "") return;
+                      await Provider.of<Boards>(context, listen: false).createNewBoard(token, currentWorkspace["id"], currentChannel["id"], controller.text);
+                      Navigator.pop(context);
+                    }
+                  )
+                ),
+                Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), thickness: 1, height: 1),
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        flex: 1,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.pop(context);
+                          }, 
+                          child: Container(
+                            height: 32,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Palette.errorColor),
+                              borderRadius: BorderRadius.circular(4)
+                            ),
+                            child: Center(child: Text(S.current.cancel, style: TextStyle(color: Palette.errorColor)))
+                          )
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Flexible(
+                        flex: 1,
+                        child: InkWell(
+                          onTap: () async {
+                            if (controller.text.trim() == "") return;
+                            await Provider.of<Boards>(context, listen: false).createNewBoard(token, currentWorkspace["id"], currentChannel["id"], controller.text);
+                            Navigator.pop(context);
+                          }, 
+                          child: Container(
+                            height: 32,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(4),
+                              color: Palette.dayBlue
+                            ),
+                            child: Center(child: Text("Create board", style: TextStyle(fontSize: 14, color: Palette.defaultTextDark)))
+                          )
+                        )
+                      )
+                    ]
+                  )
                 )
               ]
             )
           )
         );
       }
+    );
+  }
+}
+
+class BoardTitle extends StatefulWidget {
+  const BoardTitle({
+    Key? key,
+    required this.selectedBoard,
+    required this.board,
+    required this.index,
+    required this.collapseListBoard
+  }) : super(key: key);
+
+  final Map selectedBoard;
+  final int index;
+  final Map board;
+  final bool collapseListBoard;
+
+  @override
+  State<BoardTitle> createState() => _BoardTitleState();
+}
+
+class _BoardTitleState extends State<BoardTitle> {
+  List colors = [
+    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA", 
+    "08979C", "237804", "0050B3", "B37FEB", "9E1068", "D48806", "FFA940", "A8071A", "6B7588",
+    "13C2C2", "B7EB8F", "096DD9", "722ED1", "C41D7F", "FFD666", "FA8C16", "F5222D", "8F90A6"
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
+    return widget.collapseListBoard ? Container(
+      width: 64,
+      height: 48,
+      padding: EdgeInsets.only(top: 12, left: 18, right: 20, bottom: 12),
+      decoration: BoxDecoration(
+        color: widget.board["id"] == widget.selectedBoard["id"] ? isDark ? Color(0xff3D3D3D) : Colors.white : Colors.transparent,
+        border: Border(
+          left: BorderSide(
+            color: widget.board["id"] == widget.selectedBoard["id"] ? isDark ? Palette.calendulaGold : Palette.dayBlue : Colors.transparent,
+            width: 2
+          )
+        )
+      ),
+      child: Container(
+        height: 24, width: 24, 
+        decoration: BoxDecoration(
+          color: Color(int.parse("0xFF${colors[widget.index]}")),
+          borderRadius: BorderRadius.circular(4)
+        ),
+        child: Center(child: Text("A", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Palette.darkTextField)))
+      )
+    ) : Container(
+      width: 256,
+      decoration: widget.board["id"] == widget.selectedBoard["id"] ? BoxDecoration(
+        color: isDark ? Color(0xff3D3D3D) : Colors.white,
+        border: Border(
+          left: BorderSide(
+            color: isDark ? Palette.calendulaGold : Palette.dayBlue,
+            width: 2
+          )
+        )
+      ) : null,
+      padding: EdgeInsets.symmetric(vertical: 12, horizontal: widget.board["id"] == widget.selectedBoard["id"] ? 22 : 24),
+      child: Wrap(
+        children: [
+          Container(
+            height: 16, width: 16, 
+            decoration: BoxDecoration(
+              color: Color(int.parse("0xFF${colors[widget.index]}")),
+              borderRadius: BorderRadius.circular(4)
+            )
+          ),
+          SizedBox(width: 12),
+          Text(widget.board["title"], style: TextStyle(fontSize: 16))
+        ]
+      )
     );
   }
 }

@@ -121,7 +121,7 @@ class _TextFileState extends State<TextFile> {
                               IconButton(
                                 onPressed: () => Navigator.pop(context),
                                 icon: Icon(
-                                  PhosphorIcons.xCircle, size: 20,
+                                  PhosphorIcons.xCircle, size: 24,
                                   color: isDark ? Colors.white70 : Colors.grey[800],
                                 ),
                               )

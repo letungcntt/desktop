@@ -113,6 +113,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
   }
 
   pushNotiMacOS(title, body, payload, {isDefault: false}){
+    int id = int.parse(DateTime.now().millisecondsSinceEpoch.toString().substring(7));
     var macOSPlatformChannelSpecifics = new MacOSNotificationDetails(
       presentAlert: !isDefault, 
       presentBadge: true, 
@@ -123,7 +124,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
 
     var platformChannelSpecifics = NotificationDetails(macOS: macOSPlatformChannelSpecifics);
     flutterLocalNotificationsPlugin.show(
-      0,
+      id,
       title,
       body,
       platformChannelSpecifics,
@@ -133,7 +134,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
 
   onClearBadge(channelId) async {
     if (this.mounted) {
-      await Provider.of<Channels>(context, listen: false).clearBadge(channelId, false);
+      await Provider.of<Channels>(context, listen: false).clearBadge(channelId, null, false);
       await Utils.updateBadge(context);
     }
   }

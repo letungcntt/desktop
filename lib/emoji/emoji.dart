@@ -137,7 +137,7 @@ class _EmojiState extends State<Emoji> {
                     decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide( 
-                        color: select == e["name"] ? const Color(0xff1890FF): Colors.transparent,
+                        color: select == e["name"] ? Utils.getPrimaryColor(): Colors.transparent,
                         width: 3.0,
                     ), ) 
                   ),)
@@ -307,7 +307,7 @@ class _EmojiState extends State<Emoji> {
                           margin: const EdgeInsets.symmetric(horizontal: 20,vertical: 8),
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: highLight ? isDark ? const Color(0xffFAAD14) : const Color(0xff1890FF) : isDark ? const Color(0xffDBDBDB) : const Color(0xff5E5E5E),
+                              color: highLight ? isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor() : isDark ? const Color(0xffDBDBDB) : const Color(0xff5E5E5E),
                               width: 1,
                             ),
                             borderRadius: BorderRadius.circular(2),
@@ -318,10 +318,10 @@ class _EmojiState extends State<Emoji> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.add,size: 16,
-                                  color: highLight ? isDark ? const Color(0xffFAAD14) : const Color(0xff1890FF) : isDark ? const Color(0xffDBDBDB) : const Color(0xff5E5E5E),),
+                                  color: highLight ? isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor() : isDark ? const Color(0xffDBDBDB) : const Color(0xff5E5E5E),),
                                 const SizedBox(width: 8,),
                                 Text("Add emoji",style: TextStyle(
-                                  color: highLight ? isDark ? const Color(0xffFAAD14) : const Color(0xff1890FF) : isDark ? const Color(0xffDBDBDB) : const Color(0xff5E5E5E),),),
+                                  color: highLight ? isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor() : isDark ? const Color(0xffDBDBDB) : const Color(0xff5E5E5E),),),
                               ],
                             ),
                           ),

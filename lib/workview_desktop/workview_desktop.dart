@@ -4,8 +4,7 @@ import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/boardview/boardview_desktop.dart';
-import 'package:workcake/components/boardview/list_board_item.dart';
+import 'package:workcake/components/boardview/kanban_view.dart';
 import 'package:workcake/components/dropdown_overlay.dart';
 import 'package:workcake/components/right_sider.dart';
 import 'package:workcake/emoji/emoji.dart';
@@ -108,12 +107,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
           child: Column(
             children: [
               WorkviewHeader(currentChannel: currentChannel, currentMember: currentMember, auth: auth, currentWorkspace: currentWorkspace, channelMember: channelMember),
-              currentChannel["kanban_mode"] == true ? Column(
-                children: [
-                  ListBoardItem(workspaceId: currentWorkspace["id"], channelId: currentChannel["id"]),
-                  BoardViewDesktop()
-                ]
-              ) : Container(
+              currentChannel["kanban_mode"] == true ? KanbanView() : Container(
                 padding: EdgeInsets.only(top: 24, right: 24, left: 24, bottom: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -127,8 +121,8 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
                             )),
                             padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 16, horizontal: 24)),
                             backgroundColor: MaterialStateProperty.all(currentTab == "issue" ? Palette.buttonColor : 
-                              currentTab == "label" && !createLabel ? Color(0xff1890FF) : 
-                              currentTab == "milestone" && !createMilestone ? Color(0xff1890FF) : Color(0xff1E1E1E)),
+                              currentTab == "label" && !createLabel ? Utils.getPrimaryColor() : 
+                              currentTab == "milestone" && !createMilestone ? Utils.getPrimaryColor() : Color(0xff1E1E1E)),
                             overlayColor: MaterialStateProperty.all(Color(0xff0969DA))
                           ),
                           onPressed: currentTab == "issue" ? () async {
@@ -416,47 +410,50 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
 
                               Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member);
                             },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                // border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
-                                color: Colors.transparent,
-                              ),
-                              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 30,
-                                    child: !Utils.checkedTypeEmpty(widget.currentMember["watching_issue"])
-                                        ? Icon(CupertinoIcons.checkmark_alt, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, size: 15)
-                                        : null,
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            S.current.watchMention,
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                                            ),
-                                          ),
-                                          Text(
-                                            S.current.descWatchMention,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w400,
-                                              color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45),
-                                            ),
-                                          ),
-                                        ],
-                                      )
+                            child: HoverItem(
+                              colorHover: Palette.hoverColorDefault,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  // border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
+                                  color: Colors.transparent,
+                                ),
+                                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 30,
+                                      child: !Utils.checkedTypeEmpty(widget.currentMember["watching_issue"])
+                                          ? Icon(CupertinoIcons.checkmark_alt, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, size: 15)
+                                          : null,
                                     ),
-                                  )
-                                ],
+                                    Expanded(
+                                      child: Container(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              S.current.watchMention,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                              ),
+                                            ),
+                                            Text(
+                                              S.current.descWatchMention,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w400,
+                                                color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45),
+                                              ),
+                                            ),
+                                          ],
+                                        )
+                                      ),
+                                    )
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -472,68 +469,93 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
 
                               Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member);
                             },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                // border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
-                                color: Colors.transparent,
-                              ),
-                              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 30,
-                                    child: Utils.checkedTypeEmpty(widget.currentMember["watching_issue"])
-                                        ? Icon(CupertinoIcons.checkmark_alt, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, size: 15)
-                                        : null,
-                                  ),
-                                  Expanded(
-                                    child: Container(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            S.current.watchActivity,
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                              color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                            child: HoverItem(
+                              colorHover: Palette.hoverColorDefault,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  // border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
+                                  color: Colors.transparent,
+                                ),
+                                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 30,
+                                      child: Utils.checkedTypeEmpty(widget.currentMember["watching_issue"])
+                                          ? Icon(CupertinoIcons.checkmark_alt, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, size: 15)
+                                          : null,
+                                    ),
+                                    Expanded(
+                                      child: Container(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              S.current.watchActivity,
+                                              style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                                color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                              ),
                                             ),
-                                          ),
-                                          Text(
-                                            S.current.descWatchActivity,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w400,
-                                              color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45),
+                                            Text(
+                                              S.current.descWatchActivity,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w400,
+                                                color: isDark ? Color(0xffB7B7B7) : Colors.black.withOpacity(0.45),
+                                              )
                                             )
-                                          )
-                                        ]
+                                          ]
+                                        )
                                       )
                                     )
-                                  )
-                                ]
-                              )
+                                  ]
+                                )
+                              ),
                             )
                           ), 
-                          Divider(thickness: 1.5),
-                          InkWell(
-                            onTap: () {
-                              onChangeSubcribeIssue();
-                            },
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  margin: EdgeInsets.only(top: 1, left: 2),
-                                  width: 30,
-                                  child: Utils.checkedTypeEmpty(widget.currentMember["subcribe_issue"]) ? Icon(CupertinoIcons.checkmark_alt, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, size: 16) : Container()
+                          Divider(),
+                          TextButton(
+                            style: ButtonStyle(
+                              overlayColor: MaterialStateProperty.all(isDark ? Palette.selectChannelColor : Color(0xffF3F3F3)),
+                              padding: MaterialStateProperty.all(EdgeInsets.zero)
+                            ),
+                            onPressed: () => onChangeSubcribeIssue(),
+                            child: HoverItem(
+                              colorHover: Palette.hoverColorDefault,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  // border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
+                                  color: Colors.transparent,
                                 ),
-                                Expanded(child: Text(S.current.watchAllComment, style: TextStyle(fontSize: 14.5, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)))
-                              ]
-                            )
+                                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 30,
+                                      child: Utils.checkedTypeEmpty(widget.currentMember["subcribe_issue"])
+                                          ? Icon(CupertinoIcons.checkmark_alt, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, size: 15)
+                                          : null,
+                                    ),
+                                    Expanded(
+                                      child: Container(
+                                        child: Text(
+                                          S.current.watchAllComment,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                          ),
+                                        )
+                                      )
+                                    )
+                                  ]
+                                )
+                              ),
+                            ),
                           ),
-                          SizedBox(height: 10)
                         ]
                       )
                     ),

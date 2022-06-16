@@ -8,6 +8,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/CardItem.dart';
 import 'package:workcake/models/models.dart';
@@ -137,10 +138,11 @@ class _TaskItemState extends State<TaskItem> {
     CardItem? card = Provider.of<Boards>(context, listen: false).selectedCard;
 
     if (index == -1) return;
-    setState(() { widget.task["attachments"].removeAt(index); });
 
-    if (card == null) return;
-    Provider.of<Boards>(context, listen: false).removeTaskAttachment(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id, widget.task["id"], widget.task["attachments"][index]["content_id"]);
+    if (card != null) {
+      Provider.of<Boards>(context, listen: false).removeTaskAttachment(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id, widget.task["id"], widget.task["attachments"][index]["content_id"]);
+    }
+    setState(() { widget.task["attachments"].removeAt(index); });
   }
 
   onEditingTask(title) {
@@ -172,13 +174,15 @@ class _TaskItemState extends State<TaskItem> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return Container(
       width: 683,
       decoration: BoxDecoration(
-        color: Color(0xff444444),
+        color: isDark ? Color(0xff444444) : Color(0xffF8F8F8),
         border: Border(
           top: BorderSide(
-            color: Color(0xff5E5E5E),
+            color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
             width: 1.0
           )
         )
@@ -200,8 +204,8 @@ class _TaskItemState extends State<TaskItem> {
                     Transform.scale(
                       scale: 0.9,
                       child: Checkbox(
-                        activeColor: Color(0xffFAAD14),
-                        checkColor: Color(0xff2E2E2E),
+                        activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
+                        checkColor: Palette.defaultTextDark,
                         value: widget.task["value"] ?? widget.task["is_checked"] ?? false,
                         onChanged: (bool? value) {  
                           onCheckTask(value);
@@ -336,7 +340,8 @@ class _TaskItemState extends State<TaskItem> {
                   ),
                   SizedBox(width: 8),
                   ...widget.task["attachments"].map((attachment) {
-                    return AttachmentItem(attachment: attachment, onDeleteAttachment: onRemoveTaskAttachment);
+                    int index = widget.task["attachments"].indexWhere((ele) => ele == attachment);
+                    return AttachmentItem(attachments: widget.task["attachments"], onDeleteAttachment: onRemoveTaskAttachment, index: index);
                   })
                 ]
               )

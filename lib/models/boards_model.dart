@@ -184,7 +184,11 @@ class Boards extends ChangeNotifier {
 
     try {
       final response = await http.post(url, headers: Utils.headers, body: json.encode({
-        "card": card
+        "card": card,
+        "description": card["description"],
+        "title": card["title"],
+        "priority": card["priority"],
+        "due_date": card["dueDate"]
       }));
       final responseData = json.decode(response.body);
 
@@ -228,7 +232,9 @@ class Boards extends ChangeNotifier {
       }));
       final responseData = json.decode(response.body);
 
-      if (responseData["success"]) {} else {
+      if (responseData["success"]) {
+        updateCard(workspaceId, channelId, boardId, listCardId, cardId, "deleteComment", {});
+      } else {
         print("deleteComment error");
       }
     } catch (e) {
@@ -278,19 +284,29 @@ class Boards extends ChangeNotifier {
     }
   }
 
-  createLabel(token, workspaceId, channelId, boardId, title, colorHex) async {
+  createLabel(token, workspaceId, channelId, boardId, title, colorHex, labelId) async {
     final url = Uri.parse(Utils.apiUrl + 'workspaces/$workspaceId/channels/$channelId/boards/$boardId/create_label?token=$token');
 
     try {
       final response = await http.post(url, headers: Utils.headers, body: json.encode({
         "title": title,
-        "color_hex": colorHex
+        "color_hex": colorHex,
+        "label_id": labelId
       }));
       final responseData = json.decode(response.body);
 
       if (responseData["success"]) {
         final label = responseData["label"];
-        selectedBoard["labels"].insert(0, label);
+
+        if (labelId != null) {
+          final indexLabel = selectedBoard["labels"].indexWhere((e) => e["id"] == labelId);
+          if (indexLabel != -1) {
+            selectedBoard["labels"][indexLabel] = label;
+          }
+        } else {
+          selectedBoard["labels"].insert(0, label);
+        }
+        
         notifyListeners();
       } else {
         print("createLabel error");
@@ -356,6 +372,7 @@ class Boards extends ChangeNotifier {
       final responseData = json.decode(response.body);
 
       if (responseData["success"]) {
+        updateCard(workspaceId, channelId, boardId, listCardId, cardId, "deleteChecklistOrTask", {"taskId": taskId, "checklistId": checklistId});
         return responseData;
       } else {
         print("deleteChecklistOrTask error");
@@ -411,24 +428,37 @@ class Boards extends ChangeNotifier {
   }
 
   updateCard(workspaceId, channelId, boardId, listCardId, cardId, type, payload) {
-    final listCardIndex = selectedBoard["list_cards"].indexWhere((e) => e["id"] == listCardId);
-    if (listCardIndex == -1) return;
-    final cards = selectedBoard["list_cards"][listCardIndex]["cards"];
-    final indexCard = cards.indexWhere((e) => e["id"].toString() == cardId.toString());
-    if (indexCard == -1) return;
-    final card = cards[indexCard];
+    try {
+      final listCardIndex = selectedBoard["list_cards"].indexWhere((e) => e["id"] == listCardId);
+      if (listCardIndex == -1) return;
+      final cards = selectedBoard["list_cards"][listCardIndex]["cards"];
+      final indexCard = cards.indexWhere((e) => e["id"].toString() == cardId.toString());
+      if (indexCard == -1) return;
+      final card = cards[indexCard];
 
-    if (type == "sendCommentCard") {
-      card["comments_count"] +=1;
-    } else if (type == "createOrChangeTask") {
-      final tasks = card["tasks"];
-      final indexTask = tasks.indexWhere((e) => e["id"].toString() == payload["taskId"].toString());
+      if (type == "sendCommentCard") {
+        card["comments_count"] +=1;
+      } else if (type == "createOrChangeTask") {
+        final tasks = card["tasks"];
+        final indexTask = tasks.indexWhere((e) => e["id"].toString() == payload["taskId"].toString());
 
-      if (indexTask == -1) {
-        tasks.add(payload["task"]);
+        if (indexTask == -1) {
+          tasks.add(payload["task"]);
+        }
+      } else if (type == "deleteComment") {
+        card["comments_count"] -=1;
+      } else if (type == "deleteChecklistOrTask") {
+        if (payload["taskId"] != null) {
+          final indexTask = card["tasks"].indexWhere((e) => e["id"] == payload["taskId"]);
+          if (indexTask != -1) card["tasks"].removeAt(indexTask);
+        } else {
+          card["tasks"] = card["tasks"].where((e) => e["checklist_id"] != payload["checklistId"]).toList();
+        }
       }
+      notifyListeners();
+    } catch (e, trace) {
+      print("updateCard error: $e $trace");
     }
-    notifyListeners();
   }
 
   changeListCardTitle(token, workspaceId, channelId, boardId, listCardId, title) async {
@@ -521,5 +551,27 @@ class Boards extends ChangeNotifier {
     } catch (e) {
       print("removeTaskAttachment error ${e.toString()}");
     }
+  }
+
+  deleteLabel(token, workspaceId, channelId, boardId, labelId) async {
+    final url = Uri.parse(Utils.apiUrl + 'workspaces/$workspaceId/channels/$channelId/boards/$boardId/delete_label?token=$token');
+
+    try {
+      final indexLabel = selectedBoard["labels"].indexWhere((e) => e["id"] == labelId);
+      if (indexLabel == -1) return;
+      selectedBoard["labels"].removeAt(indexLabel);
+      final response = await http.post(url, headers: Utils.headers, body: json.encode({
+        "label_id": labelId
+      }));
+      final responseData = json.decode(response.body);
+      if (responseData["success"]) {
+      } else {
+        print("deleteLabel error");
+      }
+    } catch (e) {
+      print("deleteLabel error");
+      print(e.toString());
+    }
+    notifyListeners();
   }
 }

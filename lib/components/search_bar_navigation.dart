@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/cache_avatar.dart';
@@ -52,6 +53,7 @@ class _SearchBarNavigationState extends State<SearchBarNavigation> {
   int  lastLength = 0;
   bool isFetching = false;
   bool isHover = false;
+  String contactItemHover = "";
   List dataMessageAll = [];
   int contactsLength = 3;
   FocusScopeNode focusScopeNode = FocusScopeNode();
@@ -504,7 +506,7 @@ class _SearchBarNavigationState extends State<SearchBarNavigation> {
         false,
         0,
         {},
-        user["full_name"] ?? user["name"]
+        user["full_name"] ?? user["name"], null
       );
     }
     Provider.of<Workspaces>(context, listen: false).setTab(0);
@@ -543,6 +545,8 @@ class _SearchBarNavigationState extends State<SearchBarNavigation> {
     final deviceWidth = MediaQuery.of(context).size.width;
     final currentWorkspace = Provider.of<Workspaces>(context).currentWorkspace;
     final currentUser = Provider.of<User>(context).currentUser;
+    final sendingList = Provider.of<User>(context, listen: true).sendingList;
+    final friendList = Provider.of<User>(context, listen: true).friendList;
 
     return MouseRegion(
       onEnter: (event){
@@ -620,7 +624,7 @@ class _SearchBarNavigationState extends State<SearchBarNavigation> {
                   maxHeight: 400
                 ),
                 child: Column(
-                  children: <Widget>[     
+                  children: <Widget>[
                     Row(
                       children: [
                         searchType != SearchType.ALL ? Container(
@@ -788,65 +792,92 @@ class _SearchBarNavigationState extends State<SearchBarNavigation> {
                                         shrinkWrap: true,
                                         itemCount: searchType != SearchType.ALL || contactsLength > contacts.length ? contacts.length : contactsLength ,
                                         itemBuilder: (context, index) {
-                                          return Container(
-                                            margin: const EdgeInsets.only(bottom: 2.0),
-                                            child: TextButton(
-                                              onPressed: () {
-                                                goDirectMessage(contacts[index]);
-                                                // onSelectDirectMessages(contacts[index]["conversation_id"]);
-                                                _searchQuery.clear();
-                                                showSuggestions.value = false;
-                                                FocusScope.of(context).unfocus();
-                                                FocusInputStream.instance.focusToMessage();
-                                                setState(() {
-                                                  workspaces = [];
-                                                  messages = [];
-                                                  contacts = [];
-                                                  contactsLength = 3;
-                                                });
-                                              },
-                                              child: Container(
-                                                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                                child: Row(
-                                                  children: [
-                                                    SizedBox(
-                                                      width: 30,
-                                                      child: Stack(
-                                                        children: [
-                                                        (contacts[index]["members"] ?? 1) < 2 ? CachedAvatar((contacts[index]["avatar_url"] ?? ""), name: contacts[index]["name"], width: 28, height: 28)
-                                                          : SizedBox(
-                                                            width: 28,
-                                                            height: 28,
-                                                            child: Container(
-                                                              decoration: BoxDecoration(
-                                                                color: Color(((index + 1) * pi * 0.1 * 0xFFFFFF).toInt()).withOpacity(1.0),
-                                                                borderRadius: BorderRadius.circular(16)
-                                                              ),
-                                                              child: const Icon(
-                                                                Icons.group,
-                                                                size: 16,
-                                                                color: Colors.white
+                                          String _checkFriendStatus(user) {
+                                            final indexFriend = friendList.indexWhere((element) => (element["user_id"] ?? element["id"]) == (user["id"] ?? user["user_id"]));
+                                            final indexSending = sendingList.indexWhere((element) => (element["user_id"] ?? element["id"]) == (user["id"] ?? user["user_id"]));
+                                            if (indexFriend != -1) return "friend";
+                                            if (indexSending != -1) return "sending";
+                                            return "none";
+                                          }
+                                          return MouseRegion(
+                                            onEnter: (_) {
+                                              setState(() => contactItemHover = contacts[index]["id"] ?? contacts[index]["user_id"]);
+                                            },
+                                            onExit: (_) {
+                                              setState(() => contactItemHover = "");
+                                            },
+                                            child: Container(
+                                              margin: const EdgeInsets.only(bottom: 2.0),
+                                              child: TextButton(
+                                                onPressed: () {
+                                                  goDirectMessage(contacts[index]);
+                                                  // onSelectDirectMessages(contacts[index]["conversation_id"]);
+                                                  _searchQuery.clear();
+                                                  showSuggestions.value = false;
+                                                  FocusScope.of(context).unfocus();
+                                                  FocusInputStream.instance.focusToMessage();
+                                                  setState(() {
+                                                    workspaces = [];
+                                                    messages = [];
+                                                    contacts = [];
+                                                    contactsLength = 3;
+                                                  });
+                                                },
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                                  child: Row(
+                                                    children: [
+                                                      SizedBox(
+                                                        width: 30,
+                                                        child: Stack(
+                                                          children: [
+                                                          (contacts[index]["members"] ?? 1) < 2 ? CachedAvatar((contacts[index]["avatar_url"] ?? ""), name: contacts[index]["name"], width: 28, height: 28)
+                                                            : SizedBox(
+                                                              width: 28,
+                                                              height: 28,
+                                                              child: Container(
+                                                                decoration: BoxDecoration(
+                                                                  color: Color(((index + 1) * pi * 0.1 * 0xFFFFFF).toInt()).withOpacity(1.0),
+                                                                  borderRadius: BorderRadius.circular(16)
+                                                                ),
+                                                                child: const Icon(
+                                                                  Icons.group,
+                                                                  size: 16,
+                                                                  color: Colors.white
+                                                                ),
                                                               ),
                                                             ),
-                                                          ),
-                                                          Positioned(
-                                                            bottom: 0,
-                                                            right: 0,
-                                                            child: Container(
-                                                              width: 10,
-                                                              height: 10,
-                                                              decoration: BoxDecoration(
-                                                                borderRadius: BorderRadius.circular(6.0),
-                                                                color: (contacts[index]["members"] ?? 1) < 2 ? (contacts[index]["is_online"] ?? false) ? Colors.green : Colors.transparent : Colors.transparent
+                                                            Positioned(
+                                                              bottom: 0,
+                                                              right: 0,
+                                                              child: Container(
+                                                                width: 10,
+                                                                height: 10,
+                                                                decoration: BoxDecoration(
+                                                                  borderRadius: BorderRadius.circular(6.0),
+                                                                  color: (contacts[index]["members"] ?? 1) < 2 ? (contacts[index]["is_online"] ?? false) ? Colors.green : Colors.transparent : Colors.transparent
+                                                                ),
                                                               ),
-                                                            ),
-                                                          )
-                                                        ],
+                                                            )
+                                                          ],
+                                                        ),
                                                       ),
-                                                    ),
-                                                    const SizedBox(width: 8.0,),
-                                                    Expanded(child: Text(contacts[index]["name"] ?? contacts[index]["full_name"] ?? "Error Name", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5, color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.85)),overflow: TextOverflow.ellipsis,)),
-                                                  ],
+                                                      const SizedBox(width: 8.0,),
+                                                      Expanded(child: Text(contacts[index]["name"] ?? contacts[index]["full_name"] ?? "Error Name", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5, color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.85)),overflow: TextOverflow.ellipsis,)),
+                                                      _checkFriendStatus(contacts[index]) != "friend" && contactItemHover == (contacts[index]["id"] ?? contacts[index]["user_id"])
+                                                        ? ElevatedButton(
+                                                            style: ButtonStyle(backgroundColor: MaterialStateProperty.all(Colors.transparent)),
+                                                            onPressed: () {
+                                                              if (_checkFriendStatus(contacts[index]) == "sending") {
+                                                                Provider.of<User>(context, listen: false).removeRequest(auth.token, contacts[index]["id"] ?? contacts[index]["user_id"]);
+                                                              } else {
+                                                                Provider.of<User>(context, listen: false).addFriendRequest(contacts[index]["id"] ?? contacts[index]["user_id"], auth.token);
+                                                              }
+                                                            },
+                                                            child: Icon(_checkFriendStatus(contacts[index]) == "sending" ? PhosphorIcons.userMinus : PhosphorIcons.userPlus))
+                                                        : Container()
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                             ),

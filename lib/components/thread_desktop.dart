@@ -512,7 +512,9 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
         'id': isChannel ? listUser[i]["id"] : listUser[i]["user_id"],
         'type': 'user',
         'display':Utils.getUserNickName(isChannel ? listUser[i]["id"] : listUser[i]["user_id"]) ?? listUser[i]["full_name"],
-        'full_name': Utils.getUserNickName(isChannel ? listUser[i]["id"] : listUser[i]["user_id"]) ?? listUser[i]["full_name"],
+        'full_name': Utils.checkedTypeEmpty(Utils.getUserNickName(isChannel ? listUser[i]["id"] : listUser[i]["user_id"]))
+            ? "${Utils.getUserNickName(isChannel ? listUser[i]["id"] : listUser[i]["user_id"])} • ${listUser[i]["full_name"]}"
+            : listUser[i]["full_name"],
         'photo': listUser[i]["avatar_url"]
       };
       index[keyId] = true;
@@ -742,6 +744,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
   }
 
   setUpdateMessage(data, bool value) {
+    Provider.of<Windows>(context, listen: false).isBlockEscape = value;
     setState(() {
       messageUpdate = data;
       isUpdate = value;
@@ -1179,7 +1182,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           isUnsent: Utils.checkedTypeEmpty(widget.parentMessage["conversationId"]) ? dataReversed[i]["action"] == "delete" : dataReversed[i]["is_unsent"],
                           avatarUrl: dataReversed[i]["avatar_url"] ?? "",
                           insertedAt: (dataReversed[i]["inserted_at"] ?? dataReversed[i]["time_create"]) ?? "",
-                          fullName: dataReversed[i]["full_name"] ?? "",
+                          fullName: Utils.getUserNickName(dataReversed[i]["user_id"]) ?? dataReversed[i]["full_name"] ?? "",
                           attachments: dataReversed[i]["attachments"] != null && dataReversed[i]["attachments"].length > 0 ? dataReversed[i]["attachments"] : [],
                           count: 0,
                           isFirst: i == dataReversed.length - 1 ? true : dataReversed[i]["user_id"] != dataReversed[i + 1]["user_id"] ? true : false,

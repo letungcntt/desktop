@@ -111,6 +111,7 @@ class _SelectAttributeState extends State<SelectAttribute> {
   @override
   void dispose() {
     _focusNodeInput.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
@@ -419,7 +420,7 @@ showDialogNewMilestones(context) {
       [
         {"user_id": currentUser["id"], "full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true},
         {"user_id": user["id"], "full_name": user["full_name"], "avatar_url": user["avatar_url"], "is_online": user["is_online"]}
-      ], "", false, 0, {}, false, 0, {}, user["full_name"]), ""
+      ], "", false, 0, {}, false, 0, {}, user["full_name"], null), ""
     );
     final keyScaffold = Provider.of<Auth>(context, listen: false).keyDrawer;
     keyScaffold.currentState?.openDrawer();
@@ -506,17 +507,24 @@ showDialogNewMilestones(context) {
                               fontWeight: FontWeight.w300,
                               fontFamily: "Roboto"
                             ),
+                            suffixIcon: Utils.checkedTypeEmpty(_titleController.text) ? InkWell(
+                              child: Icon(Icons.clear, size: 14, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
+                              onTap: () {
+                                _titleController.clear();
+                                onFilterAttribute("");
+                                setState(() => textSearch = "");
+                              }) : null,
                             contentPadding: EdgeInsets.symmetric(vertical: 2, horizontal: 8),
                             enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight), borderRadius: BorderRadius.all(Radius.circular(4))),
                             focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight), borderRadius: BorderRadius.all(Radius.circular(4))),
                           ),
-                          style: TextStyle(color:isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 13, fontWeight: FontWeight.w400),
+                          style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 13, fontWeight: FontWeight.w400),
                           onChanged: (value) {
                             onFilterAttribute(value.toLowerCase());
                             setState(() {
-                            textSearch = value;
-                            indexFind = -1;
-                          });
+                              textSearch = value;
+                              indexFind = -1;
+                            });
                           },
                         ),
                       ),
@@ -735,6 +743,7 @@ showDialogNewMilestones(context) {
           onPop: () {
             updateIssueTimeline(beforeAttribute, widget.selectedAtt);
             listAttribute = sortListAttribute();
+            _titleController.clear();
           }
         ),
 

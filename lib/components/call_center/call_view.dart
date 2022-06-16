@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:math';
 // import 'package:dart_vlc/dart_vlc.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:lottie/lottie.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -10,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/window_manager.dart';
+import 'package:workcake/components/call_center/enums_consts.dart';
+import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/models/models.dart';
 
 class P2PCallView extends StatefulWidget {
@@ -26,7 +26,7 @@ class P2PCallView extends StatefulWidget {
   State<P2PCallView> createState() => _P2PCallViewState();
 }
 
-class _P2PCallViewState extends State<P2PCallView> {
+class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin {
   RTCVideoRenderer _localRenderer = RTCVideoRenderer();
   RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   List<MediaDeviceInfo> listCameraDevices = [];
@@ -36,7 +36,6 @@ class _P2PCallViewState extends State<P2PCallView> {
   bool isMicEnable = true;
   bool isVideoEnable = true;
   bool isSpeakerEnable = true;
-  bool collapse = false;
   var hover= false;
   double ratioLocalVideoRenderer = 1.0;
   double ratioRemoteVideoRenderer = 1.0;
@@ -44,34 +43,53 @@ class _P2PCallViewState extends State<P2PCallView> {
   // Player? player;
   Timer? _timerRinging;
   TimerCounter _timerCounter = new TimerCounter();
+
+  bool _isDragging = false;
+  Offset _dragOffset = Offset.zero;
+  Map<PIPViewCorner, Offset> _offsets = {};
+  late PIPViewCorner _corner;
+  bool isFloating = false;
+  late final AnimationController _toggleFloatingAnimationController;
+  late final AnimationController _dragAnimationController;
   
   
   
   @override
   void initState() {
     super.initState();
-    _localRenderer.initialize();
-    _remoteRenderer.initialize();
-    user = widget.user;
-    collapse = widget.collapse;
-    // player = Player(id: 0);
-    ringing();
-
-    p2pManager.onCallStateChange = ((state) async {
-      if (state == CallState.CallStateReached) {
-        // player?.stop();
-        // player?.open(Media.asset('assets/musics/outcoming_sound.mp3'));
-        // player?.play();
+    () async {
+      await _localRenderer.initialize();
+      await _remoteRenderer.initialize();
+      if (widget.type == "offer") {
+        WidgetsBinding.instance.addPostFrameCallback((_) => widget.callback());
       }
+    }.call();
+    
+    user = widget.user;
+    // player = Player(id: 10);
+    _ringing();
+    _initP2PCallListener();
+
+    _corner = PIPViewCorner.topRight;
+    _toggleFloatingAnimationController = AnimationController(
+      duration: defaultAnimationDuration,
+      vsync: this,
+    );
+    _dragAnimationController = AnimationController(
+      duration: defaultAnimationDuration,
+      vsync: this,
+    );
+  }
+
+
+  //<------------P2PCallmanager start in here------------->
+  void _initP2PCallListener() {
+    p2pManager.onCallStateChange = ((state) async {
+      if (state == CallState.CallStateReached)
+        _ringWithReached();
       else if (state == CallState.CallStateConnected) {
         setState(() => callConnected = true);
-        _timerCounter.startTimeout().onChange = (second) {
-          if (this.mounted) setState(() {
-            timer = second;
-          });
-        };
-        _timerRinging?.cancel();
-        // player?.stop();
+        _stopRingAndStartCounter();
       } else if (state == CallState.CallStateBye) {
         if (widget.type == "offer") await createEndMessage();
         setState(() => callConnected = false);
@@ -82,30 +100,19 @@ class _P2PCallViewState extends State<P2PCallView> {
       listCameraDevices = listMediaDevices.where((device) => device.kind == 'videoinput').toList();
       listAudioDevices = listMediaDevices.where((device) => device.kind == 'audioinput').toList();
       
-      _localRenderer.onResize = () {
-        // setState(() => ratioLocalVideoRenderer = _localRenderer.value.aspectRatio);
-      };
-      setState(() => _localRenderer.srcObject = stream);
+      if (this.mounted) setState(() => _localRenderer.srcObject = stream);
     });
 
     p2pManager.onAddRemoteStream = ((stream, __) {
-      _remoteRenderer.onResize = () {
-        // setState(() => ratioRemoteVideoRenderer = _remoteRenderer.value.aspectRatio);
-      };
-      setState(() => _remoteRenderer.srcObject = stream);
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.type == "offer") widget.callback();
+      if (this.mounted) setState(() => _remoteRenderer.srcObject = stream);
     });
   }
 
-  void ringing() {
+  void _ringing() {
     _timerRinging = Timer.periodic(Duration(seconds: 1), (timer) {
       if (timer.tick >= 30) {
         timer.cancel();
         p2pManager.terminateConnect();
-        p2pManager.onCallStateChange.call(CallState.CallStateBye).then((value) => p2pManager.onSignalingStartCallback(CallState.CallStateBye));
         callConnected = false;
       }
     });
@@ -125,6 +132,103 @@ class _P2PCallViewState extends State<P2PCallView> {
     //   });
     // }
   }
+
+  void _ringWithReached() {
+    // player?.stop();
+    // player?.open(Media.asset('assets/musics/outcoming_sound.mp3'));
+    // player?.play();
+  }
+
+  void _stopRingAndStartCounter() {
+    _timerCounter.startTimeout().onChange = (second) {
+      if (this.mounted) setState(() {
+        timer = second;
+      });
+    };
+    // _timerRinging?.cancel();
+    // player?.stop();
+  }
+  //<------------------------------------------------------->
+
+  //<--------------Animation layout start here-------------->
+  void _updateCornersOffsets({
+    required Size spaceSize,
+    required Size widgetSize,
+    required EdgeInsets windowPadding,
+  }) {
+    _offsets = _calculateOffsets(
+      spaceSize: spaceSize,
+      widgetSize: widgetSize,
+      windowPadding: windowPadding,
+    );
+  }
+  bool _isAnimating() {
+    return _toggleFloatingAnimationController.isAnimating ||
+      _dragAnimationController.isAnimating;
+  }
+  void startFloating() {
+    if (_isAnimating() || isFloating) return;
+    dismissKeyboard(context);
+    setState(() {
+      isFloating = true;
+    });
+    _toggleFloatingAnimationController.forward();
+  }
+  void stopFloating() {
+    if (_isAnimating() || !isFloating) return;
+    dismissKeyboard(context);
+    _toggleFloatingAnimationController.reverse().whenCompleteOrCancel(() {
+      if (mounted) {
+        setState(() {
+          isFloating = false;
+        });
+      }
+    });
+  }
+  void _onPanUpdate(DragUpdateDetails details) {
+    if (!_isDragging) return;
+    setState(() {
+      _dragOffset = _dragOffset.translate(
+        details.delta.dx,
+        details.delta.dy,
+      );
+    });
+  }
+
+  void _onPanCancel() {
+    if (!_isDragging) return;
+    setState(() {
+      _dragAnimationController.value = 0;
+      _dragOffset = Offset.zero;
+      _isDragging = false;
+    });
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    if (!_isDragging) return;
+
+    final nearestCorner = _calculateNearestCorner(
+      offset: _dragOffset,
+      offsets: _offsets,
+    );
+    setState(() {
+      _corner = nearestCorner;
+      _isDragging = false;
+    });
+    _dragAnimationController.forward().whenCompleteOrCancel(() {
+      _dragAnimationController.value = 0;
+      _dragOffset = Offset.zero;
+    });
+  }
+
+  void _onPanStart(DragStartDetails details) {
+    if (_isAnimating()) return;
+    setState(() {
+      _dragOffset = _offsets[_corner]!;
+      _isDragging = true;
+    });
+  }
+  //<-------------------------------------------------->
 
   Future<void> createEndMessage() async {
     final token = Provider.of<Auth>(context, listen: false).token;
@@ -154,7 +258,6 @@ class _P2PCallViewState extends State<P2PCallView> {
   void dispose() {
     _localRenderer.dispose();
     _remoteRenderer.dispose();
-    p2pManager.releaseConnect();
     // player?.stop();
     // player?.dispose();
     // player = null;
@@ -167,106 +270,161 @@ class _P2PCallViewState extends State<P2PCallView> {
   @override
   void didUpdateWidget(covariant P2PCallView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    collapse = widget.collapse;
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context);
     final isDark = auth.theme == ThemeType.DARK;
-    return Scaffold(
-      body: collapse ? collapseView(widget.mediaType) : Container(
-        alignment: Alignment.center,
-        padding: EdgeInsets.symmetric(horizontal: 100.0, vertical: 20.0),
-        color: isDark ? Color(0xff3D3D3D) : Color(0xffE5E5E5),
-        child: !callConnected ? widget.type == "offer" ? outComingCall(widget.mediaType) : inComingCall(widget.mediaType) : callingView(widget.mediaType)
-      ),
+
+    final mediaQuery = MediaQuery.of(context);
+    var windowPadding = mediaQuery.padding;
+    windowPadding += mediaQuery.viewInsets;
+
+    return LayoutBuilder(
+      builder: ((context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        double floatingWidth = 500.0;
+        double floatingHeight = height / width * floatingWidth;
+
+        final floatingWidgetSize = Size(floatingWidth, floatingHeight);
+        final fullWidgetSize = Size(width, height);
+
+        _updateCornersOffsets(
+          spaceSize: fullWidgetSize,
+          widgetSize: floatingWidgetSize,
+          windowPadding: windowPadding,
+        );
+        final calculatedOffset = _offsets[_corner];
+        final widthRatio = floatingWidth / width;
+        final heightRatio = floatingHeight / height;
+        final scaledDownScale = widthRatio > heightRatio
+            ? floatingWidgetSize.width / fullWidgetSize.width
+            : floatingWidgetSize.height / fullWidgetSize.height;
+
+        return Stack(
+          children: [
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                _toggleFloatingAnimationController,
+                _dragAnimationController
+              ]),
+              builder: (context, child) {
+                final animationCurve = CurveTween(curve: Curves.linearToEaseOut);
+                final dragAnimationValue = animationCurve.transform(_dragAnimationController.value);
+                final toggleFloatingAnimationValue = animationCurve.transform(_toggleFloatingAnimationController.value);
+                final floatingOffset = _isDragging
+                    ? _dragOffset
+                    : Tween<Offset>(
+                      begin: _dragOffset,
+                      end: calculatedOffset,
+                    ).transform(_dragAnimationController.isAnimating ? dragAnimationValue : toggleFloatingAnimationValue);
+                final borderRadius = Tween<double>(
+                  begin: 0,
+                  end: 10
+                ).transform(toggleFloatingAnimationValue);
+                final width = Tween<double>(
+                  begin: fullWidgetSize.width,
+                  end: floatingWidgetSize.width
+                ).transform(toggleFloatingAnimationValue);
+                final height = Tween<double>(
+                  begin: fullWidgetSize.height,
+                  end: floatingWidgetSize.height,
+                ).transform(toggleFloatingAnimationValue);
+                final scale = Tween<double>(
+                  begin: 1,
+                  end: scaledDownScale,
+                ).transform(toggleFloatingAnimationValue);
+                return Positioned(
+                  left: floatingOffset.dx,
+                  top: floatingOffset.dy,
+                  child: GestureDetector(
+                    onPanStart: isFloating ? _onPanStart : null,
+                    onPanUpdate: isFloating ? _onPanUpdate : null,
+                    onPanCancel: isFloating ? _onPanCancel : null,
+                    onPanEnd: isFloating ? _onPanEnd : null,
+                    onTap: isFloating ? stopFloating : null,
+                    child: Material(
+                      elevation: 10,
+                      borderRadius: BorderRadius.circular(borderRadius),
+                      child: Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(borderRadius)
+                        ),
+                        width: width,
+                        height: height,
+                        child: Transform.scale(
+                          scale: scale,
+                          child: OverflowBox(
+                            maxHeight: fullWidgetSize.height,
+                            maxWidth: fullWidgetSize.width,
+                            child: IgnorePointer(
+                              ignoring: isFloating,
+                              child: child,
+                            ),
+                          ),
+                        )
+                      ),
+                    ),
+                  ),
+                );
+              },
+              child: MaterialApp(
+                debugShowCheckedModeBanner: false,
+                home: Scaffold(
+                  body: SafeArea(
+                    child: Material(
+                      color: Colors.black,
+                      child: Container(
+                        alignment: Alignment.center,
+                        padding: EdgeInsets.symmetric(horizontal: 100.0, vertical: 20.0),
+                        color: isDark ? Color(0xff3D3D3D) : Color(0xffE5E5E5),
+                        child: !callConnected ? widget.type == "offer" ? _buildOutComing() : _buildIncoming() : _buildInCall()
+                      )
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
-  Widget outComingCall(String mediaType) {
-    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+  Widget _buildOutComing() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        SizedBox(height: 10),
         Stack(
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                InkWell(
-                  onTap: () {
-                    collapse = !collapse;
-                    widget.screenStateCallback(collapse);
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? Color(0xff5E5E5E) : Color(0xffFFFFFF),
-                      borderRadius: BorderRadius.circular(19)
-                    ),
-                    width: 38,
-                    height: 38,
-                    child: Icon(PhosphorIcons.arrowLeft, size: 20, color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E),),
-                  ),
-                ),
-                Column(
-                  children: [
-                    if (mediaType == "video") optionCameraDevices(),
-                    optionAudioDevice()
-                  ],
-                )
+                _buildBackButton(),
+                _buildOptionMediaDevices()
               ],
             ),
             SizedBox(
               width: double.infinity,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(5),
-                    child: Text(user["full_name"], style: TextStyle(fontSize: 18, color: isDark ? Color(0xffDBDBDB) : Color(0xff3D3D3D))),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(5),
-                    child: Text("Calling...", style: TextStyle(fontSize: 14, color: Color(0xff40A9FF))),
-                  ),
-                ],
-              ),
+              child: _buildNameWithTimer(null),
             )
           ],
         ),
-        
+
         Expanded(
-          child: isVideoEnable && mediaType == "video" ? Container(
-            decoration: BoxDecoration(border: Border.all(width: 1)),
-            child: RTCVideoView(_localRenderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover, mirror: true)
-          ) : Stack(
-            children: [
-              Center(
-                child: Container(
-                  width: 250 * 2.5,
-                  height: 250 * 2.5,
-                  child: Lottie.network("https://assets8.lottiefiles.com/temp/lf20_PeIV5A.json"),
-                ),
-              ),
-              Center(
-                child: Container(
-                  child: CachedAvatar(
-                    user["avatar_url"], 
-                    name: user["full_name"], 
-                    width: 200, height: 200,
-                  ),
-                ),
-              ),
-            ],
-          )
+          child: isVideoEnable && widget.mediaType == "video" 
+          ? _buildLocalRenderer()
+          : _buildAvatarWithLottieOnRinging(),
         ),
-        actionButton()
+        _buildListActionButton()
       ],
     );
   }
-  Widget inComingCall(String mediaType) {
-    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+  Widget _buildIncoming() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -280,39 +438,12 @@ class _P2PCallViewState extends State<P2PCallView> {
                   color: Colors.transparent,
                   child: Column(
                     children: [
-                      Stack(
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 300,
-                              height: 300,
-                              child: Lottie.network("https://assets8.lottiefiles.com/temp/lf20_PeIV5A.json"),
-                            ),
-                          ),
-                          Positioned(
-                            left: 0, top: 0, bottom: 0, right: 0,
-                            child: Center(
-                              child: CachedAvatar(
-                                user["avatar_url"], 
-                                name: user["full_name"], 
-                                width:100, height:100
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(5),
-                        child: Text(user["full_name"], style: TextStyle(fontSize: 18, color: isDark ? Color(0xffDBDBDB) : Color(0xff3D3D3D))),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(5),
-                        child: Text("is calling you...", style: TextStyle(fontSize: 14, color: Color(0xff40A9FF))),
-                      ),
+                      _buildAvatarWithLottieOnRinging(),
+                      _buildNameWithTimer(null)
                     ],
                   ),
                 ),
-                actionButton()
+                _buildListActionButton()
               ]
             ),
           ),
@@ -320,100 +451,125 @@ class _P2PCallViewState extends State<P2PCallView> {
       ],
     );
   }
-  Widget callingView(String mediaType) {
-    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    
+  Widget _buildInCall() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Stack(
           children: [
-            InkWell(
-              onTap: () {
-                collapse = !collapse;
-                widget.screenStateCallback(collapse);
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Color(0xff5E5E5E) : Color(0xffFFFFFF),
-                  borderRadius: BorderRadius.circular(19)
-                ),
-                width: 38,
-                height: 38,
-                child: Icon(PhosphorIcons.arrowLeft, size: 20, color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E),),
-              ),
-            ),
-            Column(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Padding(
-                  padding: EdgeInsets.all(5),
-                  child: Text(user["full_name"], style: TextStyle(fontSize: 18, color: isDark ? Color(0xffDBDBDB) : Color(0xff3D3D3D))),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(5),
-                  child: Text(timer.toString())
-                ),
+                _buildBackButton(),
+                 _buildOptionMediaDevices()
               ],
             ),
-            InkWell(
-              onTap: () {
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isDark ? Color(0xff5E5E5E) : Color(0xffFFFFFF),
-                  borderRadius: BorderRadius.circular(19)
-                ),
-                width: 38,
-                height: 38,
-                child: SvgPicture.asset('assets/icons/settings.svg')
-              ),
+            SizedBox(
+              width: double.infinity,
+              child: _buildNameWithTimer(timer),
             ),
           ],
         ),
         SizedBox(height: 20),
-        mediaType == "video" ? Expanded(
+        widget.mediaType == "video" ? Expanded(
           child: Stack(
             children: [
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  return Container(
-                    width: constraints.maxWidth,
-                    height: constraints.maxWidth / ratioRemoteVideoRenderer,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: RTCVideoView(_remoteRenderer),
-                  );
-                }
+              Positioned(
+                left: 0, top: 0, right: 0, bottom: 0,
+                child: _buildRemoteRenderer(),
               ),
-              if (!collapse) Positioned(
+              Positioned(
                 right: 20,
                 top: 20,
-                child: isVideoEnable ?  Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: Colors.white, width: 2.0)
-                  ),
-                  width: 140 * ratioLocalVideoRenderer,
-                  height: 140,
-                  child: RTCVideoView(_localRenderer, mirror: true,objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,),
-                ) : Container(),
-              ),
+                width: 300,
+                height: 200,
+                child: _buildLocalRenderer(),
+              )
             ],
           ),
         ) : Expanded(
-          child: Center(
+          child: _buildAvatarOnAudioConnected(),
+        ),
+        _buildListActionButton()
+      ],
+    );
+  }
+
+  Widget _buildLocalRenderer() {
+    return Container(
+      decoration: BoxDecoration(border: Border.all(width: 1)),
+      child: RTCVideoView(_localRenderer, objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover, mirror: true)
+    );
+  }
+  Widget _buildRemoteRenderer() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: RTCVideoView(_remoteRenderer)
+    );
+  }
+  Widget _buildAvatarWithLottieOnRinging() {
+    return Stack(
+      children: [
+        Center(
+          child: Container(
+            width: 250 * 2.5,
+            height: 250 * 2.5,
+            child: Lottie.network("https://assets8.lottiefiles.com/temp/lf20_PeIV5A.json"),
+          ),
+        ),
+        Center(
+          child: Container(
             child: CachedAvatar(
               user["avatar_url"], 
               name: user["full_name"], 
-              width: 250, height: 250
+              width: 200, height: 200,
             ),
           ),
         ),
-        actionButton()
+      ],
+    );
+  }
+  Widget _buildAvatarOnAudioConnected() {
+    return Center(
+      child: CachedAvatar(
+        user["avatar_url"], 
+        name: user["full_name"], 
+        width: 250, height: 250
+      ),
+    );
+  }
+  Widget _buildBackButton() {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+    return InkWell(
+      onTap: startFloating,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? Color(0xff5E5E5E) : Color(0xffFFFFFF),
+          borderRadius: BorderRadius.circular(19)
+        ),
+        width: 38,
+        height: 38,
+        child: Icon(PhosphorIcons.arrowLeft, size: 20, color: isDark ? Color(0xffEDEDED) : Color(0xff5E5E5E),),
+      ),
+    );
+  }
+
+  Widget _buildNameWithTimer(timer) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.all(5),
+          child: Text(user["full_name"], style: TextStyle(fontSize: 18, color: isDark ? Color(0xffDBDBDB) : Color(0xff3D3D3D))),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(5),
+          child: timer != null ? Text(timer.toString()) : Text(widget.type == "offer" ? "Calling..." : "is calling you...", style: TextStyle(fontSize: 14, color: Color(0xff40A9FF)))
+        ),
       ],
     );
   }
@@ -497,7 +653,6 @@ class _P2PCallViewState extends State<P2PCallView> {
                       onTap: () {
                         setState(() {
                           p2pManager.terminateConnect();
-                          p2pManager.onCallStateChange.call(CallState.CallStateBye).then((_) => p2pManager.onSignalingStartCallback(CallState.CallStateBye));
                           callConnected = false;
                         });
                       } ,
@@ -513,7 +668,7 @@ class _P2PCallViewState extends State<P2PCallView> {
     );
   }
 
-  Widget optionCameraDevices() {
+  Widget _buildOptionCameraDevices() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     final OutlineInputBorder borderStyle = OutlineInputBorder(borderRadius: BorderRadius.circular(2.0), borderSide: BorderSide(color: Color(0xff3D3D3D), style: BorderStyle.solid, width: 1.0));
     return Container(
@@ -544,7 +699,7 @@ class _P2PCallViewState extends State<P2PCallView> {
       ),
     );
   }
-  Widget optionAudioDevice() {
+  Widget _buildOptionAudioDevices() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     final OutlineInputBorder borderStyle = OutlineInputBorder(borderRadius: BorderRadius.circular(2.0), borderSide: BorderSide(color: Color(0xff3D3D3D), style: BorderStyle.solid, width: 1.0));
     return Container(
@@ -575,7 +730,16 @@ class _P2PCallViewState extends State<P2PCallView> {
       ),
     );
   }
-  Widget actionButton() {
+
+  Widget _buildOptionMediaDevices() {
+    return Column(
+      children: [
+        if (widget.mediaType == "video") _buildOptionCameraDevices(),
+        _buildOptionAudioDevices()
+      ],
+    );
+  }
+  Widget _buildListActionButton() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     return Container(
       width: 300,
@@ -585,55 +749,84 @@ class _P2PCallViewState extends State<P2PCallView> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            if (widget.mediaType == "video" && (callConnected || widget.type == "offer")) InkWell(
-              onTap: () {
-                setState(() {
-                  isVideoEnable = !isVideoEnable;
-                  p2pManager.setEnableVideo(isVideoEnable);
-                });
-              } ,
-              child: Container(child: Center(child: Icon( isVideoEnable ? PhosphorIcons.videoCameraThin : PhosphorIcons.videoCameraSlashThin, size: 30, color: !isVideoEnable && !isDark ? Color(0xff3D3D3D) : Colors.white)), width: 50, height: 50, decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), color: isVideoEnable ? Color(0xff1890FF) : isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9))),
-            ),
-            if (callConnected || widget.type == "offer") InkWell(
-              onTap: () {},
-              child: Container(child: Center(child: Icon(PhosphorIcons.chatsCircleFill, color: isDark ? Color(0xffEDEDED) : Color(0xffFFFFFF),)), width: 50, height: 50, decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), color: isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9))),
-            ),
-            InkWell(
-              onTap: () {
+            if (widget.mediaType == "video" && (callConnected || widget.type == "offer"))
+              _buildActionButton(
+                enableIcon: PhosphorIcons.videoCameraThin,
+                disableIcon: PhosphorIcons.videoCameraSlashThin,
+                defaultState: isVideoEnable,
+                backgroundColor: isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9),
+                color: isDark ? Colors.white : Color(0xff3D3D3D),
+                onAction: (value) {
+                  setState(() {
+                    isVideoEnable = value;
+                    p2pManager.setEnableVideo(isVideoEnable);
+                  });
+                }
+              ),
+            _buildActionButton(
+              enableIcon: PhosphorIcons.phoneDisconnectThin,
+              disableIcon: PhosphorIcons.phoneDisconnectThin,
+              color: Colors.white,
+              backgroundColor: Color(0xffEB5757),
+              onAction: (_) {
                 setState(() {
                   p2pManager.terminateConnect();
-                  p2pManager.onCallStateChange.call(CallState.CallStateBye).then((value) => p2pManager.onSignalingStartCallback(CallState.CallStateBye));
                   
                   callConnected = false;
                   // player?.stop();
                 });
-              } ,
-              child: Container(child: Center(child: Icon(PhosphorIcons.phoneDisconnectThin, color: Colors.white)), width: 55, height: 55, decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), color: Color(0xffEB5757))),
+              }
             ),
-            if (callConnected || widget.type == "offer") InkWell(
-              onTap: () {
-                setState(() {
-                  isMicEnable = !isMicEnable;
-                  p2pManager.setEnableMic(isMicEnable);
-                });
-              } ,
-              child: Container(child: Center(child: Icon( isMicEnable ? PhosphorIcons.microphoneThin : PhosphorIcons.microphoneSlashThin, size: 30, color: !isMicEnable && !isDark ? Color(0xff3D3D3D) : Colors.white)), width: 50, height: 50, decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), color: isMicEnable ? Color(0xff1890FF) : isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9))),
-            ),
-            if(widget.type == "answer" && !callConnected) InkWell(
-            onTap: () {
-              setState(() {
-                widget.callback();
-              });
-            } ,
-            child: Container(child: Center(child: Icon(PhosphorIcons.phoneCallFill, color: Colors.white)), width: 55, height: 55, decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), color: Color(0xff27AE60))),
-          ),
-            if (callConnected || widget.type == "offer") InkWell(
-              onTap: () {} ,
-              child: Container(child: Center(child: Icon( isSpeakerEnable ? PhosphorIcons.speakerHighFill : PhosphorIcons.speakerSlashFill, size: 30, color: Colors.white)), width: 50, height: 50, decoration: BoxDecoration(borderRadius: BorderRadius.circular(50), color: isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9))),
-            ),
+            if (callConnected || widget.type == "offer")
+              _buildActionButton(
+                enableIcon: PhosphorIcons.microphoneThin,
+                disableIcon: PhosphorIcons.microphoneSlashThin,
+                color: !isMicEnable && !isDark ? Color(0xff3D3D3D) : Colors.white,
+                backgroundColor: isMicEnable ? Color(0xff1890FF) : isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9),
+                defaultState: isMicEnable,
+                onAction: (value) {
+                  setState(() {
+                    isMicEnable = !isMicEnable;
+                    p2pManager.setEnableMic(isMicEnable);
+                  });
+                }
+              ),
+            if(widget.type == "answer" && !callConnected)
+              _buildActionButton(
+                enableIcon: PhosphorIcons.phoneCallFill,
+                disableIcon: PhosphorIcons.phoneCallFill,
+                color: Colors.white,
+                backgroundColor: Color(0xff27AE60),
+                onAction: (_) {
+                  setState(() {
+                    widget.callback();
+                  });
+                }
+              ),
+            if (callConnected || widget.type == "offer")
+              _buildActionButton(
+                enableIcon: PhosphorIcons.speakerHighFill,
+                disableIcon: PhosphorIcons.speakerSlashFill,
+                color: Colors.white,
+                backgroundColor: isDark ? Color(0xff2E2E2E) : Color(0xffC9C9C9),
+                defaultState: isSpeakerEnable,
+                onAction: (_) {
+
+                }
+              )
           ],
         ),
       ),
+    );
+  }
+  ActionButton _buildActionButton({enableIcon, disableIcon, defaultState, color, backgroundColor, onAction}) {
+    return ActionButton(
+      enableIcon: enableIcon,
+      disableIcon: disableIcon,
+      defaultState: defaultState,
+      color: color,
+      backgroundColor: backgroundColor,
+      onAction: onAction,
     );
   }
   void onChangeCameraDevice(deviceId) {
@@ -644,129 +837,6 @@ class _P2PCallViewState extends State<P2PCallView> {
   }
 }
 
-class CallLayout extends StatefulWidget {
-  CallLayout({Key? key}) : super(key: key);
-
-  @override
-  State<StatefulWidget> createState() {
-    return _CallLayoutState();
-  }
-}
-
-class _CallLayoutState extends State<CallLayout> { 
-  bool _collapse = false;
-  bool _dragging = false;
-  Offset? wrapperOffset;
-  Offset offset = Offset(50, 50);
-  Size boxSizeCollapse = Size(400, 300);
-  Rect? boxRectCollapse;
-  double marginCorner = 20;
-
-  @override
-  void initState() {
-    super.initState();
-  }
-  @override
-  Widget build(BuildContext context) {
-    final type = Provider.of<P2PModel>(context, listen: true).type;
-    final mediaType = Provider.of<P2PModel>(context, listen: true).mediaType;
-    final peer = Provider.of<P2PModel>(context, listen: true).peer;
-    final conversationId = Provider.of<P2PModel>(context, listen: true).conversationId;
-    final callback = Provider.of<P2PModel>(context, listen: false).callback;
-    final size = MediaQuery.of(context).size;
-    return Stack(
-      children: [
-        AnimatedPositioned(
-          duration: Duration(milliseconds: _dragging ? 0 : 400),
-          curve: Curves.easeInOutCubicEmphasized,
-          top: _collapse ? offset.dy : 0,
-          right: _collapse ? offset.dx : 0,
-          width: _collapse ? boxSizeCollapse.width : size.width,
-          height: _collapse ? boxSizeCollapse.height : size.height,
-          child: GestureDetector(
-            onDoubleTap: () {
-              if (_collapse) setState(() {
-                _collapse = false;
-              });
-            },
-            onPanStart: startDrag,
-            onPanUpdate: updateDrag,
-            onPanEnd: endDrag,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(color: Colors.black, blurRadius: 5.0, offset: Offset(-2, 2)),
-                  // BoxShadow(color: Colors.black, blurRadius: 5.0, blurStyle: BlurStyle.solid, offset: Offset(-2, 2))
-                ]
-              ),
-              child: P2PCallView(user: peer, type: type, mediaType: mediaType, conversationId: conversationId, callback: callback, screenStateCallback: screenStateCallback, collapse: _collapse)
-            ),
-          )
-        )
-      ],
-    );
-  }
-  startDrag(DragStartDetails details) {
-    wrapperOffset = details.localPosition;
-    final appSize = MediaQuery.of(context).size;
-    final leftSide = details.globalPosition.dx - wrapperOffset!.dx;
-    final bottomSide = appSize.height  - (details.globalPosition.dy + boxSizeCollapse.height - wrapperOffset!.dy);
-    final topSide = details.globalPosition.dy - wrapperOffset!.dy;
-    final rightSide = appSize.width - (details.globalPosition.dx + 400 - wrapperOffset!.dx);
-    boxRectCollapse = Rect.fromLTRB(leftSide, topSide, rightSide, bottomSide);
-    _dragging = true;
-  }
-  updateDrag(DragUpdateDetails details) {
-    if (!_collapse) return;
-    setState(() {
-      final appSize = MediaQuery.of(context).size;
-      var leftSide = details.globalPosition.dx - wrapperOffset!.dx;
-      var bottomSide = appSize.height  - (details.globalPosition.dy + boxSizeCollapse.height - wrapperOffset!.dy);
-      leftSide = max(leftSide, 0);
-      bottomSide = max(bottomSide, 0);
-
-
-      var topSide = appSize.height - bottomSide - boxSizeCollapse.height;
-      var rightSide = appSize.width - leftSide - boxSizeCollapse.width;
-      topSide = max(topSide, 0);
-      rightSide = max(rightSide, 0);
-
-      boxRectCollapse = Rect.fromLTRB(leftSide, topSide, rightSide, bottomSide);
-      offset = Offset(rightSide, topSide);
-    });
-  }
-  endDrag(DragEndDetails details) {
-    final appSize = MediaQuery.of(context).size;
-    Offset centerAppOffset = Offset(appSize.width / 2, appSize.height / 2);
-    Offset centerBoxOffset = Offset(boxRectCollapse!.left + boxSizeCollapse.width / 2, boxRectCollapse!.top + boxSizeCollapse.height / 2);
-    
-    var newTop = 0.0;
-    var newRight = 0.0;
-    if (centerBoxOffset.dx < centerAppOffset.dx && centerBoxOffset.dy < centerAppOffset.dy) {
-      newTop = marginCorner;
-      newRight = appSize.width - boxSizeCollapse.width - marginCorner;
-    } else if (centerBoxOffset.dx > centerAppOffset.dx && centerBoxOffset.dy < centerAppOffset.dy) {
-      newTop = marginCorner;
-      newRight = marginCorner;
-    } else if (centerBoxOffset.dx > centerAppOffset.dx && centerBoxOffset.dy > centerAppOffset.dy) {
-      newTop = appSize.height - boxSizeCollapse.height - marginCorner;
-      newRight = marginCorner;
-    } else if (centerBoxOffset.dx < centerAppOffset.dx && centerBoxOffset.dy > centerAppOffset.dy) {
-      newTop = appSize.height - boxSizeCollapse.height - marginCorner;
-      newRight = appSize.width - boxSizeCollapse.width - marginCorner;
-    }
-    _dragging = false;
-    setState(() {
-      offset = Offset(newRight, newTop);
-    });
-  }
-  void screenStateCallback(collapse) {
-    setState(() {
-      this._collapse = collapse;
-    });
-  }
-}
 class TimerCounter{
   final interval = const Duration(seconds: 1);
   int currentSeconds = 0;
@@ -785,5 +855,125 @@ class TimerCounter{
   }
   void destroy() {
     _timer?.cancel();
+  }
+}
+
+Map<PIPViewCorner, Offset> _calculateOffsets({
+  required Size spaceSize,
+  required Size widgetSize,
+  required EdgeInsets windowPadding,
+}) {
+  Offset getOffsetForCorner(PIPViewCorner corner) {
+    final spacing = 16;
+    final left = spacing + windowPadding.left;
+    final top = spacing + windowPadding.top;
+    final right =
+        spaceSize.width - widgetSize.width - windowPadding.right - spacing;
+    final bottom =
+        spaceSize.height - widgetSize.height - windowPadding.bottom - spacing;
+
+    switch (corner) {
+      case PIPViewCorner.topLeft:
+        return Offset(left, top);
+      case PIPViewCorner.topRight:
+        return Offset(right, top);
+      case PIPViewCorner.bottomLeft:
+        return Offset(left, bottom);
+      case PIPViewCorner.bottomRight:
+        return Offset(right, bottom);
+      default:
+        throw Exception('Not implemented.');
+    }
+  }
+
+  final corners = PIPViewCorner.values;
+  final Map<PIPViewCorner, Offset> offsets = {};
+  for (final corner in corners) {
+    offsets[corner] = getOffsetForCorner(corner);
+  }
+
+  return offsets;
+}
+void dismissKeyboard(BuildContext context) {
+  FocusScope.of(context).requestFocus(FocusNode());
+}
+
+PIPViewCorner _calculateNearestCorner({
+  required Offset offset,
+  required Map<PIPViewCorner, Offset> offsets,
+}) {
+  _CornerDistance calculateDistance(PIPViewCorner corner) {
+    final distance = offsets[corner]!
+        .translate(
+          -offset.dx,
+          -offset.dy,
+        )
+        .distanceSquared;
+    return _CornerDistance(
+      corner: corner,
+      distance: distance,
+    );
+  }
+
+  final distances = PIPViewCorner.values.map(calculateDistance).toList();
+
+  distances.sort((cd0, cd1) => cd0.distance.compareTo(cd1.distance));
+
+  return distances.first.corner;
+}
+
+class _CornerDistance {
+  final PIPViewCorner corner;
+  final double distance;
+
+  _CornerDistance({
+    required this.corner,
+    required this.distance,
+  });
+}
+class ActionButton extends StatefulWidget {
+  const ActionButton({ Key? key, this.enableIcon = Icons.abc, this.disableIcon = Icons.abc, this.color = Colors.black, this.backgroundColor = Colors.white, this.defaultState, required this.onAction }) : super(key: key);
+  final IconData enableIcon;
+  final IconData disableIcon;
+  final Color color;
+  final backgroundColor;
+  final defaultState;
+  final onAction;
+  @override
+  State<ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<ActionButton> {
+  bool _value = true;
+  @override
+  void initState() {
+    if (widget.defaultState != null) _value = widget.defaultState;
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      clipBehavior: Clip.antiAlias,
+      color: widget.backgroundColor,
+      borderRadius: BorderRadius.circular(50),
+      elevation: 10,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _value = !_value;
+            widget.onAction.call(_value);
+          });
+        },
+        child: Container(
+          margin: EdgeInsets.all(13),
+          child: Icon(
+            widget.defaultState != null ? widget.defaultState ? widget.enableIcon : widget.disableIcon :
+            _value? widget.enableIcon : widget.disableIcon,
+            color: widget.color,
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -10,13 +10,16 @@ import 'package:popover/popover.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/component/AttachmentItem.dart';
+import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/models/models.dart';
 import 'CardItem.dart';
 import 'component/ChecklistItem.dart';
 import 'component/ListMember.dart';
 import 'component/models.dart';
+import 'list_activity.dart';
 
 class CardDetail extends StatefulWidget {
   final listCardId;
@@ -38,6 +41,7 @@ class _CardDetailState extends State<CardDetail> {
   bool onEditDescription = false;
   TextEditingController titleController = TextEditingController();
   TextEditingController descriptionController = TextEditingController();
+  ScrollController controller = ScrollController();
   var focusNode = FocusNode();
   bool hideDescription = false;
   bool hideAttachment = false;
@@ -55,6 +59,8 @@ class _CardDetailState extends State<CardDetail> {
       });
       Provider.of<Boards>(context, listen: false).onSelectCard(card);
     });
+    descriptionController.text = widget.card.description;
+    titleController.text = widget.card.title;
     super.initState();
   }
 
@@ -171,9 +177,8 @@ class _CardDetailState extends State<CardDetail> {
   }
 
   handleKeyPress(event) {
-    if (event is RawKeyUpEvent) {
-      var data = event.data;
-      if (data.physicalKey.debugName == "Enter" && (event.isShiftPressed || event.isMetaPressed)) {
+    if (event is RawKeyDownEvent) {
+      if (event.isKeyPressed(LogicalKeyboardKey.enter) && (event.isShiftPressed || event.isMetaPressed)) {
         if (descriptionController.text.trim() != "") {
           widget.card.description = descriptionController.text.trim();
           updateCardTitleOrDescription();
@@ -222,7 +227,7 @@ class _CardDetailState extends State<CardDetail> {
                   decoration: BoxDecoration(
                     border: Border(
                       right: BorderSide(
-                        color: Color(0xff5E5E5E),
+                        color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                         width: 1.0
                       )
                     )
@@ -232,10 +237,9 @@ class _CardDetailState extends State<CardDetail> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      onEditTitle ? Container(
-                        color: Color(0xff2E2E2E),
+                      Container(
                         height: 46,
-                        child: Focus(
+                        child: onEditTitle ? Focus(
                           onFocusChange: (focus) {
                             if (!focus) {
                               this.setState(() {
@@ -243,42 +247,51 @@ class _CardDetailState extends State<CardDetail> {
                               });
                             }
                           },
-                          child: CupertinoTextField(
-                            controller: titleController,
-                            autofocus: true,
-                            onEditingComplete: () {
-                              onChangeCardTitle();
-                            },
-                            placeholder: "Please input title",
-                            cursorColor: isDark ? Colors.white : null,
-                            padding: EdgeInsets.only(left: 12),
-                            style: TextStyle(color: Color(0xffFFFFFF), fontSize: 16),
+                          child: Container(
+                            color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                            child: TextFormField(
+                              controller: titleController,
+                              autofocus: true,
+                              onEditingComplete: () {
+                                onChangeCardTitle();
+                              },
+                              decoration: InputDecoration(
+                                hintText: "Please input title",
+                                contentPadding: EdgeInsets.only(left: 12),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                                  borderRadius: BorderRadius.all(Radius.circular(4))
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                                  borderRadius: BorderRadius.all(Radius.circular(4))
+                                )
+                              ),
+                              cursorColor: isDark ? Colors.white : null,
+                              style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 16),
+                            ),
+                          ),
+                        ) : InkWell(
+                          onTap: () {
+                            this.setState(() {
+                              onEditTitle = true;
+                            });
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 11),
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(2),
-                              border: Border.all(color: Color(0xff5e5e5e), width: 1)
+                              color: isDark ? Color(0xff4C4C4C) : Color(0xffF3F3F3),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
+                            ),
+                            height: 46,
+                            child: Row(
+                              children: [
+                                Text(card.title, style: TextStyle(fontSize: 16, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight))
+                              ]
                             )
-                          ),
-                        )
-                      ) : InkWell(
-                        onTap: () {
-                          this.setState(() {
-                            onEditTitle = true;
-                          });
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: Color(0xff4C4C4C),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Color(0xff5E5E5E))
-                          ),
-                          height: 46,
-                          child: Row(
-                            children: [
-                              Text(card.title, style: TextStyle(fontSize: 16))
-                            ]
                           )
-                        )
+                        ),
                       ),
                       SizedBox(height: 30),
                       Row(
@@ -309,40 +322,40 @@ class _CardDetailState extends State<CardDetail> {
                         child: Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            onEditDescription ? Column(
-                              children: [
-                                Container(
-                                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(4),
-                                    color: Color(0xff2E2E2E),
-                                    border: Border.all(color: Color(0xff5E5E5E), width: 1)
-                                  ),
-                                  width: double.infinity,
-                                  height: 176,
-                                  child: RawKeyboardListener(
-                                    focusNode: focusNode,
-                                    onKey: handleKeyPress,
-                                    child: Focus(
-                                      onFocusChange: (focus) {
-                                          if (!focus) {
-                                            this.setState(() { onEditDescription = false; });
-                                          }
-                                        },
-                                      child: TextFormField(
-                                        autofocus: true,
-                                        controller: descriptionController,
-                                        minLines: 1,
-                                        maxLines: 8,
-                                        decoration: InputDecoration.collapsed(
-                                          hintText: "Add a more detailed...",
-                                          hintStyle: TextStyle(fontSize: 14)
-                                        )
+                            onEditDescription ? Container(
+                              width: double.infinity,
+                              color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                              height: 176,
+                              child: RawKeyboardListener(
+                                focusNode: focusNode,
+                                onKey: handleKeyPress,
+                                child: Focus(
+                                  onFocusChange: (focus) {
+                                    if (!focus) {
+                                      this.setState(() { onEditDescription = false; });
+                                    }
+                                  },
+                                  child: TextFormField(
+                                    autofocus: true,
+                                    controller: descriptionController,
+                                    minLines: 8,
+                                    maxLines: 8,
+                                    cursorColor: isDark ? Colors.white : null,
+                                    decoration: InputDecoration(
+                                      hintText: "Add a more detailed...",
+                                      hintStyle: TextStyle(fontSize: 14),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                                        borderRadius: BorderRadius.all(Radius.circular(4))
                                       ),
-                                    ),
-                                  )
+                                      focusedBorder: OutlineInputBorder(
+                                        borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                                        borderRadius: BorderRadius.all(Radius.circular(4))
+                                      )
+                                    )
+                                  ),
                                 ),
-                              ],
+                              )
                             ) : InkWell(
                               onTap: () {
                                 this.setState(() {
@@ -350,19 +363,14 @@ class _CardDetailState extends State<CardDetail> {
                                 });
                               },
                               child: Container(
-                                height: 176,
-                                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                height: 176, width: double.infinity,
+                                padding: EdgeInsets.symmetric(horizontal: 11.25, vertical: 13.5),
                                 decoration: BoxDecoration(
-                                  color: Color(0xff4C4C4C),
+                                  color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                                   borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: Color(0xff5E5E5E))
+                                  border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                                 ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(card.description, style: TextStyle(fontSize: 16))
-                                  ]
-                                )
+                                child: Text(card.description, style: TextStyle(fontSize: 16))
                               )
                             )
                           ]
@@ -372,9 +380,7 @@ class _CardDetailState extends State<CardDetail> {
                       //////////////////////////////////////////////////////////////////////////////
                       /////// Checklist/////////////////////////////////////////////////////////////
                       /////////////////////////////////////////////////////////////////////////////////
-                      
                       Checklists(checklists: card.checklists, card: card),
-                      
                       //////////////////////////////////////////////////////////////////////////////
                       ////////////////////////////////////////////////////////////////////////////
                       
@@ -405,16 +411,21 @@ class _CardDetailState extends State<CardDetail> {
                         ]
                       ),
                       SizedBox(height: 12),
-                      if (card.attachments.length > 0 && !hideAttachment) Container(
-                        margin: EdgeInsets.only(bottom: 12),
-                        height: 96,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: card.attachments.length,
-                          itemBuilder: (BuildContext context, int index) { 
-                            return AttachmentItem(attachment: card.attachments[index], onDeleteAttachment: onDeleteAttachment);
-                          }
-                        )
+                      if (card.attachments.length > 0 && !hideAttachment) Scrollbar(
+                        thickness: 6.0,
+                        controller: controller,
+                        child: Container(
+                          margin: EdgeInsets.only(bottom: 12),
+                          height: 96,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            controller: controller,
+                            itemCount: card.attachments.length,
+                            itemBuilder: (BuildContext context, int index) { 
+                              return AttachmentItem(attachments: card.attachments, onDeleteAttachment: onDeleteAttachment, index: index);
+                            }
+                          )
+                        ),
                       ),
                       if (card.attachments.length == 0) InkWell(
                         overlayColor: MaterialStateProperty.all(Colors.transparent),
@@ -427,8 +438,8 @@ class _CardDetailState extends State<CardDetail> {
                             Container(
                               padding: EdgeInsets.symmetric(vertical: 7, horizontal: 16),
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(2),
-                                border: Border.all(color: Color(0xff5E5E5E))
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                               ),
                               child: Wrap(
                                 crossAxisAlignment: WrapCrossAlignment.center,
@@ -443,7 +454,9 @@ class _CardDetailState extends State<CardDetail> {
                             Text("Add a new attachment", style: TextStyle(color: Color(0xffA6A6A6)))
                           ]
                         )
-                      )
+                      ),
+                      SizedBox(height: 16),
+                      ListActivity(card: card)
                     ]
                   )
                 ),
@@ -515,7 +528,7 @@ class _ChecklistsState extends State<Checklists> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -551,6 +564,7 @@ class _ChecklistsState extends State<Checklists> {
         ),
         onAddChecklist ? Container(
           margin: EdgeInsets.only(top: 12),
+          color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
           height: 40,
           child: Focus(
             onFocusChange: (hasFocus) {
@@ -560,7 +574,7 @@ class _ChecklistsState extends State<Checklists> {
                 });
               }
             },
-            child: CupertinoTextField(
+            child: TextFormField(
               controller: checklistController,
               autofocus: true,
               onEditingComplete: () {
@@ -570,14 +584,19 @@ class _ChecklistsState extends State<Checklists> {
                 checklistController.clear();
                 setState(() { onAddChecklist = false; });
               },
-              placeholder: "Please input title",
               cursorColor: isDark ? Colors.white : null,
-              padding: EdgeInsets.only(left: 16, bottom: 2),
-              style: TextStyle(color: Color(0xffFFFFFF), fontSize: 15),
-              decoration: BoxDecoration(
-                color: Color(0xff2E2E2E),
-                borderRadius: BorderRadius.circular(2),
-                border: Border.all(color: Color(0xff5e5e5e), width: 1)
+              style: TextStyle(color: isDark ? Color(0xffFFFFFF) : Color(0xffA6A6A6), fontSize: 15),
+              decoration: InputDecoration(
+                hintText: "Please input title",
+                contentPadding: EdgeInsets.only(left: 16, bottom: 2),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                  borderRadius: BorderRadius.all(Radius.circular(4))
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                  borderRadius: BorderRadius.all(Radius.circular(4))
+                )
               )
             ),
           ),
@@ -591,9 +610,9 @@ class _ChecklistsState extends State<Checklists> {
             },
             child: Container(
               decoration: BoxDecoration(
-                color: isDark ? Color(0xff2E2E2E) : null,
-                border: Border.all(color: Color(0xff5E5E5E)),
-                borderRadius: BorderRadius.circular(2)
+                color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                borderRadius: BorderRadius.circular(4)
               ),
               height: 40,
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 14),
@@ -651,6 +670,8 @@ class _SelectDueDateState extends State<SelectDueDate> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return InkWell(
       overlayColor: MaterialStateProperty.all(Colors.transparent),
       onTap: () {
@@ -668,8 +689,8 @@ class _SelectDueDateState extends State<SelectDueDate> {
               height: 32,
               padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
               decoration: BoxDecoration(
-                color: Color(0xff5E5E5E),
-                borderRadius: BorderRadius.circular(2)
+                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                borderRadius: BorderRadius.circular(4)
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -711,9 +732,29 @@ class SelectLabel extends StatefulWidget {
 }
 
 class _SelectLabelState extends State<SelectLabel> {
+  onDeleteLabel(labelId) {
+    final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return CustomConfirmDialog(
+          title: "Delete label",
+          subtitle: "Are you sure you want to delete this label?",
+          onConfirm: () async {
+            final token = Provider.of<Auth>(context, listen: false).token;
+            Provider.of<Boards>(context, listen: false).deleteLabel(token, selectedBoard["workspace_id"], selectedBoard["channel_id"], selectedBoard["id"], labelId);
+          }
+        );
+      }
+    );
+  }
+
   onSelectLabel() {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -729,98 +770,111 @@ class _SelectLabelState extends State<SelectLabel> {
 
           return Stack(
             children: [
-              Container(
-                color: Color(0xff2E2E2E),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                      child: CupertinoTextField(
-                        decoration: BoxDecoration(
-                          color: Color(0xff2E2E2E),
-                          borderRadius: BorderRadius.circular(2),
-                          border: Border.all(color: Color(0xff5E5E5E))
-                        ),
-                        padding: EdgeInsets.only(top: 6, left: 10, bottom: 4),
-                        placeholder: "Filter labels",
-                        placeholderStyle: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                    child: CupertinoTextField(
+                      decoration: BoxDecoration(
+                        color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                       ),
+                      padding: EdgeInsets.only(top: 6, left: 10, bottom: 4),
+                      placeholder: "Filter labels",
+                      placeholderStyle: TextStyle(fontSize: 14, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65)),
                     ),
-                    Divider(height: 1, thickness: 1, color: Color(0xff5E5E5E)),
-                    Expanded(
-                      child: ListView.builder(
-                        padding: EdgeInsets.only(bottom: 52),
-                        itemCount: labels.length,
-                        itemBuilder: (BuildContext context, int index) {
-                          return InkWell(
-                            onTap: () {
-                              setState(() {
-                                widget.setLabel(labels[index]["id"]);
-                              });
-                            },
-                            child: Container(
-                              padding: EdgeInsets.only(left: 9, right: 16),
-                              height: 44,
-                              decoration: BoxDecoration(
-                                border: Border(
-                                  top: BorderSide(
-                                    color: index == 0 ? Colors.transparent : Color(0xff5E5E5E),
-                                    width: 1.0
-                                  )
+                  ),
+                  Divider(height: 1, thickness: 1, color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: EdgeInsets.only(bottom: 52),
+                      itemCount: labels.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return InkWell(
+                          onTap: () {
+                            setState(() {
+                              widget.setLabel(labels[index]["id"]);
+                            });
+                          },
+                          child: Container(
+                            padding: EdgeInsets.only(left: 9, right: 14),
+                            height: 44,
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: index == 0 ? Colors.transparent : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                                  width: 1.0
                                 )
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Wrap(
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    children: [
-                                      Checkbox(
-                                        activeColor: Color(0xffFAAD14),
-                                        onChanged: (bool? value) {  }, value: widget.labels.contains(labels[index]["id"])
+                              )
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Checkbox(
+                                      activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
+                                      onChanged: (bool? value) {  
+                                        widget.setLabel(labels[index]["id"]);
+                                      }, 
+                                      value: widget.labels.contains(labels[index]["id"])
+                                    ),
+                                    SizedBox(width: 6),
+                                    Container(
+                                      padding: EdgeInsets.symmetric(horizontal: 8),
+                                      alignment: Alignment.centerLeft,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: Color(int.parse("0xFF${labels[index]["color_hex"]}")),
+                                        borderRadius: BorderRadius.circular(16)
                                       ),
-                                      SizedBox(width: 6),
-                                      Container(
-                                        padding: EdgeInsets.symmetric(horizontal: 8),
-                                        alignment: Alignment.centerLeft,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: Color(int.parse("0xFF${labels[index]["color_hex"]}")),
-                                          borderRadius: BorderRadius.circular(16)
-                                        ),
-                                        margin: EdgeInsets.symmetric(vertical: 3),
-                                        child: Container(
-                                          padding: EdgeInsets.symmetric(horizontal: 2),
-                                          constraints: BoxConstraints(maxWidth: 200 - 72),
-                                          child: Text(labels[index]["name"], style: TextStyle(fontSize: 12, color: Colors.grey[50]), overflow: TextOverflow.ellipsis)
-                                        )
+                                      margin: EdgeInsets.symmetric(vertical: 3),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 2),
+                                        constraints: BoxConstraints(maxWidth: 200 - 72),
+                                        child: Text(labels[index]["name"], style: TextStyle(fontSize: 12, color: Colors.grey[50]), overflow: TextOverflow.ellipsis)
                                       )
-                                    ]
-                                  ),
-                                  Wrap(
-                                    children: [
-                                      InkWell(
-                                        onTap: () {},
+                                    )
+                                  ]
+                                ),
+                                Wrap(
+                                  children: [
+                                    SizedBox(width: 3),
+                                    InkWell(
+                                      onTap: () {
+                                        onCreateLabel(labels[index]);
+                                      },
+                                      child: Container(
+                                        height: 24,
+                                        width: 24,
                                         child: Icon(PhosphorIcons.pencilSimpleLine, color: Colors.grey[500], size: 16)
-                                      ),
-                                      SizedBox(width: 12),
-                                      InkWell(
-                                        onTap: () {},
+                                      )
+                                    ),
+                                    SizedBox(width: 3),
+                                    InkWell(
+                                      onTap: () {
+                                        onDeleteLabel(labels[index]["id"]);
+                                      },
+                                      child: Container(
+                                        height: 24,
+                                        width: 24,
                                         child: Icon(PhosphorIcons.trashSimple, color: Colors.grey[500], size: 16)
                                       )
-                                    ]
-                                  )
-                                ]
-                              ),
+                                    )
+                                  ]
+                                )
+                              ]
                             ),
-                          );
-                        }
-                      )
+                          ),
+                        );
+                      }
                     )
-                  ]
-                )
+                  )
+                ]
               ),
               Positioned(
                 bottom: 0,
@@ -828,10 +882,10 @@ class _SelectLabelState extends State<SelectLabel> {
                   height: 52,
                   width: 262,
                   decoration: BoxDecoration(
-                    color: Color(0xff2E2E2E),
+                    color: isDark ? Palette.backgroundTheardDark : Colors.white,
                     border: Border(
                       top: BorderSide(
-                        color: Color(0xff5E5E5E),
+                        color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                         width: 1.0
                       )
                     )
@@ -839,12 +893,12 @@ class _SelectLabelState extends State<SelectLabel> {
                   child: InkWell(
                     onTap: () {
                       Navigator.pop(context);
-                      onCreateLabel();
+                      onCreateLabel(null);
                     },
                     child: Center(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Color(0xff4C4C4C),
+                          color: isDark ? Color(0xff4C4C4C) : Color(0xffF3F3F3),
                           borderRadius: BorderRadius.circular(3)
                         ),
                         width: 226,
@@ -871,9 +925,10 @@ class _SelectLabelState extends State<SelectLabel> {
     );
   }
 
-  onCreateLabel() {
+  onCreateLabel(label) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -889,33 +944,43 @@ class _SelectLabelState extends State<SelectLabel> {
               Navigator.pop(context);
               onSelectLabel();
             },
-            createLabel: createLabel
+            createLabel: createLabel,
+            label: label
           );
         }
       )
     );
   }
 
-  createLabel(title, color) {
+  createLabel(title, color, labelId) {
     final token = Provider.of<Auth>(context, listen: false).token;
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
-    
-    Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color);
+
+    if (labelId != null) {
+      Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color, labelId);
+    } else {
+      Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color, null);
+      onSelectLabel();
+    }
     Navigator.pop(context);
-    onSelectLabel();
   }
 
   @override
   Widget build(BuildContext context) {
     final selectedBoard = Provider.of<Boards>(context, listen: true).selectedBoard;
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     List labels = widget.labels.map((e) {
       var index = selectedBoard["labels"].indexWhere((ele) => ele["id"] == e);
-      var item = selectedBoard["labels"][index];
-      return Label(colorHex: item["color_hex"], title: item["name"], id: item["id"].toString());
-    }).toList();
+      if (index == -1) {
+        // continue;
+      } else {
+        var item = selectedBoard["labels"][index];
+        return Label(colorHex: item["color_hex"], title: item["name"], id: item["id"].toString());
+      }
+    }).where((e) => e != null).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -929,8 +994,8 @@ class _SelectLabelState extends State<SelectLabel> {
             height: 32,
             padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
             decoration: BoxDecoration(
-              color: Color(0xff5E5E5E),
-              borderRadius: BorderRadius.circular(2)
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+              borderRadius: BorderRadius.circular(4)
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -966,11 +1031,15 @@ class _SelectLabelState extends State<SelectLabel> {
 class CreateLabel extends StatefulWidget {
   final onCancel;
   final createLabel;
+  final label;
+  final editLabel;
 
   const CreateLabel({
     Key? key,
     this.onCancel,
-    this.createLabel
+    this.createLabel,
+    this.label,
+    this.editLabel
   }) : super(key: key);
 
   @override
@@ -988,7 +1057,7 @@ class _CreateLabelState extends State<CreateLabel> {
 
   createLabel() {
     if (labelTitleController.text.trim() == "") return;
-    widget.createLabel(labelTitleController.text, colors[selectedColor]);
+    widget.createLabel(labelTitleController.text, colors[selectedColor], widget.label != null ? widget.label["id"] : null);
     setState(() {
       selectedColor = 0;
       labelTitleController.text = "";
@@ -996,7 +1065,22 @@ class _CreateLabelState extends State<CreateLabel> {
   }
 
   @override
+  void initState() {
+    if (widget.label != null) {
+      labelTitleController.text = widget.label["name"] ?? "";
+      final indexColor = colors.indexWhere((e) => e.toString() == widget.label["color_hex"].toString());
+      if (indexColor != -1) {
+        selectedColor = indexColor;
+      }
+    }
+
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return Column(
       children: [
         Container(
@@ -1013,12 +1097,12 @@ class _CreateLabelState extends State<CreateLabel> {
                   controller: labelTitleController,
                   padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                   placeholder: "Name label",
-                  style: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
-                  placeholderStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
+                  style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                  placeholderStyle: TextStyle(color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14),
                   decoration: BoxDecoration(
-                    color: Color(0xff2E2E2E),
-                    borderRadius: BorderRadius.circular(2),
-                    border: Border.all(color: Color(0xff5E5E5E))
+                    color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                   )
                 )
               ),
@@ -1030,12 +1114,12 @@ class _CreateLabelState extends State<CreateLabel> {
                 child: CupertinoTextField(
                   padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                   placeholder: "Description",
-                  style: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
-                  placeholderStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
+                  style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                  placeholderStyle: TextStyle(color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14),
                   decoration: BoxDecoration(
-                    color: Color(0xff2E2E2E),
-                    borderRadius: BorderRadius.circular(2),
-                    border: Border.all(color: Color(0xff5E5E5E))
+                    color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                   )
                 )
               ),
@@ -1080,7 +1164,7 @@ class _CreateLabelState extends State<CreateLabel> {
             ]
           )
         ),
-        Divider(color: Color(0xff5E5E5E)),
+        Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
         Padding(
           padding: EdgeInsets.symmetric(vertical: 8, horizontal: 24),
           child: Row(
@@ -1095,7 +1179,7 @@ class _CreateLabelState extends State<CreateLabel> {
                   width: 138,
                   decoration: BoxDecoration(
                     border: Border.all(color: Color(0xffFF7875)),
-                    borderRadius: BorderRadius.circular(2)
+                    borderRadius: BorderRadius.circular(4)
                   ),
                   child: Center(child: Text("Cancel", style: TextStyle(color: Color(0xffFF7875))))
                 ),
@@ -1108,9 +1192,10 @@ class _CreateLabelState extends State<CreateLabel> {
                   height: 32,
                   width: 138,
                   decoration: BoxDecoration(
-                    color: Color(0xff1890FF)
+                    color: Utils.getPrimaryColor(),
+                    borderRadius: BorderRadius.all(Radius.circular(4))
                   ),
-                  child: Center(child: Text("Create Label"))
+                  child: Center(child: Text(widget.label == null ? "Create Label" : "Confirm"))
                 )
               )
             ]
@@ -1137,8 +1222,9 @@ class SelectPriority extends StatefulWidget {
 
 class _SelectPriorityState extends State<SelectPriority> {
   onSelectPriority() {
-    showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+    showPopover(
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -1161,14 +1247,14 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Icon(PhosphorIcons.warning, size: 14, color: Color(0xffD81A1A)),
                       SizedBox(width: 12),
-                      Text("Very High", style: TextStyle(fontSize: 14, color: Color(0xffD81A1A)))
+                      Text("Urgent", style: TextStyle(fontSize: 14, color: Color(0xffD81A1A)))
                     ]
                   )
                 )
@@ -1183,7 +1269,7 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1205,7 +1291,7 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1227,7 +1313,7 @@ class _SelectPriorityState extends State<SelectPriority> {
                   width: 262,
                   padding: EdgeInsets.only(top: 14, left: 16),
                   decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xff5E5E5E), width: 1.0))
+                    border: Border(bottom: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)))
                   ),
                   child: Wrap(
                     crossAxisAlignment: WrapCrossAlignment.center,
@@ -1267,6 +1353,8 @@ class _SelectPriorityState extends State<SelectPriority> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return InkWell(
       overlayColor: MaterialStateProperty.all(Colors.transparent),
       onTap: () {
@@ -1285,8 +1373,8 @@ class _SelectPriorityState extends State<SelectPriority> {
               height: 32,
               padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
               decoration: BoxDecoration(
-                color: Color(0xff5E5E5E),
-                borderRadius: BorderRadius.circular(2)
+                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                borderRadius: BorderRadius.circular(4)
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1308,7 +1396,7 @@ class _SelectPriorityState extends State<SelectPriority> {
               ),
               SizedBox(width: 6),
               Text(
-                "${widget.priority == 1 ? 'Very High' : widget.priority == 2 ? 'High' : widget.priority == 3 ? 'Medium' : 'Low'}",
+                "${widget.priority == 1 ? 'Urgent' : widget.priority == 2 ? 'High' : widget.priority == 3 ? 'Medium' : 'Low'}",
                 style: TextStyle(color: Color(widget.priority == 1 ? 0xffFF7875 : widget.priority == 2 ? 0xffFAAD14 : widget.priority == 3 ? 0xff27AE60 : widget.priority == 4 ? 0xff69C0FF : 0xffFFFFFF))
               )
             ]
@@ -1346,8 +1434,10 @@ class _SelectAssigneeState extends State<SelectAssignee> {
   }
 
   onSelectAssignee() {
-    showPopover( 
-      backgroundColor: Color(0xff2E2E2E),
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
+    showPopover(
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
       direction: PopoverDirection.bottom,
@@ -1362,6 +1452,7 @@ class _SelectAssigneeState extends State<SelectAssignee> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1375,8 +1466,8 @@ class _SelectAssigneeState extends State<SelectAssignee> {
             height: 32,
             padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
             decoration: BoxDecoration(
-              color: Color(0xff5E5E5E),
-              borderRadius: BorderRadius.circular(2)
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+              borderRadius: BorderRadius.circular(4)
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1406,7 +1497,7 @@ class _SelectAssigneeState extends State<SelectAssignee> {
                     children: [
                       CachedAvatar(user["avatar_url"], name: user["full_name"], width: 26, height: 26, radius: 50),
                       SizedBox(width: 12),
-                      Text(user["full_name"])
+                      Text(user["nickname"] ?? user["full_name"])
                     ],
                   )
                 ),

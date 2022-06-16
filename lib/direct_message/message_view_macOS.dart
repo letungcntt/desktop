@@ -653,7 +653,8 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
           bool openSearchbar = Provider.of<Windows>(context, listen: false).openSearchbar;
           // final openThread = Provider.of<Messages>(context, listen: false).openThread;
           final isFocusInputThread = Provider.of<Messages>(context, listen: false).isFocusInputThread;
-          if (!openSearchbar && !isFocusInputThread && key.currentState!= null && key.currentState!.controller != null) {
+          bool isOtherFocus = Provider.of<Windows>(context, listen: false).isOtherFocus;
+          if (!openSearchbar && !isFocusInputThread && key.currentState!= null && key.currentState!.controller != null && !isOtherFocus) {
             FocusInputStream.instance.focusToMessage();
             key.currentState!.controller?.text = key.currentState!.controller!.text + event.character!;
           }

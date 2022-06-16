@@ -673,8 +673,10 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
       Map<String, dynamic> item = {
         'id': channelMembers[i]["id"],
         'type': 'user',
-        'display': Utils.getUserNickName(channelMembers[i]["id"]) ??channelMembers[i]["full_name"],
-        'full_name':Utils.getUserNickName(channelMembers[i]["id"]) ?? channelMembers[i]["full_name"],
+        'display': Utils.getUserNickName(channelMembers[i]["id"]) ?? channelMembers[i]["full_name"],
+        'full_name': Utils.checkedTypeEmpty(Utils.getUserNickName(channelMembers[i]["id"]))
+            ? "${Utils.getUserNickName(channelMembers[i]["id"])} • ${channelMembers[i]["full_name"]}"
+            : channelMembers[i]["full_name"],
         'photo': channelMembers[i]["avatar_url"]
       };
 
@@ -757,7 +759,8 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
           bool openSearchbar = Provider.of<Windows>(context, listen: false).openSearchbar;
           // final openThread = Provider.of<Messages>(context, listen: false).openThread;
           final isFocusInputThread = Provider.of<Messages>(context, listen: false).isFocusInputThread;
-          if (!openSearchbar && !isFocusInputThread && key.currentState!= null && key.currentState!.controller != null) {
+          bool isOtherFocus = Provider.of<Windows>(context, listen: false).isOtherFocus;
+          if (!openSearchbar && !isFocusInputThread && key.currentState!= null && key.currentState!.controller != null && !isOtherFocus) {
             FocusInputStream.instance.focusToMessage();
             key.currentState!.controller?.text = key.currentState!.controller!.text + event.character!;
           }
@@ -974,14 +977,13 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
         "workspace_id": workspaceId,
         "count_child": 0,
         "user_id": auth.userId,
-        "user": user.currentUser["full_name"] ?? "",
+        "user":user.currentUser["full_name"] ?? "",
         "avatar_url": user.currentUser["avatar_url"] ?? "",
-        "full_name": user.currentUser["full_name"] ?? "",
+        "full_name": Utils.getUserNickName(auth.userId) ?? user.currentUser["full_name"] ?? "",
         "inserted_at": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
         "is_system_message": false,
         "isDesktop": true
       };
-
       key.currentState!.controller!.clear();
       handleCodeBlock(false);
       list.removeWhere((element) => element["mime_type"] == "share");
@@ -1184,7 +1186,8 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                                   mentions: [
                                     Mention(
                                       markupBuilder: (trigger, mention, value, type) {
-                                        return "=======@/$mention^^^^^$value^^^^^$type+++++++";
+                                        final name = Utils.getUserNickName(mention) ?? value;
+                                        return "=======@/$mention^^^^^$name^^^^^$type+++++++";
                                       },
                                       trigger: '@',
                                       style: const TextStyle(color: Colors.lightBlue),
@@ -1548,7 +1551,7 @@ class _InputLeadingState extends State<InputLeading> {
           )
         ),
         const SizedBox(width: 4),
-        Container(
+        if (Platform.isMacOS) Container(
           width: 30,
           height: 30,
           child: HoverItem(
@@ -1953,7 +1956,7 @@ class _RenderMessageByDayState extends State<RenderMessageByDay> {
                     insertedAt: message["inserted_at"],
                     lastEditedAt: message["last_edited_at"],
                     isUnsent: message["is_unsent"],
-                    fullName: message["full_name"],
+                    fullName: Utils.getUserNickName(message["user_id"]) ?? message["full_name"],
                     attachments: message["attachments"] == null ?  [] : message["attachments"],
                     isFirst: message["isFirst"],
                     isLast: message["isLast"],

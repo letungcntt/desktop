@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
@@ -14,6 +16,7 @@ import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/video_player.dart';
 import 'package:workcake/components/accept_channel_workspace.dart';
+import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/components/collapse.dart';
 import 'package:workcake/components/message_item/message_card_desktop.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
@@ -159,8 +162,8 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
     final showDirectSetting = Provider.of<DirectMessage>(context, listen: true).showDirectSetting;
     var indexDM = Provider.of<DirectMessage>(context, listen: true).data.indexWhere((element) => element.id == widget.conversationId);
     final dm = indexDM  == -1 ? Provider.of<DirectMessage>(context, listen: true).directMessageSelected : Provider.of<DirectMessage>(context, listen: true).data[indexDM];
-    List newAttachments = List.from(widget.attachments).where((e) => e["mime_type"] == null || e["mime_type"] != "image").toList();
-    List images = (widget.attachments ?? []).where((e) => e["mime_type"] == "image").toList();
+    List newAttachments = List.from(widget.attachments).where((e) => !(e["mime_type"] == "image" || e["type"] == "image")).toList();
+    List images = (widget.attachments ?? []).where((e) => e["mime_type"] == "image" || e["type"] == "image").toList();
     newAttachments.add({"type": "image", "data": images});
     final isOnThreads = Provider.of<Threads>(context, listen: false).isOnThreads;
     final user = Provider.of<User>(context, listen: false).currentUser;
@@ -174,7 +177,10 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
               case "pos_app":
                 return PosAppAttachments(att: att);
               case "poll":
-                return PollCard(att: att, message: widget.message);
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: PollCard(att: att, message: widget.message),
+                );
               case "send_to_channel_from_thread":
                 if (widget.isThread) return Container();
                 var _onTapMention = TapGestureRecognizer();
@@ -579,7 +585,7 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
                                           )
                                         : LinearProgressIndicator(
                                           value: statusUploadAtt,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xff1890FF)),
+                                          valueColor: AlwaysStoppedAnimation<Color>(Utils.getPrimaryColor()),
                                           backgroundColor: Color(0xffD6D6D6),
                                         )
                                       : Text(
@@ -639,7 +645,7 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
                             ),
                             onPressed: isAccepted == null ? () {
                               if(channelId != null){
-                                Provider.of<Channels>(context, listen: false).joinChannelByInvitation(token, workspaceId, channelId, user["id"], widget.id).then((value){
+                                Provider.of<Channels>(context, listen: false).joinChannelByInvitation(token, workspaceId, channelId, inviteUser, widget.id).then((value){
                                   showDialog(
                                     context: context,
                                     builder: (context) {
@@ -829,9 +835,9 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
                           final otherUser = indexOtherUser == -1 ? {} : dm.user[indexOtherUser];
                           
                           if (mediaType == "video") {
-                            p2pManager.createVideoCall(otherUser, dm.id);
+                            p2pManager.createVideoCall(context, otherUser, dm.id);
                           } else if (mediaType == "audio") {
-                            p2pManager.createAudioCall(otherUser, dm.id);
+                            p2pManager.createAudioCall(context, otherUser, dm.id);
                           }
                         },
                         child: Text("Gọi lại", style: TextStyle(color: isDark ? Colors.white : Colors.black),),
@@ -946,13 +952,14 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
                       ),
                     );
                   case "m4a":
+                    if (Platform.isWindows || Platform.isLinux) return renderFile(att, isDark,);
                     if (!widget.isChannel) return RecordDirect.build(context, att["content_url"]);
                     return AudioPlayerMessage(
                       source: AudioSource.uri(Uri.parse(att["content_url"])),
                     );
 
                   default:
-                    String type = Utils.getLanguageFile(att["mime_type"].toLowerCase());
+                    String type = Utils.getLanguageFile((att["mime_type"] ?? '').toLowerCase());
                     int index = Utils.languages.indexWhere((ele) => ele == type);
 
                     return (index != -1 && att['preview'] != null) ? TextFile(att: att) : renderFile(att, isDark,);

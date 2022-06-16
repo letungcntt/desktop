@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/emoji/emoji.dart';
@@ -10,9 +11,15 @@ import 'package:workcake/models/models.dart';
 
 class CropImageDialog extends StatefulWidget {
   final image;
-  final workspaceId;
-  final token;
-  const CropImageDialog({ Key? key, required this.image, required this.token, required this.workspaceId}) : super(key: key);
+  final onCropped;
+  final bool isDirect;
+
+  const CropImageDialog({
+    Key? key,
+    required this.image,
+    required this.onCropped,
+    this.isDirect = false
+  }) : super(key: key);
 
   @override
   _CropImageDialogState createState() => _CropImageDialogState();
@@ -21,8 +28,7 @@ class CropImageDialog extends StatefulWidget {
 class _CropImageDialogState extends State<CropImageDialog> {
 final _cropController = CropController();
   // var _loadingImage = false;
-  var _isSumbnail = false;
-  // var _isCropping = false;
+  var _isCropping = false;
 
   Uint8List? _croppedData;
 
@@ -75,28 +81,27 @@ final _cropController = CropController();
               ),
             Expanded(
               child: Crop(
-                image: widget.image["file"].buffer.asUint8List(), 
-                onCropped: (croppedData) async {
-                  setState(() {
-                    _croppedData = croppedData;
-                  });
+                image: widget.image["file"].buffer.asUint8List(),
+                onCropped: (croppedData) {
+                  if (mounted) {
+                    setState(() {
+                      _croppedData = croppedData;
+                      _isCropping = false;
+                    });
+                  }
+                  Navigator.pop(context);
                   if(_croppedData != null) {
                     final uploadFile = {
                       "filename": widget.image["name"],
                       "path": uint8ListTob64(_croppedData!),
                       "length": uint8ListTob64(_croppedData!).length,
                     };
-                    await Provider.of<User>(context, listen: false).uploadAvatar(widget.token, widget.workspaceId, uploadFile, "image");
-                    Navigator.pop(context);
+                    widget.onCropped(uploadFile);
                   }
                 },
                 controller: _cropController,
                 initialSize: 1,
                 aspectRatio: 1,
-                maskColor: _isSumbnail ? Colors.white : null,
-                cornerDotBuilder: (size, edgeAlignment) => _isSumbnail
-                  ? const SizedBox.shrink()
-                  : const DotControl(),
               ),
             ),
             Container(
@@ -136,11 +141,19 @@ final _cropController = CropController();
                     width: 142,
                     height: 32,
                     child: ElevatedButton(
-                      onPressed: () async {
+                      onPressed: _isCropping ? null : () async {
+                        setState(() {
+                          _isCropping = true;
+                        });
                         _cropController.crop();
                       },
                       child: Container(
-                        child: Text(S.of(context).changeAvatar),
+                        child: _isCropping 
+                        ? SpinKitFadingCircle(
+                            color: isDark ? Colors.white60 : Color(0xff096DD9),
+                            size: 19,
+                          ) 
+                        : Text(S.of(context).changeAvatar),
                       )
                     ),
                   ),

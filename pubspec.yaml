@@ -52,12 +52,14 @@ dependencies:
   hive_flutter: ^1.0.0
   multi_image_picker: ^4.8.00
   lottie: ^1.0.1
-  device_info: ^2.0.0
+  device_info_plus: ^3.2.4
   encrypt: ^5.0.0
   flutter_linkify:
     git: https://github.com/hieplee2997/flutter_linkify.git
   image: ^3.0.7
-  popover: ^0.2.6+3
+  popover:
+    git:
+      url: https://github.com/duydat09/popover.git
   simple_tooltip: ^1.0.0
 
   stacked_services: ^0.8.5
@@ -113,6 +115,7 @@ dependencies:
   just_audio: ^0.9.21
   record: ^4.1.1
   dotted_border:
+  platform_device_id: ^1.0.1
 
 dev_dependencies:
   hive_generator: ^1.0.1

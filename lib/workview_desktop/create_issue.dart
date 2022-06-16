@@ -9,10 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
+import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:workcake/channels/create_channel_desktop.dart';
 import 'package:workcake/common/cached_image.dart';
+import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
@@ -24,6 +27,7 @@ import 'package:workcake/markdown/style_sheet.dart';
 import 'package:workcake/markdown/widget.dart';
 import 'package:workcake/models/models.dart';
 import 'package:workcake/service_locator.dart';
+import 'package:workcake/workview_desktop/history_issue.dart';
 import 'package:workcake/workview_desktop/select_attribute.dart';
 import 'package:workcake/workview_desktop/transfer_issue.dart';
 import '../components/message_item/attachments/attachments.dart';
@@ -1260,6 +1264,124 @@ class _CreateIssueState extends State<CreateIssue> {
     });
   }
 
+  getUser(userId) {
+    List users = Provider.of<Workspaces>(context, listen: false).members;
+    int index = users.indexWhere((e) => e["id"] == userId || e["user_id"] == userId);
+    if (index != -1) {
+      return {
+        "avatar_url": users[index]["avatar_url"],
+        "full_name": users[index]["full_name"],
+        "role_id": users[index]["role_id"],
+        "custom_color": users[index]["custom_color"]
+      };
+    } else {
+      return {
+        "avatar_url": "",
+        "full_name": "Bot"
+      };
+    }
+  }
+
+  onGetHistory(commentId) async{
+    final auth = Provider.of<Auth>(context, listen: false);
+    final token = auth.token;
+    final bool isDark = auth.theme == ThemeType.DARK;
+    final issue = widget.issue;
+    final workspaceId = issue['workspace_id'];
+    final channelId = issue['channel_id'];
+    final url = Utils.apiUrl + 'workspaces/$workspaceId/channels/$channelId/issues/get_history_issue?token=$token&issue_id=${issue['id']}&issue_comment_id=$commentId';
+
+    try {
+      final response = await http.get(Uri.parse(url), headers: Utils.headers);
+
+      final responseData = json.decode(response.body);
+
+      if (responseData["success"] == true) {
+        List _histories = responseData['data'];
+
+        showDialog(
+          context: context,
+          builder: (context) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return AlertDialog(
+                  contentPadding: EdgeInsets.zero,
+                  backgroundColor: isDark ? Color(0xff1E1E1E) : Color(0xffDBDBDB),
+                  content: Container(
+                    height: 810,
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(color: Theme.of(context).dividerColor)
+                            )
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                child: Text(
+                                  'History edit',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white70 : Colors.grey[800]
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: Icon(
+                                  PhosphorIcons.xCircle, size: 24,
+                                  color: isDark ? Colors.white70 : Colors.grey[800],
+                                ),
+                              )
+                            ],
+                          )
+                        ),
+                        Container(
+                          width: 750, height: 750,
+                          color: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
+                          child: ListView.builder(
+                            itemCount: _histories.length,
+                            itemBuilder: (BuildContext context, int index) {
+                        
+                              final messageTime = DateFormat('Hm').format(DateTime.parse(_histories[index]['inserted_at']).add(Duration(hours: 7)));
+                              final locale = auth.locale;
+                              DateTime dateTime = DateTime.parse(_histories[index]['inserted_at']);
+                              final dayTime = DateFormatter().getVerboseDateTimeRepresentation(dateTime.add(Duration(hours: 7)), locale);
+                              var timeRender = (dayTime == "Today" ? "Today" : DateFormatter().renderTime(DateTime.parse(_histories[index]['inserted_at']), type: "MMMd")) + " at $messageTime";
+                              List images = getImageUrl(parseMention(_histories[index]['last_edited_text'], channelId));
+                              String textRender = parseMention(_histories[index]['last_edited_text'], channelId).toString().split('\n').map((ele) {
+                                RegExp exp = RegExp(r"!(\[)[^\]]{0,}(\])((\()(https)[^\)]{0,}(\)))");
+                                final matches = exp.allMatches(ele);
+
+                                return matches.length > 0 ? '' : ele;
+                              }).toList().join('\n');
+
+                              return HistoryIssue(
+                                images: images,
+                                history: _histories[index],
+                                editor: getUser(_histories[index]['user_id']),
+                                text: textRender,
+                                dateTime: timeRender
+                              );
+                            }
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            );
+          }
+        );
+      }
+    } catch (e) { }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: false);
@@ -1637,8 +1759,28 @@ class _CreateIssueState extends State<CreateIssue> {
                                                         ),
                                                         const SizedBox(width: 4),
                                                         Text(S.current.commented(parseDatetime(issue["inserted_at"])), style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
-                                                        issue["last_edit_description"] != null ? editer != null ? Text(S.current.editedBy, style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))): Text(S.current.edited, style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))) : const Text(""),
-                                                        editer != null ? Text(" ${editer["full_name"]}", style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))) : const Text(""),
+                                                        InkWell(
+                                                          onTap: () => onGetHistory(null),
+                                                          child: Text.rich(
+                                                            TextSpan(
+                                                              children: [
+                                                                WidgetSpan(child: SizedBox(width: 6)),
+                                                                TextSpan(
+                                                                  text: issue["last_edit_description"] != null
+                                                                    ? editer != null
+                                                                      ? S.current.editedBy
+                                                                      : S.current.edited
+                                                                    : '',
+                                                                ),
+                                                                TextSpan(
+                                                                  text: editer != null ? " ${editer["full_name"]}" : "",
+                                                                  style: TextStyle(fontWeight: FontWeight.w700)
+                                                                )
+                                                              ],
+                                                              style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                                                            )
+                                                          ),
+                                                        ),
                                                         issue["last_edit_description"] != null ? Text(" ${parseDatetime(issue["last_edit_description"])}", style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))) : const Text(""),
                                                       ],
                                                     ),
@@ -1702,8 +1844,8 @@ class _CreateIssueState extends State<CreateIssue> {
                                                       height: 1.1,
                                                       color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight
                                                     ),
-                                                    a: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline),
-                                                    code: const TextStyle(fontSize: 13, color: Color(0xff40A9FF), fontFamily: "Menlo", height: 1.57),
+                                                    a: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, decoration: TextDecoration.underline, height: 1.3),
+                                                    code: const TextStyle(fontSize: 13, color: Color(0xff40A9FF), fontFamily: "Menlo", height: 1.67,),
                                                     codeblockDecoration: BoxDecoration()
                                                   ),
                                                   onTapLink: (link, url, uri) async {
@@ -1858,7 +2000,20 @@ class _CreateIssueState extends State<CreateIssue> {
                                                                 Text("${author["full_name"]}", style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
                                                                 const SizedBox(width: 4),
                                                                 Text(S.current.commented(parseDatetime(comment["inserted_at"])), style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
-                                                                comment["last_edited_id"] != null ? Text(S.current.editedTime(parseDatetime(comment["updated_at"])), style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))) : const Text("")
+                                                                comment["last_edited_id"] != null ? InkWell(
+                                                                  onTap: () => onGetHistory(comment['id']),
+                                                                  child: Text.rich(
+                                                                    TextSpan(
+                                                                      children: [
+                                                                        WidgetSpan(child: SizedBox(width: 6)),
+                                                                        TextSpan(
+                                                                          text: S.current.editedTime(parseDatetime(comment["updated_at"])),
+                                                                        )
+                                                                      ],
+                                                                      style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue)
+                                                                    )
+                                                                  )
+                                                                ) : const Text("")
                                                               ],
                                                             ),
                                                           ),
@@ -1996,7 +2151,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                                     shrinkWrap: true,
                                                     styleSheet: MarkdownStyleSheet(
                                                       p: TextStyle(fontSize: 16.5, height: 1.1, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
-                                                      a: const TextStyle(color: Colors.blue, decoration: TextDecoration.underline,height: 1.57),
+                                                      a: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, decoration: TextDecoration.underline, height: 1.3),
                                                       code: const TextStyle(fontSize: 13, color: Color(0xff40A9FF), fontFamily: "Menlo", height: 1.67,),
                                                       codeblockDecoration: BoxDecoration(
                                                         color: Colors.red
@@ -2108,7 +2263,7 @@ class _HighLightButtonState extends State<HighLightButton> {
         decoration: BoxDecoration(
           color: isHover ? isDark ? const Color(0xffFAAD14).withOpacity(0.1) : const Color(0xffE6F7FF) : isDark ? const Color(0xff2E2E2E) : const Color(0xffF8F8F8),
           border: Border.all(
-            color: isDark ? const Color(0xffFAAD14) : const Color(0xff1890FF),
+            color: isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor(),
             style: isHover ? BorderStyle.solid : BorderStyle.none)
           ),
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
@@ -2117,7 +2272,7 @@ class _HighLightButtonState extends State<HighLightButton> {
           children: [
             Text(widget.channelName),
             Icon(PhosphorIcons.gear,
-              color: isDark ? const Color(0xffFAAD14) : const Color(0xff1890FF), size: 18)
+              color: isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor(), size: 18)
           ],
         ),
       ),
@@ -2139,7 +2294,7 @@ class WorkspaceItem extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        border: Border(bottom:  BorderSide(color: isSelected ? isDark ? const Color(0xffFAAD14) : const Color(0xff1890FF) : Colors.transparent, width: 2))
+        border: Border(bottom:  BorderSide(color: isSelected ? isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor() : Colors.transparent, width: 2))
       ),
       child: Row(
         children: [
@@ -2150,13 +2305,4 @@ class WorkspaceItem extends StatelessWidget {
       )
     );
   }
-}
-class MyCustomScrollBehavior extends MaterialScrollBehavior {
-  // Override behavior methods and getters like dragDevices
-  @override
-  Set<PointerDeviceKind> get dragDevices => { 
-    PointerDeviceKind.touch,
-    PointerDeviceKind.mouse,
-    // etc.
-  };
 }

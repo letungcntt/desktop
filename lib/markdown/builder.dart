@@ -310,33 +310,23 @@ class MarkdownBuilder implements md.NodeVisitor {
       child = builders[_blocks.last.tag!]!
           .visitText(text, styleSheet.styles[_blocks.last.tag!]);
     } else if (_blocks.last.tag == 'pre') {
-      // child = Scrollbar(
-      //   child: SingleChildScrollView(
-      //     scrollDirection: Axis.horizontal,
-      //     padding: styleSheet.codeblockPadding,
-      //     child: _buildRichText(delegate.formatText(styleSheet, text.text)),
-      //   ),
-      // );
       if (text.text.split("\n").length > 40) {
-        // child = ExpansionTile(
-        //   title: Text("test collapse"),
-        //   children: <Widget>[
-        //     _buildRichText(delegate.formatText(styleSheet, text.text))
-        //   ]
-        // );
         child = _buildRichText(delegate.formatText(styleSheet, text.text));
       } else {
         child = _buildRichText(delegate.formatText(styleSheet, text.text));
       }
     } else {
+      String renderWhiteSpace = _inlines.last.tag == 'code' ? ' ' : '';
+      TextSpan textSpan = TextSpan(
+        style: _isInBlockquote
+          ? styleSheet.blockquote!.merge(_inlines.last.style)
+          : _inlines.last.style,
+        text: _isInBlockquote ? text.text : renderWhiteSpace + trimText(text.text) + renderWhiteSpace,
+        recognizer: _linkHandlers.isNotEmpty ? _linkHandlers.last : null,
+      );
+
       child = _buildRichText(
-        TextSpan(
-          style: _isInBlockquote
-              ? styleSheet.blockquote!.merge(_inlines.last.style)
-              : _inlines.last.style,
-          text: _isInBlockquote ? text.text : trimText(text.text),
-          recognizer: _linkHandlers.isNotEmpty ? _linkHandlers.last : null,
-        ),
+        textSpan,
         textAlign: _textAlignForBlockTag(_currentBlockTag),
       );
     }
@@ -436,7 +426,7 @@ class MarkdownBuilder implements md.NodeVisitor {
  
         child = SizedBox( 
           width: MediaQueryData.fromWindow(WidgetsBinding.instance.window).size.width, 
-          child:element.textContent=="" ? SizedBox(): CustomHighlightView( 
+          child: element.textContent== "" ? SizedBox(): CustomHighlightView( 
             list.sublist(validateLanguage ? 1 : 0).join("\n"), 
             language: language,
             backgroundColor: Colors.transparent,
@@ -650,9 +640,7 @@ class MarkdownBuilder implements md.NodeVisitor {
   ) {
     List<Widget> mergedTexts = <Widget>[];
     for (Widget child in children) {
-      if (mergedTexts.isNotEmpty &&
-          mergedTexts.last is RichText &&
-          child is RichText) {
+      if (mergedTexts.isNotEmpty && mergedTexts.last is RichText && child is RichText) {
         RichText previous = mergedTexts.removeLast() as RichText;
         TextSpan previousTextSpan = previous.text as TextSpan;
         List<TextSpan> children = previousTextSpan.children != null
@@ -664,9 +652,7 @@ class MarkdownBuilder implements md.NodeVisitor {
           mergedSpan,
           textAlign: textAlign,
         ));
-      } else if (mergedTexts.isNotEmpty &&
-          mergedTexts.last is SelectableText &&
-          child is SelectableText) {
+      } else if (mergedTexts.isNotEmpty && mergedTexts.last is SelectableText && child is SelectableText) {
         SelectableText previous = mergedTexts.removeLast() as SelectableText;
         TextSpan previousTextSpan = previous.textSpan!;
         List<TextSpan> children = previousTextSpan.children != null
@@ -682,9 +668,7 @@ class MarkdownBuilder implements md.NodeVisitor {
             textAlign: textAlign,
           ),
         );
-      } else if (mergedTexts.isNotEmpty &&
-          mergedTexts.last is RichTextWidget &&
-          child is RichTextWidget) {
+      } else if (mergedTexts.isNotEmpty && mergedTexts.last is RichTextWidget && child is RichTextWidget) {
         RichTextWidget previous = mergedTexts.removeLast() as RichTextWidget;
         TextSpan previousTextSpan = previous.textSpan;
         List<TextSpan> children = previousTextSpan.children != null
@@ -748,9 +732,7 @@ class MarkdownBuilder implements md.NodeVisitor {
 
     for (int index = 1; index < textSpans.length; index++) {
       TextSpan? nextChild = textSpans[index];
-      if (nextChild.recognizer == mergedSpans.last.recognizer &&
-          nextChild.semanticsLabel == mergedSpans.last.semanticsLabel &&
-          nextChild.style == mergedSpans.last.style) {
+      if (nextChild.recognizer == mergedSpans.last.recognizer && nextChild.semanticsLabel == mergedSpans.last.semanticsLabel && nextChild.style == mergedSpans.last.style) {
         TextSpan previous = mergedSpans.removeLast();
         mergedSpans.add(TextSpan(
           text: previous.toPlainText() + nextChild.toPlainText(),

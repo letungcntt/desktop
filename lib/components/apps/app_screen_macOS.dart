@@ -182,7 +182,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                 child: TextButton(
                   style: ButtonStyle(
                     backgroundColor: MaterialStateProperty.all(
-                     Color(0xff1890FF)
+                     Utils.getPrimaryColor()
                     ),
                     shape: MaterialStateProperty.all(
                       RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))
@@ -212,7 +212,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                 child: Text(
                   "(*) Sau khi tạo và cài đặt app, bạn có thể chỉnh sửa cấu hình ở trong các channel cụ thể .",
                   style: TextStyle(
-                    color: isDark ? Color(0xffFAAD14) : Color(0xff1890FF),
+                    color: isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor(),
                     fontStyle: FontStyle.italic
                   ),
                 ),
@@ -303,7 +303,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                       }
                     },
                     child: HoverItem(
-                      colorHover: isDark ? Color(0xffFAAD14) :Color(0xff1890FF),
+                      colorHover: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),
                       child: Container(
                         margin: EdgeInsets.all(1.5),
                         padding: EdgeInsets.all(16),
@@ -381,7 +381,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                 ),
                 TextButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(Color(0xff1890FF)) , 
+                    backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor()) , 
                     shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))),
                     padding: MaterialStateProperty.all(
                     EdgeInsets.symmetric(vertical: 18, horizontal: 16)
@@ -431,7 +431,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                       padding: EdgeInsets.only(top: 8, bottom: 8, left: 16, right: 16),
                       decoration: BoxDecoration(
                         color: isDark ? Color(0xff4C4C4C) : Color(0xffF3F3F3),
-                        border: Border.all(color: isDark ? highLight== dataApp["commands"][index]["id"] ? Color(0xffFAAD14) : Color(0xff4C4C4C) : highLight == dataApp["commands"][index]["id"] ? Color(0xff1890FF) : Color(0xffF3F3F3), width: 1),
+                        border: Border.all(color: isDark ? highLight== dataApp["commands"][index]["id"] ? Color(0xffFAAD14) : Color(0xff4C4C4C) : highLight == dataApp["commands"][index]["id"] ? Utils.getPrimaryColor() : Color(0xffF3F3F3), width: 1),
                         borderRadius: BorderRadius.all(Radius.circular(4)),
                       ),
                       child: Row(
@@ -440,7 +440,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("/${dataApp["commands"][index]["short_cut"]}",style: TextStyle(color: isDark ? Color(0xffFAAD14): Color(0xff1890FF)),),
+                              Text("/${dataApp["commands"][index]["short_cut"]}",style: TextStyle(color: isDark ? Color(0xffFAAD14): Utils.getPrimaryColor()),),
                               SizedBox(height: 5,),
                               Text("(${dataApp["commands"][index]["request_url"]})"),
                             ],

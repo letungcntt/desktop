@@ -773,9 +773,9 @@ class MessageConversationServices{
     }));
   }
 
-  static shaString(List dataSource){
+  static shaString(List dataSource, {String typeOutPut = "hex"}){
     dataSource.sort((a, b) {
-      return a.toLowerCase().compareTo(b.toLowerCase());
+      return a.compareTo(b);
     });
     Digest y  = sha256.convert(
       utf8.encode(dataSource.join("_"))
@@ -783,7 +783,8 @@ class MessageConversationServices{
 
     if (dataSource.length <= 2)
       return base64Url.encode(y.bytes);
-    return y.toString();
+    if (typeOutPut == "hex") return y.toString();
+    return base64Url.encode(y.bytes);
   }
 
   static Map getHeaderMessageConversation(){
@@ -1079,7 +1080,7 @@ static syncData(RTCDataChannel channel, String sharedKey, {bool isSecond = false
           DeviceSocket.instance.targetDevice ?? "",
           sharedKey)
         );
-        DeviceSocket.instance.setPairDeviceId("", "", "");
+        DeviceSocket.instance.setPairDeviceId("",  DeviceSocket.instance.currentDevice ?? "", "");
       }
     } catch (e, trace) {
       print("$e , $trace");

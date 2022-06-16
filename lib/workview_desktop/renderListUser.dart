@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/common/utils.dart';
 import 'package:workcake/models/models.dart';
 import 'package:workcake/workview_desktop/issue_table.dart';
 
@@ -112,7 +111,7 @@ class _ListUserState extends State<ListUser> {
               child: AssigneeAvatar(
                 userId: assignees[4]["id"],
                 url: assignees[4]["avatar_url"], 
-                name: Utils.getUserNickName(assignees[4]["id"]) ?? assignees[4]["full_name"], 
+                name: assignees[4]["full_name"], 
                 selectAssignee: widget.selectAssignee,
                 onHover: onHover,
               )
@@ -123,7 +122,7 @@ class _ListUserState extends State<ListUser> {
               child: AssigneeAvatar(
                 userId: assignees[3]["id"],
                 url: assignees[3]["avatar_url"], 
-                name: Utils.getUserNickName(assignees[3]["id"]) ?? assignees[3]["full_name"], 
+                name: assignees[3]["full_name"], 
                 selectAssignee: widget.selectAssignee,
                 onHover: onHover,
               )
@@ -134,7 +133,7 @@ class _ListUserState extends State<ListUser> {
               child: AssigneeAvatar(
                 userId: assignees[2]["id"],
                 url: assignees[2]["avatar_url"], 
-                name: Utils.getUserNickName(assignees[2]["id"]) ?? assignees[2]["full_name"], 
+                name: assignees[2]["full_name"], 
                 selectAssignee: widget.selectAssignee,
                 onHover: onHover,
               )
@@ -145,7 +144,7 @@ class _ListUserState extends State<ListUser> {
               child: AssigneeAvatar(
                 userId: assignees[1]["id"],
                 url: assignees[1]["avatar_url"], 
-                name: Utils.getUserNickName(assignees[1]["id"]) ?? assignees[1]["full_name"], 
+                name: assignees[1]["full_name"], 
                 selectAssignee: widget.selectAssignee,
                 onHover: onHover,
               ),
@@ -154,7 +153,7 @@ class _ListUserState extends State<ListUser> {
             AssigneeAvatar(
               userId: assignees[0]["id"],
               url: assignees[0]["avatar_url"], 
-              name: Utils.getUserNickName(assignees[0]["id"]) ?? assignees[0]["full_name"], 
+              name: assignees[0]["full_name"], 
               selectAssignee: widget.selectAssignee,
               onHover: onHover,
             ),
