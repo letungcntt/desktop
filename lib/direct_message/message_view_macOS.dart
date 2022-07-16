@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
-import 'package:multi_image_picker/multi_image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
@@ -529,24 +528,6 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
   //   return dm.name  != "" ? dm.name : result;
   // }
 
-  loadAssets() async {
-    var resultList;
-
-    try {
-      resultList = await MultiImagePicker.pickImages(maxImages: 10);
-    } on Exception catch (e) {
-      print(e.toString());
-    }
-
-    if (!mounted) return;
-
-    if (resultList != null) {
-      setState(() {
-        images = resultList;
-      });
-    }
-  }
-
   removeFile(index) {
     List list = fileItems;
     list.removeAt(index);
@@ -1057,7 +1038,36 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                                               if (!isPanchat.isNotEmpty) ActionInput(
                                                 openFileSelector: openFileSelector,
                                                 selectEmoji: selectEmoji,
-                                                showRecordMessage: (value) => setState(() => isShowRecord = value)
+                                                showRecordMessage: (value) => setState(() => isShowRecord = value),
+                                                selectSticker: (data) {
+                                                  var directMessageSelected = Provider.of<DirectMessage>(context, listen: false).directMessageSelected;
+
+                                                  var fakeId = getRandomString(20);
+                                                  var idDirectmessage = directMessageSelected.id;
+                                                  var dataMessage = {
+                                                    "message": '',
+                                                    "attachments": [{
+                                                      'type': 'sticker',
+                                                      'data': data
+                                                    }],
+                                                    "title": "",
+                                                    "conversation_id": idDirectmessage,
+                                                    "show": true,
+                                                    "user_id": auth.userId,
+                                                    "time_create": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
+                                                    "count": 0,
+                                                    "isSend": true,
+                                                    "sending": true,
+                                                    "success": true,
+                                                    "fake_id": fakeId,
+                                                    "current_time": DateTime.now().millisecondsSinceEpoch * 1000,
+                                                    "isDesktop": true,
+                                                    "avatar_url": currentUser["avatar_url"],
+                                                    "full_name": currentUser["full_name"],
+                                                  };
+
+                                                  Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage([], dataMessage, token);  
+                                                },
                                               ),
                                               IconButton(
                                                 icon: Icon(selectedMessage != null? Icons.check : Icons.send,

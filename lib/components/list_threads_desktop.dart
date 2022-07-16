@@ -55,6 +55,7 @@ class _ListThreadsDesktopState extends State<ListThreadsDesktop> {
     List currentDataThreads = index != -1 ? dataThreads[index]["threads"] : [];
     List channels = Provider.of<Channels>(context, listen: true).data;
     var token = Provider.of<Auth>(context, listen: true).token;
+    final directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
 
     return index != -1 ? SingleChildScrollView(
       padding: EdgeInsets.all(24),
@@ -75,7 +76,7 @@ class _ListThreadsDesktopState extends State<ListThreadsDesktop> {
                 ? ThreadIssueItem(issue: e, key: Key(e["issue_id"].toString()))
                 : ThreadItemMacos(
                   key: Key(e["id"].toString()),
-                  parentMessage: e
+                  parentMessage: e, dataDirectMessage: directMessage,
                 );
             }).toList()
           )

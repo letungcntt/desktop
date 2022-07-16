@@ -140,7 +140,7 @@ class _RightSiderState extends State<RightSider> {
           Provider.of<Messages>(context, listen: false).openThreadMessage(false, {});
         },
         child: openThread 
-          ? ThreadDesktop(parentMessage: parentMessage)
+          ? ThreadDesktop(parentMessage: parentMessage, dataDirectMessage: directMessage,)
           : Container(
             color: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
             child: showChannelPinned

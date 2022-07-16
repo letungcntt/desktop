@@ -7,7 +7,6 @@ import 'package:flutter_macos_webview/flutter_macos_webview.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
-import 'package:workcake/components/splash_screen.dart';
 import 'package:workcake/media_conversation/model.dart' as MC;
 import 'package:workcake/models/models.dart';
 

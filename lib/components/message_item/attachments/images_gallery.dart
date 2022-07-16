@@ -482,7 +482,7 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final deviceHeight = MediaQuery?.of(context).size.height;
+    final deviceHeight = MediaQuery.of(context).size.height;
     final url = widget.att["data"][page]["content_url"];
     final name = widget.att["data"][page]["name"] ?? widget.att["data"][page]["filename"];
     final keyEncrypt =  widget.att["data"][page]["key_encrypt"] ?? "";

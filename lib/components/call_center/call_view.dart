@@ -7,7 +7,6 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/common/window_manager.dart';
 import 'package:workcake/components/call_center/enums_consts.dart';
 import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/models/models.dart';

@@ -50,6 +50,7 @@ class _ImageReplyState extends State<ImageReply> {
   Widget build(BuildContext context) {
     final parentMessage = Provider.of<Messages>(context, listen: true).messageImage;
     final auth = Provider.of<Auth>(context, listen: true);
+    final directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
 
     return ContextMenuOverlay(
       cardBuilder: (_, children) => Container(
@@ -118,7 +119,7 @@ class _ImageReplyState extends State<ImageReply> {
             elevation: 1,
             deAttackable: false,
             child: Scaffold(
-              body: ThreadDesktop(parentMessage: parentMessage, isMessageImage: true)
+              body: ThreadDesktop(parentMessage: parentMessage, isMessageImage: true, dataDirectMessage: directMessage,)
             )
           ) : Container()
         ],

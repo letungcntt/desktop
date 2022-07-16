@@ -27,7 +27,6 @@ import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/splash_screen.dart';
 import 'package:hive/hive.dart';
 
-import 'isar/message_conversation/service.dart';
 import 'login_macOS.dart';
 import 'main_screen_macOS.dart';
 import 'media_conversation/service_box.dart';

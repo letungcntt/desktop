@@ -3,33 +3,42 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:better_selection/better_selection.dart';
+import 'package:context_menus/context_menus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:popover/popover.dart';
+import 'package:just_the_tooltip/just_the_tooltip.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/expanded_viewport.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/custom_context_menu.dart';
 import 'package:workcake/components/file_items.dart';
+import 'package:workcake/components/message_item/attachments/sticker_file.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
 import 'package:workcake/models/models.dart';
+import 'package:workcake/workspaces/list_sticker.dart';
 
+import '../hive/direct/direct.model.dart';
 import 'message_item/chat_item_macOS.dart';
 
 class ThreadDesktop extends StatefulWidget {
   final parentMessage;
   final bool isMessageImage;
+  final DirectModel dataDirectMessage;
 
   ThreadDesktop({
     Key? key,
     this.parentMessage,
-    this.isMessageImage = false
+    this.isMessageImage = false,
+    required this.dataDirectMessage,
   }) : super(key: key);
 
   @override
@@ -58,6 +67,8 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
   bool isBlockCode = false;
   bool checked = false;
   double height = 0.0;
+  bool isSend = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -250,7 +261,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
           var dataMessage  = dataM[i];
           var dataDe =  await currentDataMessageConversation!["conversationKey"].decryptMessage(dataMessage);
           if(dataDe["success"]){
-            dataMessage = {...dataDe["message"], "isBlur": false};
+            dataMessage = {...dataDe["message"], "is_blur": false};
             // save to Isar
             await MessageConversationServices.insertOrUpdateMessage(dataMessage);  
             Provider.of<DirectMessage>(context, listen: false).markReadConversationV2(token, parentMessage["conversationId"], [dataMessage["id"]], [], true);
@@ -423,7 +434,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
 
   updateSocketChannel(payload) {
     if (mounted) { 
-      Map newMessage = {...payload["message"], "isBlur": false};
+      Map newMessage = {...payload["message"], "is_blur": false};
       final parentMessage = !widget.isMessageImage
         ? Provider.of<Messages>(context, listen: false).parentMessage
         : Provider.of<Messages>(context, listen: false).messageImage;
@@ -553,7 +564,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       "user": currentUser["full_name"] ?? "",
       "avatar_url": currentUser["avatar_url"] ?? "",
       "full_name": currentUser["full_name"] ?? "",
-      "isBlur": false,
+      "is_blur": false,
     };
 
     data.add(dataMessage);
@@ -576,7 +587,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       Future.delayed(const Duration(seconds: 2), () {
         int index = data.indexWhere((e) => e["key"] == dataMessage["key"]);
         if(index != -1 && data[index]["id"] == null) {
-          data[index]["isBlur"] = true;
+          data[index]["is_blur"] = true;
         }
       });
     }
@@ -644,7 +655,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       "user": currentUser["full_name"] ?? "",
       "avatar_url": currentUser["avatar_url"] ?? "",
       "full_name": currentUser["full_name"] ?? "",
-      "isBlur": false,
+      "is_blur": false,
       "user_id_parent_message": parentMessage["user_id"] ?? parentMessage["userId"],
       // "current_time_parent_message": parentMessage["current_time"]
     };
@@ -681,12 +692,11 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
         setState(() {
           fileItems = [];
         });
-
         Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage(files, dataMessage, token);
         Future.delayed(const Duration(seconds: 2), () {
           int index = data.indexWhere((e) => e["fake_id"] == dataMessage["fake_id"]);
           if(index != -1 && data[index]["id"] == null) {
-            data[index]["isBlur"] = true;
+            data[index]["is_blur"] = true;
           }
         });
       } catch (e) {
@@ -701,9 +711,40 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
     processFiles([{
       "name": '$name.txt',
       "mime_type": 'txt',
+      'type': 'txt',
       "path": '',
       "file": bytes
     }]);
+  }
+
+  saveChangesToHive(str) async {
+    var box = await Hive.openBox('drafts');
+    var lastEdited = box.get('lastEdited');
+    List changes;
+
+    if (lastEdited == null) {
+      changes = [{
+        "id": widget.dataDirectMessage.id,
+        "text": str,
+      }];
+    } else {
+      changes = List.from(lastEdited);
+      final index = changes.indexWhere((e) => e["id"] == widget.dataDirectMessage.id);
+
+      if (index != -1) {
+        changes[index] = {
+          "id": widget.dataDirectMessage.id,
+          "text": str,
+        };
+      } else {
+        changes.add({
+          "id": widget.dataDirectMessage.id,
+          "text": str,
+        });
+      }
+    }
+
+    box.put('lastEdited', changes);
   }
 
   updateMessage(dataM) {
@@ -802,6 +843,67 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
     setUpdateMessage(null, false);
   }
 
+  selectSticker(data) {
+    final auth = Provider.of<Auth>(context, listen: false);
+    final parentMessage = !widget.isMessageImage
+                          ? Provider.of<Messages>(context, listen: false).parentMessage
+                          : Provider.of<Messages>(context, listen: false).messageImage;
+    final channelId = parentMessage["channelId"];
+    final workspaceId = parentMessage["workspaceId"];
+    final channelThreadId = parentMessage["id"];
+    final currentUser = Provider.of<User>(context, listen: false).currentUser;
+
+    if (!isChannel) {
+      var dataMessage = {
+        "message": '',
+        "attachments": [{
+          'type': 'sticker',
+          'data': data
+        }],
+        "conversation_id": widget.parentMessage["conversationId"],
+        "fake_id": Utils.getRandomString(20),
+        "time_create": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
+        "user_id": auth.userId,
+        "isDesktop": true,
+        "current_time": DateTime.now().microsecondsSinceEpoch,
+        "inserted_at": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
+        "user": currentUser["full_name"] ?? "",
+        "avatar_url": currentUser["avatar_url"] ?? "",
+        "full_name": currentUser["full_name"] ?? "",
+        "is_blur": false,
+        "user_id_parent_message": parentMessage["user_id"] ?? parentMessage["userId"],
+        "isThread": true,
+        "parentId": channelThreadId,
+        "isSend":  true
+      };
+
+      Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage([], dataMessage, token);
+    } else {
+      var dataMessage = {
+        "channel_thread_id": channelThreadId,
+        "key": Utils.getRandomString(20),
+        "message": "",
+        "attachments": [{
+          'type': 'sticker',
+          'data': data
+        }],
+        "channel_id":  channelId,
+        "workspace_id": workspaceId,
+        "count_child": 0,
+        "user_id": auth.userId,
+        "user":currentUser["full_name"] ?? "",
+        "avatar_url": currentUser["avatar_url"] ?? "",
+        "full_name": Utils.getUserNickName(auth.userId) ?? currentUser["full_name"] ?? "",
+        "inserted_at": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
+        "is_system_message": false,
+        "is_blur": false,
+        "isDesktop": true
+      };
+
+      Provider.of<Messages>(context, listen: false).sendMessageWithImage([], dataMessage, auth.token);
+    }
+  }
+
   onChangedTypeFile(int index, String name, String type) {
     setState(() {
       fileItems[index]['mime_type'] = type;
@@ -868,7 +970,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
           },
           child: Container(
             height: deviceHeight,
-            color: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
+            color: isDark ? Color(0xFF2e2e2e) : Color(0xFFF3F3F3),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -935,7 +1037,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                                 isDark: isDark,
                                 customColor: customColor,
                                 updateMessage: updateMessage,
-                                isShow: false
+                                isShow: true
                               ),
                             ),
                           ),
@@ -963,7 +1065,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
@@ -987,7 +1089,24 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           handleCodeBlock: handleCodeBlock,
                           isIssues: false,
                           style: TextStyle(fontSize: 15.5, color: isDark ? Colors.grey[300] : Colors.grey[800]),
-                          onChanged: (value) {},
+                          onChanged: (value) {
+                            saveChangesToHive(key.currentState!.controller!.markupText);
+                            if(!isSend && value.isNotEmpty) {
+                              setState(() => isSend = true);
+                            } else if (isSend && value.isEmpty) {
+                              setState(() => isSend = false);
+                            }
+
+                            if (value.trim() != "") {
+                              if (_debounce?.isActive ?? false) _debounce?.cancel();
+                              _debounce = Timer(const Duration(milliseconds: 500), () {
+                                auth.channel.push(
+                                  event: "on_typing",
+                                  payload: {"conversation_id": widget.dataDirectMessage.id, "user_name": currentUser["full_name"]}
+                                );
+                              });
+                            }
+                          },
                           cursorColor: isDark ? Colors.grey[400]! : Colors.black87,
                           isDark: isDark,
                           setUpdateMessage: setUpdateMessage,
@@ -1049,7 +1168,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                                       scale: 0.6,
                                       child: Checkbox(
                                         activeColor: isDark ? const Color(0xff19DFCB) : Colors.blue,
-                                        side: BorderSide(color: isDark ? Colors.white : const Color(0xff1F2933)),
+                                        side: BorderSide(color: isDark ? Colors.white : const Color(0xff1F3033)),
                                         splashRadius: 1.0,
                                         value: checked,
                                         onChanged: (value) {
@@ -1060,10 +1179,29 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                                       ),
                                     ),
                                   ),
-                                  Text("Also send to channel", style: TextStyle(color: isDark ? Colors.white : const Color(0xff1F2933), fontSize:  13),)
+                                  Text("Also send to channel", style: TextStyle(color: isDark ? Colors.white : const Color(0xff1F3033), fontSize:  13),)
                                 ],
                               ),
-                              ActionThread(handleMessage: handleMessage, isUpdate: isUpdate, openFileSelector: openFileSelector, selectEmoji: selectEmoji,)
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    ActionThread(handleMessage: handleMessage, isUpdate: isUpdate, openFileSelector: openFileSelector, selectEmoji: selectEmoji, selectSticker: selectSticker),
+                                    InkWell(
+                                      child: Container(
+                                        padding: EdgeInsets.only(left: 6),
+                                        child: Icon(isUpdate ? Icons.check : Icons.send,
+                                          size: 18,
+                                          color: (isSend || (fileItems.isNotEmpty))
+                                          ? const Color(0xffFAAD14)
+                                          : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                                          // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
+                                        ),
+                                      ),
+                                      onTap: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
+                                    ),
+                                  ],
+                                ),
+                              )
                             ],
                           ),
                         )
@@ -1169,7 +1307,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                         }
                         final newSnippet = snippetList.where((e) => e["id"] == dataReversed[i]["id"]).toList();
                         final newListBlockCode = listBlockCode.where((e) => e["id"] == dataReversed[i]["id"]).toList();
-            
+
                         return ChatItemMacOS(
                           key: Key(dataReversed[i]["id"].toString()),
                           width: 250,
@@ -1199,7 +1337,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           snippet: newSnippet.isNotEmpty ? newSnippet[0]["snippet"] : "",
                           blockCode: newListBlockCode.isNotEmpty ? newListBlockCode[0]["block_code"] : "",
                           conversationId: widget.parentMessage["conversationId"],
-                          isBlur: dataReversed[i]["isBlur"],
+                          isBlur: dataReversed[i]["is_blur"],
                           isDark: isDark,
                           waittingForResponse: (dataReversed[i]["status_decrypted"] ?? "") == "decryptionFailed",
                           currentTime: dataReversed[i]["current_time"],
@@ -1222,12 +1360,29 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
   }
 }
 
-class ActionThread extends StatelessWidget {
-  const ActionThread({Key? key, required this.openFileSelector, required this.handleMessage, required this.selectEmoji, required this.isUpdate}) : super(key: key);
+class ActionThread extends StatefulWidget {
+  ActionThread({
+    Key? key,
+    required this.openFileSelector,
+    required this.handleMessage,
+    required this.selectEmoji,
+    required this.isUpdate,
+    required this.selectSticker,
+  }) : super(key: key);
+
   final Function openFileSelector;
   final Function handleMessage;
   final Function selectEmoji;
   final bool isUpdate;
+  final Function selectSticker;
+
+  @override
+  State<ActionThread> createState() => _ActionThreadState();
+}
+
+class _ActionThreadState extends State<ActionThread> {
+  final JustTheController _controller = JustTheController(value: TooltipStatus.isHidden);
+  List stickers = ducks + pepeStickers + otherSticker;
 
   @override
   Widget build(BuildContext context) {
@@ -1247,7 +1402,7 @@ class ActionThread extends StatelessWidget {
             ),
             child: Icon(CupertinoIcons.plus, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
             onPressed: () {
-              openFileSelector();
+              widget.openFileSelector();
             }
           )
         ),
@@ -1256,48 +1411,122 @@ class ActionThread extends StatelessWidget {
           height: 30,
           child: HoverItem(
             colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-            child: TextButton(
-              style: ButtonStyle(
-                padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
-                overlayColor: MaterialStateProperty.all(Colors.transparent),
-                shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+            child: JustTheTooltip(
+              controller: _controller,
+              isModal: true,
+              preferredDirection: AxisDirection.up,
+              content: Emoji(
+                workspaceId: "direct",
+                onSelect: (emoji){
+                  widget.selectEmoji(emoji);
+                },
+                onClose: (){
+                  _controller.hideTooltip();
+                }
               ),
-              child: Icon(CupertinoIcons.smiley, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-              onPressed: () {
-                showPopover(
-                  context: context,
-                  direction: PopoverDirection.top,
-                  transitionDuration: const Duration(milliseconds: 0),
-                  arrowWidth: 0,
-                  arrowHeight: 0,
-                  arrowDxOffset: 0,
-                  shadow: [],
-                  onPop: (){
-                  },
-                  bodyBuilder: (context) => Emoji(
-                    workspaceId: "direct",
-                    onSelect: (emoji){
-                      selectEmoji(emoji);
-                    },
-                    onClose: (){
-                      Navigator.pop(context);
-                    }
-                  )
-                );
-              }
+              child: TextButton(
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
+                  overlayColor: MaterialStateProperty.all(Colors.transparent),
+                  shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+                ),
+                child: Icon(CupertinoIcons.smiley, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
+                onPressed: () {
+                  _controller.showTooltip();
+                  // showPopover(
+                  //   context: context,
+                  //   direction: PopoverDirection.top,
+                  //   transitionDuration: const Duration(milliseconds: 50),
+                  //   arrowWidth: 0,
+                  //   arrowHeight: 0,
+                  //   arrowDxOffset: 0,
+                  //   shadow: [],
+                  //   onPop: (){
+                  //   },
+                  //   bodyBuilder: (context) => 
+                  // );
+                }
+              ),
             ),
           )
         ),
-        IconButton(
-          padding: const EdgeInsets.all(5),
-          icon: Icon(isUpdate ? Icons.check : Icons.send,
-            size: 18,
-            color: const Color(0xffFAAD14),
-            // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
+        ContextMenu(
+          contextMenu: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
+              border: Border.all(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75)),
+              borderRadius: BorderRadius.all(Radius.circular(8))
+            ),
+            child: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75))
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Text(
+                          'Sticker',
+                          style: TextStyle(
+                            color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                            fontWeight: FontWeight.w500, fontSize: 16
+                          ),
+                        )
+                      ),
+                      InkWell(
+                        child: Icon(
+                          PhosphorIcons.xCircle,
+                        size: 20, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                        ),
+                        onTap: () => context.contextMenuOverlay.close(),
+                      ),
+                    ],
+                  )
+                ),
+                SingleChildScrollView(
+                  child: Container(
+                    width: 300, height: 400,
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: GridView.builder(
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 100,
+                        childAspectRatio: 1,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: stickers.length,
+                      itemBuilder: (context, index) {
+                        return Container(
+                          width: 80, height: 80,
+                          child: TextButton(
+                            onPressed: () {
+                              widget.selectSticker(stickers[index]);
+                              context.contextMenuOverlay.close();
+                            },
+                            child: StickerFile(data: stickers[index], isPreview: true)
+                          )
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          onPressed: () {
-            handleMessage();
-          }
+          child: Container(
+            width: 30,
+            height: 30,
+            child: HoverItem(
+              colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+              child: Icon(PhosphorIcons.sticker, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
+            )
+          ),
         )
       ]
     );

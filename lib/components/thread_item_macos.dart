@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:workcake/common/drop_zone.dart';
@@ -15,6 +16,7 @@ import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/file_items.dart';
 import 'package:workcake/flutter_mention/action_input.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
+import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
 import 'package:workcake/models/models.dart';
 
@@ -23,10 +25,12 @@ import 'message_item/chat_item_macOS.dart';
 class ThreadItemMacos extends StatefulWidget {
   ThreadItemMacos({
     Key? key,
-    @required this.parentMessage
+    @required this.parentMessage,
+    required this.dataDirectMessage,
   }) : super(key: key);
 
   final parentMessage;
+  final DirectModel dataDirectMessage;
 
   @override
   _ThreadItemMacosState createState() => _ThreadItemMacosState();
@@ -54,6 +58,8 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
   int consecutiveTaps = 0;
   bool tooltipNotify = false;
   bool onHighlight = false;
+  bool isSend = false;
+  Timer? _debounce;
 
   getUser(userId) {
     final members = Provider.of<Workspaces>(context, listen: true).members;
@@ -84,7 +90,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
 
   sendThreadMessage(token, workspaceId, channelId) {
     final channelThreadId = widget.parentMessage["id"];
-    var result = Provider.of<Messages>(context, listen: false).checkMentions(key.currentState!.controller!.markupText);
+    var result = Provider.of<Messages>(context, listen: false).checkMentions(key.currentState!.controller!.markupText.trim());
     List list = fileItems;
 
     var dataMessage  = {
@@ -218,6 +224,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
     processFiles([{
       "name": '$name.txt',
       "mime_type": 'txt',
+      'type': 'txt',
       "path": '',
       "file": bytes
     }]);
@@ -309,6 +316,35 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
       print("Error load thread: $e");
     }
   }
+  saveChangesToHive(str) async {
+    var box = await Hive.openBox('drafts');
+    var lastEdited = box.get('lastEdited');
+    List changes;
+
+    if (lastEdited == null) {
+      changes = [{
+        "id": widget.dataDirectMessage.id,
+        "text": str,
+      }];
+    } else {
+      changes = List.from(lastEdited);
+      final index = changes.indexWhere((e) => e["id"] == widget.dataDirectMessage.id);
+
+      if (index != -1) {
+        changes[index] = {
+          "id": widget.dataDirectMessage.id,
+          "text": str,
+        };
+      } else {
+        changes.add({
+          "id": widget.dataDirectMessage.id,
+          "text": str,
+        });
+      }
+    }
+
+    box.put('lastEdited', changes);
+  }
 
   updateMessage(dataM) {
     List data = widget.parentMessage["children"];
@@ -369,10 +405,42 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
     key.currentState?.focusNode.requestFocus();
   }
 
+  selectSticker(data) {
+    final channelThreadId = widget.parentMessage["id"];
+    final auth = Provider.of<Auth>(context, listen: false);
+    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final channelId = widget.parentMessage["channel_id"];
+    final currentUser = Provider.of<User>(context, listen: false).currentUser;
+
+    var dataMessage  = {
+      "channel_thread_id": channelThreadId,
+      "key": Utils.getRandomString(20),
+      "message": "",
+      "attachments": [{
+        'type': 'sticker',
+        'data': data
+      }],
+      "channel_id":  channelId,
+      "workspace_id": currentWorkspace['id'],
+      "count_child": 0,
+      "user_id": auth.userId,
+      "user":currentUser["full_name"] ?? "",
+      "avatar_url": currentUser["avatar_url"] ?? "",
+      "full_name": Utils.getUserNickName(auth.userId) ?? currentUser["full_name"] ?? "",
+      "is_system_message": false,
+      "is_blur": false,
+      "fromThread": true,
+      "isDesktop": true
+    };
+
+    Provider.of<Messages>(context, listen: false).sendMessageWithImage([], dataMessage, auth.token);
+  }
+
   @override
   Widget build(BuildContext context) {
     final customColor = Provider.of<User>(context, listen: false).currentUser["custom_color"];
     final currentWorkspace = Provider.of<Workspaces>(context, listen: true).currentWorkspace;
+    final currentUser = Provider.of<User>(context, listen: true).currentUser;
     final auth = Provider.of<Auth>(context);
     final isDark = auth.theme == ThemeType.DARK;
     var parentMessage = widget.parentMessage;
@@ -532,7 +600,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                       firstMessage: false,
                                       isDark: isDark,
                                       updateMessage: updateMessage,
-                                      customColor: customColor
+                                      customColor: customColor,
                                     )
                                   )
                                 )
@@ -725,6 +793,21 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                               onEdittingText: onEdittingText,
                               onChanged: (str) async {
                                 onChangeInput(parentMessage, str);
+                                saveChangesToHive(key.currentState!.controller!.markupText);
+                                if(!isSend && str.isNotEmpty) {
+                                  setState(() => isSend = true);
+                                } else if (isSend && str.isEmpty) {
+                                  setState(() => isSend = false);
+                                }
+                                if (str.trim() != "") {
+                                  if (_debounce?.isActive ?? false) _debounce?.cancel();
+                                  _debounce = Timer(const Duration(milliseconds: 500), () {
+                                    auth.channel.push(
+                                      event: "on_typing",
+                                      payload: {"conversation_id": widget.dataDirectMessage.id, "user_name": currentUser["full_name"]}
+                                    );
+                                  });
+                                }
                               },
                               suggestionListHeight: 200,
                               suggestionListDecoration: const BoxDecoration(
@@ -756,14 +839,18 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 !isUpdate
-                                  ? ActionInput(openFileSelector: openFileSelector, selectEmoji: selectEmoji, isThreadTab: true,)
+                                  ? ActionInput(openFileSelector: openFileSelector, selectEmoji: selectEmoji, isThreadTab: true, selectSticker: selectSticker,)
                                   : Container(),
                                 IconButton(
-                                  icon: Icon(Icons.send,
-                                    color: const Color(0xffFAAD14),
-                                    size: 18
+                                  padding: const EdgeInsets.all(5),
+                                  icon: Icon(isUpdate ? Icons.check : Icons.send,
+                                    size: 18,
+                                    color: (isSend || (fileItems.isNotEmpty))
+                                    ? const Color(0xffFAAD14)
+                                    : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                                    // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
                                   ),
-                                  onPressed: () => handleMessage(),
+                                  onPressed: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
                                 ),
                               ],
                             )

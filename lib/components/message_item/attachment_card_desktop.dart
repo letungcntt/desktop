@@ -18,6 +18,7 @@ import 'package:workcake/common/video_player.dart';
 import 'package:workcake/components/accept_channel_workspace.dart';
 import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/components/collapse.dart';
+import 'package:workcake/components/message_item/attachments/sticker_file.dart';
 import 'package:workcake/components/message_item/message_card_desktop.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
 import 'package:workcake/components/widget_text.dart';
@@ -845,6 +846,10 @@ class _AttachmentCardDesktopState extends State<AttachmentCardDesktop> {
                     ],
                   ),
                 );
+              
+              case 'sticker':
+                return StickerFile(key: Key(widget.id.toString()), data: att['data']);
+              
               default:
                 switch (att["mime_type"]) {
                   case "share":

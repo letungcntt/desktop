@@ -154,7 +154,7 @@ SPEC CHECKSUMS:
   flutter_local_notifications: 3805ca215b2fb7f397d78b66db91f6a747af52e4
   flutter_macos_webview: a17978522d9014b5ebc0279d76a332b9531c4a95
   flutter_webrtc: 37c4efd66d9d306878c1323d5ac5a1d10c748b3a
-  FlutterMacOS: 57701585bf7de1b3fc2bb61f6378d73bbdea8424
+  FlutterMacOS: ae6af50a8ea7d6103d888583d46bd8328a7e9811
   isar_flutter_libs: 1948109973b6c2e46d6196b1537688a36a6edeac
   just_audio: 9b67ca7b97c61cfc9784ea23cd8cc55eb226d489
   ObjectBox: 6410cda891ee71682ea1b0330a9544c52b2ba988

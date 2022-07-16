@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:better_selection/better_selection.dart';
+import 'package:context_menus/context_menus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -13,13 +14,15 @@ import 'package:hive/hive.dart';
 import 'package:html/parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:popover/popover.dart';
+import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:provider/provider.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/custom_context_menu.dart';
 import 'package:workcake/components/draggable_scrollbar.dart';
+import 'package:workcake/components/message_item/attachments/sticker_file.dart';
 import 'package:workcake/components/message_item/chat_item_macOS.dart';
 import 'package:workcake/components/message_item/record_audio.dart';
 import 'package:workcake/components/typing.dart';
@@ -30,6 +33,7 @@ import 'package:workcake/models/models.dart';
 import 'package:workcake/service_locator.dart';
 import 'package:workcake/services/sharedprefsutil.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:workcake/workspaces/list_sticker.dart';
 
 import '../components/file_items.dart';
 
@@ -580,6 +584,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
     processFiles([{
       "name": '$name.txt',
       "mime_type": 'txt',
+      'type': 'txt',
       "path": '',
       "file": bytes
     }], true);
@@ -609,6 +614,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
     key.currentState!.controller!.clear();
 
     setUpdateMessage(null, false);
+    onSaveAttachments();
   }
 
   setUpdateMessage(data, bool value) {
@@ -815,9 +821,9 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
   }
 
   onSelectCommand(commad, commandParams) {
-    final space = (commandParams != null && commandParams.length > 0) ? " " : "";
-    key.currentState!.controller!.text = commad + space;
-    key.currentState!.controller!.selection = TextSelection.fromPosition(TextPosition(offset: key.currentState!.controller!.text.length));
+    final String space = (commandParams != null && commandParams.length > 0) ? " " : "";
+    key.currentState!.setMarkUpText(commad + space);
+    key.currentState!.focusNode.requestFocus();
   }
 
   _uploadImage(token, workspaceId) async {
@@ -1068,6 +1074,33 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
     });
   }
 
+  selectSticker(data) {
+    final auth = Provider.of<Auth>(context, listen: false);
+    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final currentUser = Provider.of<User>(context, listen: false).currentUser;
+    var dataMessage  = {
+      "channel_thread_id": null,
+      "key": Utils.getRandomString(20),
+      "message": "",
+      "attachments": [{
+        'type': 'sticker',
+        'data': data
+      }],
+      "channel_id":  widget.id,
+      "workspace_id": currentWorkspace['id'],
+      "count_child": 0,
+      "user_id": auth.userId,
+      "user":currentUser["full_name"] ?? "",
+      "avatar_url": currentUser["avatar_url"] ?? "",
+      "full_name": Utils.getUserNickName(auth.userId) ?? currentUser["full_name"] ?? "",
+      "inserted_at": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
+      "is_system_message": false,
+      "isDesktop": true
+    };
+
+    Provider.of<Messages>(context, listen: false).sendMessageWithImage([], dataMessage, auth.token);
+  }
+
   Widget _conversation(token, currentWorkspace, data, userId) {
     final auth = Provider.of<Auth>(context);
     var isDark = auth.theme == ThemeType.DARK;
@@ -1211,7 +1244,9 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                                     InputLeading(
                                       openFileSelector: openFileSelector,
                                       selectEmoji: selectEmoji,
-                                      showRecordMessage: (value) => setState(() => isShowRecord = value)),
+                                      showRecordMessage: (value) => setState(() => isShowRecord = value),
+                                      selectSticker: selectSticker
+                                    ),
                                     IconButton(
                                       icon: Icon(
                                         isUpdate ? Icons.check : Icons.send,
@@ -1249,7 +1284,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
             ),
 
             AnimatedPositioned(
-              bottom: 75,
+              bottom: 105,
               left: 15,
               right: 0,
               height: suggestCommands.length < 5 ? suggestCommands.length * 43.0 : 214.0,
@@ -1445,11 +1480,13 @@ class InputLeading extends StatefulWidget {
     required this.openFileSelector,
     this.showRecordMessage,
     this.selectEmoji,
+    this.selectSticker
   }) : super(key: key);
 
   final openFileSelector;
   final selectEmoji;
   final showRecordMessage;
+  final selectSticker;
 
   @override
   State<InputLeading> createState() => _InputLeadingState();
@@ -1458,6 +1495,8 @@ class InputLeading extends StatefulWidget {
 class _InputLeadingState extends State<InputLeading> {
   List options = [{'id': 0, 'title': ''}];
   String title = "";
+  JustTheController controller = JustTheController(value: TooltipStatus.isHidden);
+  List stickers = ducks + pepeStickers + otherSticker;
 
   createPollMessage() {
     final auth = Provider.of<Auth>(context, listen: false);
@@ -1486,7 +1525,7 @@ class _InputLeadingState extends State<InputLeading> {
       "avatar_url": user.currentUser["avatar_url"] ?? "",
       "full_name": user.currentUser["full_name"] ?? "",
       "inserted_at": DateTime.now().add(const Duration(hours: -7)).toIso8601String(),
-      "is_system_message": false,
+      "is_system_message": true,
       "isDesktop": true
     };
 
@@ -1569,43 +1608,129 @@ class _InputLeadingState extends State<InputLeading> {
             ),
           )
         ),
-        Container(
-          width: 30,
-          height: 30,
-          child: HoverItem(
-            colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-            child: TextButton(
-              style: ButtonStyle(
-                padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
-                overlayColor: MaterialStateProperty.all(Colors.transparent),
-                shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+        JustTheTooltip(
+          controller: controller,
+          preferredDirection: AxisDirection.up,
+          isModal: true,
+          content: Emoji(
+            workspaceId: currentWorkspace["id"],
+            onSelect: (emoji){
+              widget.selectEmoji(emoji);
+              
+            },
+            onClose: (){
+              // Navigator.pop(context);
+              controller.hideTooltip();
+            }
+          ),
+          child: Container(
+            width: 30,
+            height: 30,
+            child: HoverItem(
+              colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+              child: TextButton(
+                style: ButtonStyle(
+                  padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
+                  overlayColor: MaterialStateProperty.all(Colors.transparent),
+                  shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+                ),
+                child: Icon(CupertinoIcons.smiley, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
+                onPressed: () {
+                  controller.showTooltip();
+                  // showPopover(
+                  //   context: context,
+                  //   direction: PopoverDirection.top,
+                  //   transitionDuration: const Duration(milliseconds: 0),
+                  //   arrowWidth: 0, 
+                  //   arrowHeight: 0,
+                  //   arrowDxOffset: 0,
+                  //   shadow: [],
+                  //   onPop: (){
+                  //   },
+                  //   bodyBuilder: (context) => 
+                  // );
+                }
               ),
-              child: Icon(CupertinoIcons.smiley, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-              onPressed: () {
-                showPopover(
-                  context: context,
-                  direction: PopoverDirection.top,
-                  transitionDuration: const Duration(milliseconds: 0),
-                  arrowWidth: 0, 
-                  arrowHeight: 0,
-                  arrowDxOffset: 0,
-                  shadow: [],
-                  onPop: (){
-                  },
-                  bodyBuilder: (context) => Emoji(
-                    workspaceId: currentWorkspace["id"],
-                    onSelect: (emoji){
-                     widget.selectEmoji(emoji);
-                     
-                    },
-                    onClose: (){
-                      Navigator.pop(context);
-                    }
-                  )
-                );
-              }
+            )
+          ),
+        ),
+        ContextMenu(
+          contextMenu: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
+              border: Border.all(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75)),
+              borderRadius: BorderRadius.all(Radius.circular(8))
             ),
-          )
+            child: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75))
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.only(left: 8),
+                        child: Text(
+                          'Sticker',
+                          style: TextStyle(
+                            color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                            fontWeight: FontWeight.w500, fontSize: 16
+                          ),
+                        )
+                      ),
+                      InkWell(
+                        child: Icon(
+                          PhosphorIcons.xCircle,
+                        size: 20, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                        ),
+                        onTap: () => context.contextMenuOverlay.close(),
+                      ),
+                    ],
+                  )
+                ),
+                SingleChildScrollView(
+                  child: Container(
+                    width: 300, height: 400,
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: GridView.builder(
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 100,
+                        childAspectRatio: 1,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: stickers.length,
+                      itemBuilder: (context, index) {
+                        return Container(
+                          width: 80, height: 80,
+                          child: TextButton(
+                            onPressed: () {
+                              widget.selectSticker(stickers[index]);
+                              context.contextMenuOverlay.close();
+                            },
+                            child: StickerFile(data: stickers[index], isPreview: true)
+                          )
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          child: Container(
+            width: 30,
+            height: 30,
+            child: HoverItem(
+              colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+              child: Icon(PhosphorIcons.sticker, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
+            )
+          ),
         )
       ]
     );
