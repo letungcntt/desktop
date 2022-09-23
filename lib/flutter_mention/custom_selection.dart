@@ -254,7 +254,7 @@ class _CustomSelectableRegionState extends State<CustomSelectableRegion> with Te
         lastTimeDoubleTap = now;
       } else if (now - lastTimeDoubleTap <= 400000 && !isShift) {
         /* triple click */
-        _selectParagraphAt(details.globalPosition);
+        // _selectParagraphAt(details.globalPosition);
         lastTimeDoubleTap = 0; lastTimeTap = 0;
       }
     }  else {
@@ -264,10 +264,10 @@ class _CustomSelectableRegionState extends State<CustomSelectableRegion> with Te
     lastTimeTap = now;
   }
 
-  _selectParagraphAt(Offset offset) {
-    _finalizeSelection();
-    _selectable?.dispatchSelectionEvent(SelectParagraphSelectionEvent(globalPosition: offset));
-  }
+  // _selectParagraphAt(Offset offset) {
+  //   _finalizeSelection();
+  //   _selectable?.dispatchSelectionEvent(SelectParagraphSelectionEvent(globalPosition: offset));
+  // }
 
   void _selectWithOffset(Offset start, Offset end) {
     _selectStartTo(offset: start);
@@ -445,7 +445,7 @@ class _CustomSelectableRegionState extends State<CustomSelectableRegion> with Te
       onEndHandleDragStart: _handleSelectionEndHandleDragStart,
       onEndHandleDragUpdate: _handleSelectionEndHandleDragUpdate,
       onEndHandleDragEnd: (DragEndDetails details) => _stopSelectionEndEdgeUpdate(),
-      selectionEndPoints: points,
+      selectionEndpoints: points,
       selectionControls: widget.selectionControls,
       selectionDelegate: this,
       clipboardStatus: null,
@@ -481,7 +481,7 @@ class _CustomSelectableRegionState extends State<CustomSelectableRegion> with Te
       ..lineHeightAtStart = start?.lineHeight ?? end!.lineHeight
       ..endHandleType = end?.handleType ?? TextSelectionHandleType.right
       ..lineHeightAtEnd = end?.lineHeight ?? start!.lineHeight
-      ..selectionEndPoints = points;
+      ..selectionEndpoints = points;
   }
 
   /// Shows the selection handles.
@@ -803,7 +803,7 @@ class _SelectableRegionContainerDelegate extends MultiSelectableSelectionContain
         break;
       case SelectionEventType.selectAll:
       case SelectionEventType.selectWord:
-      case SelectionEventType.selectParagraph:
+      // case SelectionEventType.selectParagraph:
         break;
     }
     return super.dispatchSelectionEventToChild(selectable, event);

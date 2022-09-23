@@ -707,29 +707,29 @@ class FlutterMentionsState extends State<FlutterMentions> {
       var result = checkMention(valueSearch);
 
       final data = filterOption();
-      bool isMentionIssue = checkMentionIssue(data);
+      // bool isMentionIssue = checkMentionIssue(data);
 
-      final RenderBox box = context.findRenderObject() as RenderBox;
-      double heightOptionList = 0.0;
-      double widthOptionList = !widget.isThread && isMentionIssue ? 980 : 320;
+      // final RenderBox box = context.findRenderObject() as RenderBox;
+      // double heightOptionList = 0.0;
+      // double widthOptionList = !widget.isThread && isMentionIssue ? 980 : 320;
 
-      if(data.length >= 5) heightOptionList = 200.0;
-      else {
-        if(data.length == 1) heightOptionList = 47.5;
-        else heightOptionList = (data.length * 45).toDouble();
-      }
+      // if(data.length >= 5) heightOptionList = 200.0;
+      // else {
+      //   if(data.length == 1) heightOptionList = 47.5;
+      //   else heightOptionList = (data.length * 45).toDouble();
+      // }
 
-      if(heightOptionList > 0) {
-        Offset offsetCaret = box.globalToLocal(key.currentState!.editableText!.renderEditable.getOffsetForPosition(
-          TextPosition(offset: controller!.selection.baseOffset - 1, affinity: controller!.selection.extent.affinity)
-        ));
+      // if(heightOptionList > 0) {
+      //   Offset offsetCaret = box.globalToLocal(key.currentState!.editableText!.renderEditable.getOffsetForPosition(
+      //     TextPosition(offset: controller!.selection.baseOffset - 1, affinity: controller!.selection.extent.affinity)
+      //   ));
 
-        double dx = offsetCaret.dx + widthOptionList >= context.size!.width
-                      ? (context.size!.width/2 - (context.size!.width - widthOptionList))/widthOptionList*2 - (isMentionIssue ? 1 : 0.9)
-                      : (context.size!.width/2 - offsetCaret.dx)/widthOptionList*2 - (isMentionIssue ? 1 : 0.9);
-        double dy = 1.1 - offsetCaret.dy/(heightOptionList/2);
-        alignment = Alignment(dx, dy);
-      }
+      //   double dx = offsetCaret.dx + widthOptionList >= context.size!.width
+      //                 ? (context.size!.width/2 - (context.size!.width - widthOptionList))/widthOptionList*2 - (isMentionIssue ? 1 : 0.9)
+      //                 : (context.size!.width/2 - offsetCaret.dx)/widthOptionList*2 - (isMentionIssue ? 1 : 0.9);
+      //   double dy = 1.1 - offsetCaret.dy/(heightOptionList/2);
+      //   alignment = Alignment(dx, dy);
+      // }
 
       setState(() {
         onSelectedMentions(data.length > 0 ? data[0] : {'id': "${widget.id}", 'display': 'all', 'full_name': 'all', 'photo': 'all'}, 0);

@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
@@ -1952,26 +1950,10 @@ class DirectMessage with ChangeNotifier {
        if(file["mime_type"].toString().toLowerCase() == "mov" && !Platform.isWindows) {
         var pathOther = await getTemporaryDirectory();
         var bytesFile;
-        String out = pathOther.path + "/${file["name"].toString().toLowerCase().replaceAll(" ", "").replaceAll(".mov", "")}.mp4";
         File tempFile = File(file["path"]);
         bytesFile = await tempFile.readAsBytes();
         File newFile = File(pathOther.path +  "/${file["name"].toString().toLowerCase().replaceAll(" ", "")}");
         await newFile.writeAsBytes(bytesFile, mode: FileMode.write);
-        await FFmpegKit.execute('-y -i ${newFile.path} -c copy $out').then((session) async {
-          final returnCode = await session.getReturnCode();
-          if(ReturnCode.isSuccess(returnCode)) {
-            File u = File(out);
-            data = u.readAsBytesSync();
-            await u.delete();
-            print("Converted Successfully");
-          }
-          else if (ReturnCode.isCancel(returnCode)) {
-            print("Session Cancel");
-          }
-          else {
-            print("Convert Failed");
-          }
-        });
         await newFile.delete();
       }
     }

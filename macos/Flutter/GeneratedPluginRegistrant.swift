@@ -9,7 +9,6 @@ import audioplayers_darwin
 import bitsdojo_window_macos
 import connectivity_plus_macos
 import device_info_plus_macos
-import ffmpeg_kit_flutter
 import file_selector_macos
 import flutter_local_notifications
 import flutter_macos_webview
@@ -33,7 +32,6 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   BitsdojoWindowPlugin.register(with: registry.registrar(forPlugin: "BitsdojoWindowPlugin"))
   ConnectivityPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlugin"))
   DeviceInfoPlusMacosPlugin.register(with: registry.registrar(forPlugin: "DeviceInfoPlusMacosPlugin"))
-  FFmpegKitFlutterPlugin.register(with: registry.registrar(forPlugin: "FFmpegKitFlutterPlugin"))
   FileSelectorPlugin.register(with: registry.registrar(forPlugin: "FileSelectorPlugin"))
   FlutterLocalNotificationsPlugin.register(with: registry.registrar(forPlugin: "FlutterLocalNotificationsPlugin"))
   FlutterMacOSWebViewPlugin.register(with: registry.registrar(forPlugin: "FlutterMacOSWebViewPlugin"))
