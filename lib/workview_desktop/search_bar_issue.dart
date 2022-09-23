@@ -1,11 +1,9 @@
-
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class SearchBarIssue extends StatefulWidget {
   SearchBarIssue({
@@ -27,7 +25,7 @@ class _SearchBarIssueState extends State<SearchBarIssue> {
   var _debounce;
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     focusNode.addListener(() {
       onChangeFocus();
@@ -55,7 +53,7 @@ class _SearchBarIssueState extends State<SearchBarIssue> {
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: true);
     final isDark = auth.theme == ThemeType.DARK;
-    
+
     return Container(
       margin: EdgeInsets.only(left: 5),
       child: collapse ? Container(
@@ -75,7 +73,7 @@ class _SearchBarIssueState extends State<SearchBarIssue> {
                 });
                 focusNode.requestFocus();
               });
-            }, 
+            },
             icon: Icon(Icons.search, color: Colors.grey[600])
           ),
         ),
@@ -121,7 +119,7 @@ class _SearchBarIssueState extends State<SearchBarIssue> {
                   shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
                 ),
                 child: Center(child: Icon(Icons.close, size: 14, color: isDark ? Colors.grey[300] : Color(0xff4f5660))),
-                onPressed: () { 
+                onPressed: () {
                   controller.clear();
                   this.setState(() {
                     collapse = true;

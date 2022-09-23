@@ -2202,10 +2202,10 @@ class S {
     );
   }
 
-  /// `Save changes`
+  /// `Save change`
   String get saveChanges {
     return Intl.message(
-      'Save changes',
+      'Save change',
       name: 'saveChanges',
       desc: '',
       args: [],
@@ -3282,10 +3282,10 @@ class S {
     );
   }
 
-  /// `Forward this message`
+  /// `Share this message`
   String get forwardThisMessage {
     return Intl.message(
-      'Forward this message',
+      'Share this message',
       name: 'forwardThisMessage',
       desc: '',
       args: [],
@@ -3377,6 +3377,16 @@ class S {
     return Intl.message(
       'Closed',
       name: 'tClosed',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Close`
+  String get tClose {
+    return Intl.message(
+      'Close',
+      name: 'tClose',
       desc: '',
       args: [],
     );
@@ -3697,6 +3707,227 @@ class S {
     return Intl.message(
       'List of people in the workspace',
       name: 'listWorkspaceMember',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{fullName} has assign you in an issue`
+  String assignIssue(Object fullName) {
+    return Intl.message(
+      '$fullName has assign you in an issue',
+      name: 'assignIssue',
+      desc: '',
+      args: [fullName],
+    );
+  }
+
+  /// `{fullName} has unassign you in an issue`
+  String unassignIssue(Object fullName) {
+    return Intl.message(
+      '$fullName has unassign you in an issue',
+      name: 'unassignIssue',
+      desc: '',
+      args: [fullName],
+    );
+  }
+
+  /// `{assignUser} has reopened an issue {issueauthor} created in {channelName} channel`
+  String reopened(Object assignUser, Object issueauthor, Object channelName) {
+    return Intl.message(
+      '$assignUser has reopened an issue $issueauthor created in $channelName channel',
+      name: 'reopened',
+      desc: '',
+      args: [assignUser, issueauthor, channelName],
+    );
+  }
+
+  /// `{name} has changed avatar this group`
+  String changeAvatarDm(Object name) {
+    return Intl.message(
+      '$name has changed avatar this group',
+      name: 'changeAvatarDm',
+      desc: '',
+      args: [name],
+    );
+  }
+
+  /// `{fullName} has invite you to {channelName} channel`
+  String inviedChannel(Object fullName, Object channelName) {
+    return Intl.message(
+      '$fullName has invite you to $channelName channel',
+      name: 'inviedChannel',
+      desc: '',
+      args: [fullName, channelName],
+    );
+  }
+
+  /// ` Has invite you to channel`
+  String get inviedChannels {
+    return Intl.message(
+      ' Has invite you to channel',
+      name: 'inviedChannels',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// ` {user} has invited {invitedUser}`
+  String invied(Object user, Object invitedUser) {
+    return Intl.message(
+      ' $user has invited $invitedUser',
+      name: 'invied',
+      desc: '',
+      args: [user, invitedUser],
+    );
+  }
+
+  /// `{assignUser} has closed an issue {issueauthor} created in {channelName} channel`
+  String closeIssues(
+      Object assignUser, Object issueauthor, Object channelName) {
+    return Intl.message(
+      '$assignUser has closed an issue $issueauthor created in $channelName channel',
+      name: 'closeIssues',
+      desc: '',
+      args: [assignUser, issueauthor, channelName],
+    );
+  }
+
+  /// `{assignUser} has closed an issue you has been assign in {channelName} channel`
+  String closeIssues1(Object assignUser, Object channelName) {
+    return Intl.message(
+      '$assignUser has closed an issue you has been assign in $channelName channel',
+      name: 'closeIssues1',
+      desc: '',
+      args: [assignUser, channelName],
+    );
+  }
+
+  /// `{assignUser} has reopened an issue you has been assign in {channelName} channel`
+  String reopened1(Object assignUser, Object channelName) {
+    return Intl.message(
+      '$assignUser has reopened an issue you has been assign in $channelName channel',
+      name: 'reopened1',
+      desc: '',
+      args: [assignUser, channelName],
+    );
+  }
+
+  /// `{fullName} has invite you to {workspaceName} workspace`
+  String inviedWorkSpace(Object fullName, Object workspaceName) {
+    return Intl.message(
+      '$fullName has invite you to $workspaceName workspace',
+      name: 'inviedWorkSpace',
+      desc: '',
+      args: [fullName, workspaceName],
+    );
+  }
+
+  /// `Delete Messages`
+  String get deleteMessages {
+    return Intl.message(
+      'Delete Messages',
+      name: 'deleteMessages',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Are you sure you want to delete this message?`
+  String get deleteThisMessages {
+    return Intl.message(
+      'Are you sure you want to delete this message?',
+      name: 'deleteThisMessages',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Delete for me`
+  String get deleteForMe {
+    return Intl.message(
+      'Delete for me',
+      name: 'deleteForMe',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Delete for everyone`
+  String get deleteForEveryone {
+    return Intl.message(
+      'Delete for everyone',
+      name: 'deleteForEveryone',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `{character} Sticker`
+  String sticker(Object character) {
+    return Intl.message(
+      '$character Sticker',
+      name: 'sticker',
+      desc: '',
+      args: [character],
+    );
+  }
+
+  /// `Sent a sticker`
+  String get sticker1 {
+    return Intl.message(
+      'Sent a sticker',
+      name: 'sticker1',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Sent a shared message`
+  String get share {
+    return Intl.message(
+      'Sent a shared message',
+      name: 'share',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `replied to a message`
+  String get reply {
+    return Intl.message(
+      'replied to a message',
+      name: 'reply',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `This poll is disabled`
+  String get pollIsDisabled {
+    return Intl.message(
+      'This poll is disabled',
+      name: 'pollIsDisabled',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Has left this conversation`
+  String get leaveDirect {
+    return Intl.message(
+      'Has left this conversation',
+      name: 'leaveDirect',
+      desc: '',
+      args: [],
+    );
+  }
+
+  /// `Set Roles`
+  String get setrole {
+    return Intl.message(
+      'Set Roles',
+      name: 'setrole',
       desc: '',
       args: [],
     );

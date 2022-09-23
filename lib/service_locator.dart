@@ -2,7 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 import 'package:stacked_services/stacked_services.dart';
 
-import 'models/models.dart';
+import 'providers/providers.dart';
 import 'services/sharedprefsutil.dart';
 
 GetIt sl = GetIt.instance;

@@ -5,14 +5,12 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/login/input_field.dart';
 import 'package:workcake/components/login/logo.dart';
 import 'package:workcake/components/login/submit_button.dart';
 import 'package:workcake/components/login/verify_otp.dart';
-import 'package:workcake/login_macOS.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class SignUpMacOS extends StatefulWidget {
   final title;
@@ -30,21 +28,24 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
   FocusNode _lastNameNode = FocusNode();
   FocusNode _emailNode = FocusNode();
   FocusNode _passwordNode = FocusNode();
+  FocusNode _userNameNode = FocusNode();
   FocusNode _confirmPasswordNode = FocusNode();
 
   TextEditingController _firstNameController = TextEditingController();
   TextEditingController _lastNameController = TextEditingController();
   TextEditingController _emailController = TextEditingController();
+  TextEditingController _userNameController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
   TextEditingController _confirmPasswordController = TextEditingController();
   bool loading = false;
-  String errorMessage = "";                                                                                            
+  String errorMessage = "";
 
   @override
   void initState() {
     super.initState();
     _fistNameNode = handleFocusNode(context, _lastNameNode);
     _lastNameNode = handleFocusNode(context, _emailNode);
+    _userNameNode = handleFocusNode(context, _userNameNode);
     _emailNode = handleFocusNode(context,_passwordNode);
     _passwordNode = handleFocusNode(context,_confirmPasswordNode);
     _confirmPasswordNode = handleFocusNode(context,_fistNameNode, isLastNode: true);
@@ -74,21 +75,23 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
   void dispose(){
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _userNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
 
     _fistNameNode.dispose();
     _lastNameNode.dispose();
+    _userNameNode.dispose();
     _emailNode.dispose();
     _passwordNode.dispose();
     _confirmPasswordNode.dispose();
     super.dispose();
   }
-  
+
   void signUp() async {
     try {
-      if(_firstNameController.text.trim() == '' || _lastNameController.text.trim() == '' || _emailController.text.trim() == '' || _passwordController.text.trim() == '' || _confirmPasswordController.text.trim() == '') {
+      if(_firstNameController.text.trim() == '' || _lastNameController.text.trim() == '' || _userNameController.text.trim() == '' || _emailController.text.trim() == '' || _passwordController.text.trim() == '' || _confirmPasswordController.text.trim() == '') {
         setState(() {
           errorMessage = "All fields must be entered";
           // invalidCredential = true;
@@ -99,7 +102,7 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
       else if(_passwordController.text != _confirmPasswordController.text){
         setState(() {
           errorMessage = "Password didn't match ";
-          
+
           // invalidCredential = true;
           // FocusScope.of(context).unfocus();
         });
@@ -110,10 +113,15 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
           // invalidCredential = true;
           // FocusScope.of(context).unfocus();
         });
+      } else if (RegExp(r'[^a-zA-Z0-9\_\.\-]').hasMatch(_userNameController.text) && _userNameController.text.length > 0){
+        setState(() {
+          errorMessage = "Username không được chứa kí tự đặc biệt";
+        });
+        Provider.of<Auth>(context, listen: false).showAlertDialog(context, errorMessage);
       } else {
         setState(() => loading = true);
 
-        final response = await Provider.of<Auth>(context, listen: false).signUp(_firstNameController.text, _lastNameController.text, _emailController.text, _passwordController.text, _confirmPasswordController.text, context);
+        final response = await Provider.of<Auth>(context, listen: false).signUp(_firstNameController.text, _lastNameController.text,  _userNameController.text, _emailController.text, _passwordController.text, _confirmPasswordController.text,  context);
         if(response["success"]) {
 
           setState(() => loading = false);
@@ -126,7 +134,7 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
           });
           Provider.of<Auth>(context, listen: false).showAlertDialog(context, errorMessage);
         }
-      }
+      } 
     } catch (e) {
       setState(() => loading = false );
     }
@@ -176,6 +184,14 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
             ),
             SizedBox(height: height * 0.005),
             InputFieldMacOs(
+              controller: _userNameController,
+              focusNode: _userNameNode,
+              hintText: "User name",
+               prefix: Container(
+                child: isDark ? SvgPicture.asset("assets/icons/userDark.svg") : SvgPicture.asset("assets/icons/userLight.svg")
+              )
+            ),
+            InputFieldMacOs(
               controller: _emailController,
               focusNode: _emailNode,
               hintText: "Email or phone number",
@@ -218,11 +234,9 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
   Widget _signInButton() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     return InkWell(
-      onTap: () => Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LoginMacOS()
-        )),
+      onTap: () {
+        Navigator.pop(context);
+      },
       child: Container(
         // width: MediaQuery.of(context).size.width,
         padding: const EdgeInsets.only(top: 12, bottom: 12, left: 4, right: 12 ),
@@ -328,7 +342,7 @@ class _SignUpMacOSState extends State<SignUpMacOS> {
                           )
                         ],
                       ),
-                      
+
                     ),
                     SizedBox(width: width * 0.2,),
                     Container(
@@ -364,7 +378,7 @@ class _WindowButtonsState extends State<WindowButtons> {
              appWindow.maximizeOrRestore();
            }),
           )
-          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]), 
+          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]),
             onPressed: () => setState(() {
               appWindow.maximizeOrRestore();
             }))

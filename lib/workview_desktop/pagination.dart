@@ -1,10 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class Pagination extends StatefulWidget {
   Pagination({Key? key, this.channelId, this.issueClosedTab, this.filters, this.sortBy, this.text, this.handleCurrentPage, this.issuePerPage, this.currentPage, this.unreadOnly = false}) : super(key: key);
@@ -18,7 +17,7 @@ class Pagination extends StatefulWidget {
   final issuePerPage;
   final currentPage;
   final unreadOnly;
-  
+
   @override
   _PaginationState createState() => _PaginationState();
 }
@@ -41,7 +40,7 @@ class _PaginationState extends State<Pagination> {
     widget.handleCurrentPage(widget.currentPage + 1);
     goToPage(widget.currentPage + 1, isClosedTab);
   }
-  
+
 
   goToPage(int page, isClosedTab) async{
     final token = Provider.of<Auth>(context, listen: false).token;
@@ -49,10 +48,10 @@ class _PaginationState extends State<Pagination> {
     final channelId = Provider.of<Channels>(context, listen: false).currentChannel["id"];
     final issueClosedTab = Provider.of<Work>(context, listen: false).issueClosedTab;
     widget.handleCurrentPage(page);
-    
+
     await Provider.of<Channels>(context, listen: false).getListIssue(token, workspaceId, channelId, page, issueClosedTab, widget.filters, widget.sortBy, widget.text, widget.unreadOnly);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: false );
@@ -74,7 +73,7 @@ class _PaginationState extends State<Pagination> {
           HoverItem(
             colorHover: currentPage <= 1 ? Colors.transparent : Palette.hoverColorDefault,
             child: InkWell(
-              onTap: currentPage <= 1 ? null : () { 
+              onTap: currentPage <= 1 ? null : () {
                 _previous(issueClosedTab);
               },
               child: Row(
@@ -132,7 +131,7 @@ class _PaginationState extends State<Pagination> {
                       child: Container(
                         width: 36,
                         alignment: Alignment.center,
-                        
+
                         padding: EdgeInsets.symmetric(vertical:6, horizontal: 10),
                         child: Text(text <= -1 ? "..." : text.toString(), style: TextStyle(color: currentPage == text ? Colors.white : isDark && text <= -1 ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14))
                       ),

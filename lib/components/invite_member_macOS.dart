@@ -1,24 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/validators.dart';
 import 'package:workcake/components/friends/friend_list.dart';
-import 'package:http/http.dart' as http;
-import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/components/message_item/attachments/text_file.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'dart:math';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../common/cached_image.dart';
+import 'package:http/http.dart' as http;
 
 
 class InviteMemberMacOS extends StatefulWidget {
@@ -34,7 +30,24 @@ class InviteMemberMacOS extends StatefulWidget {
   @override
   _InviteMemberMacOSState createState() => _InviteMemberMacOSState();
 }
+extension ListX on List {
+  List filter(String text) {
+    final _text = Utils.unSignVietnamese(text);
+    return this.where((element) => (Utils.unSignVietnamese(element["full_name"])?? "").contains(_text) 
+    || (element[""] ?? "").contains(_text) 
+    || (element[""] ?? "").contains(_text))
+    .toList();
+  }
+}
 
+extension Unique<E, Id> on List<E> {
+  List<E> unique([Id Function(E element)? id, bool inplace = true]) {
+    final ids = Set();
+    var list = inplace ? this : List<E>.from(this);
+    list.retainWhere((x) => ids.add(id != null ? id(x) : x as Id));
+    return list;
+  }
+}
 class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
   final TextEditingController _invitePeopleController = TextEditingController();
   final TextEditingController _inviteEmailController = TextEditingController();
@@ -50,6 +63,15 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
   bool validEmailOrNumberPhone = true;
   String messageInvite = "";
   var errorMessage = "";
+  List friendList = [];
+  String token = "";
+  bool doneChecking = false;
+  bool sentToAnonymous = false;
+  List friends = [];
+  List workspaceMembers = [];
+  var keyCode;
+  String textSearch = "";
+
 
   @override
   void dispose() {
@@ -59,38 +81,46 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
     super.dispose();
   }
 
-  searchMemberToInvite(token, workspaceId, channelId, text) async {
-    final url = Utils.apiUrl + 'workspaces/$workspaceId/get_workspace_member?value=$text&token=$token';
-
-    try {
-      var response = await Dio().get(url);
-      var dataRes = response.data;
-
-      if (dataRes["success"]) {
-        setState(() {
-          members = dataRes["members"];
-          searching = false;
-        });
-      } else {
-        setState(() {
-          members = [];
-          searching = false;
-        });
-      }
-    } catch (e) {
-      print(e.toString());
-      // sl.get<Auth>().showErrorDialog(e.toString());
-    }
+  getMembersWorkspaceAndFriends() {
+    workspaceMembers = Provider.of<Workspaces>(context, listen: false).members;
+    friends = Provider.of<User>(context, listen: false).friendList;
   }
 
-  var textSearch = "";
+  renderKeyCodeInvite() {
+    var channelGeneral;
+    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+    final listChannelGeneral = Provider.of<Channels>(context, listen: false).data.where((e) => e["is_general"] == true).toList();
+    final indexChannel = listChannelGeneral.indexWhere((e) => e['workspace_id'] == currentWorkspace["id"]);
+    var _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+    Random _rnd = Random();
+    String getRandomString(int length) => String.fromCharCodes(Iterable.generate(length, (_) => _chars.codeUnitAt(_rnd.nextInt(_chars.length))));
+    if (indexChannel != -1) {
+      channelGeneral = listChannelGeneral[indexChannel];
+    }
+    keyCode = (widget.type == "toWorkspace" && channelGeneral != null) ? "${getRandomString(4)}-${currentWorkspace["id"]}-${channelGeneral["id"]}" : "${getRandomString(4)}-${currentWorkspace["id"]}-${currentChannel["id"]}" ;
+  }
+
+  onSearchMemberToInvite(token, text) async {
+    textSearch = text;
+    sentToAnonymous = false;
+    switch (widget.type) {
+      case "toWorkspace":
+        setState(() => members = friends.filter(text).unique((x) => x["id"]));
+        break;
+      case "toChannel":
+        setState(() => members = workspaceMembers.filter(text).unique((x) => x["id"]));
+        break;
+      default:
+    }
+  }
 
   onInviteToChannel(token, workspaceId, channelId, value) async {
     this.setState(() {
       textSearch = value;
     });
     if (value != "") {
-      searchMemberToInvite(token, workspaceId, channelId, value);
+       onSearchMemberToInvite(auth.token, value);
     } else {
       setState(() {
         members = [];
@@ -98,13 +128,18 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
     }
   }
 
-  _invite(token, workspaceId, channelId , user) {
-    String email = user["email"];
-    if (widget.type == 'toWorkspace') {
-      Provider.of<Workspaces>(context, listen: false).inviteToWorkspace(token, workspaceId, email, 1, user["id"]);
-    } else {
-      Provider.of<Channels>(context, listen: false).inviteToChannel(token, workspaceId, channelId, email, 1, user["id"]);
+ validate(id) {
+    final workspaceMembers = Provider.of<Workspaces>(context, listen: true).members;
+    final channelMember = Provider.of<Channels>(context, listen: true).channelMember;
+    bool check = true;
+    List list = widget.type == 'toWorkspace' ? workspaceMembers : channelMember;
+
+    for (var member in list) {
+      if (id == member["id"]) {
+        check = false;
+      }
     }
+    return check;
   }
 
   _invitePeople(token, workspaceId, channelId, text) async {
@@ -134,6 +169,33 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
     }
   }
 
+  checkInvite(userId, workspaceId, channelId) async{
+    bool check = false;
+    var url;
+    var resData;
+    if (widget.type == "toWorkspace"){
+      url = Utils.apiUrl + "/workspaces/$workspaceId/get_invite?token=$token";
+      final response = await http.post(Uri.parse(url),headers: Utils.headers,
+        body: json.encode({"user_id": userId})
+      );
+      resData = json.decode(response.body);
+      doneChecking = true;
+    }
+    else{
+      url = Utils.apiUrl + "/workspaces/$workspaceId/channels/$channelId/get_invite?token=$token";
+      final response = await http.post(Uri.parse(url), headers: Utils.headers,
+        body: json.encode({"user_id": userId})
+      );
+      resData = json.decode(response.body);
+      doneChecking = true;
+    }
+
+    if (resData["success"] == true){
+      check = resData["is_invited"];
+    }
+    return check ? "Invited" : "Invite";
+  }
+
   joinChannelByCode() async {
     final token = Provider.of<Auth>(context, listen: false).token;
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
@@ -149,7 +211,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
               context: context,
               builder: (BuildContext context) {
                 return CupertinoAlertDialog(
-                  title: Text(S.of(context).joinChannelSuccess,style: TextStyle(color: Colors.green),), 
+                  title: Text(S.of(context).joinChannelSuccess,style: TextStyle(color: Colors.green),),
                   // content: "Join workspace was successful"
                 );
               }
@@ -175,64 +237,34 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
     setState(() => errorMessage = text);
   }
 
-  checkInvite(userId, workspaceId, channelId, token) async{
-    bool check = false;
-    var url;
-    var resData;
-    if (widget.type == "toWorkspace"){
-      url = Utils.apiUrl + "/workspaces/$workspaceId/get_invite?token=$token";
-      final response = await http.post(Uri.parse(url),headers: Utils.headers,
-        body: json.encode({"user_id": userId})
-      );
-      resData = json.decode(response.body);
-    }
-    else{
-      url = Utils.apiUrl + "/workspaces/$workspaceId/channels/$channelId/get_invite?token=$token";
-      final response = await http.post(Uri.parse(url), headers: Utils.headers,
-        body: json.encode({"user_id": userId})
-      );
-      resData = json.decode(response.body);
-    }
-    
-    if (resData["success"] == true){
-      check = resData["is_invited"];
-    }
-    return check ? "Invited" : "Invite";
-  }
-
-  @override
+  
+@override
   void initState() {
     super.initState();
-    auth = Provider.of<Auth>(context, listen: false);
-    currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
-    currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
-
-    members.map((e) {
-      int index = members.indexWhere((element) => element == e);
-      var a = e;
-      checkInvite(members[index]["id"], currentWorkspace["id"], currentChannel["id"], auth.token).then((ele) {
-        if(this.mounted) setState(() {
-          a["invite"] = ele;
-        });
-      });
-      return a;
-    }).toList();
-  }
-
-  validate(id) {
-    bool check = true;
-    final channelMember = Provider.of<Channels>(context, listen: true).channelMember;
+    renderKeyCodeInvite();
+    getMembersWorkspaceAndFriends();
+    this.setState(() {
+      friendList = Provider.of<User>(context, listen: false).friendList;
+      token = Provider.of<Auth>(context, listen: false).token;
+      currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+      currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+    });
     
-    for (var member in channelMember) {
-      if (id == member["id"]) {
-        check = false;
+  }
+  _invite(token, workspaceId, channelId , user) async {
+    String email = user["email"] ?? "";
+    if (widget.type == 'toWorkspace') {
+      Provider.of<Workspaces>(context, listen: false).inviteToWorkspace(token, currentWorkspace["id"], email, 1, user["id"]);
+    } else {
+      if (currentChannel["is_private"]) {
+        Provider.of<Channels>(context, listen: false).inviteToChannel(token, currentWorkspace["id"], currentChannel["id"], email, 1, user["id"]);
+      } else {
+        Provider.of<Channels>(context, listen: false).inviteToPubChannel(token, currentWorkspace["id"], currentChannel["id"], user["id"]);
       }
     }
-
-    return check;
   }
 
-  getListInvitation() {
+  getListInvitation(currentWorkspace) {
     var key = "${currentWorkspace['id']}";
     var box = Hive.box('invitationHistory');
     List invitationHistory = box.get(key) ?? [];
@@ -274,7 +306,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
 
     final keyCode = (widget.type == "toWorkspace" && channelGeneral != null) ? "${getRandomString(4)}-${currentWorkspace["id"]}-${channelGeneral["id"]}" : "${getRandomString(4)}-${currentWorkspace["id"]}-${currentChannel["id"]}" ;
 
-    List invitationHistory = getListInvitation();
+    List invitationHistory = getListInvitation(currentWorkspace);
 
     return (widget.isKeyCode != null && !widget.isKeyCode) ? Container(
       decoration: BoxDecoration(
@@ -284,43 +316,15 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [ 
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.only(topLeft: Radius.circular(5),topRight: Radius.circular(5)),
-                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
-              ),
-              padding: const EdgeInsets.only(left: 16, top: 2,bottom: 2,right: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.type == "toWorkspace" ? S.current.inviteToWorkspace : S.current.inviteTo(currentChannel["name"]),
-                      style: TextStyle(color: isDark ? Palette.defaultTextDark : Color(0xff1F2933), fontSize: 14.0, fontWeight: FontWeight.w700, overflow: TextOverflow.ellipsis)
-                    ),
-                  ),
-                  Container(
-                    height: 35,
-                    width: 35,
-                    child: HoverItem(
-                      colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
-                      child: InkWell(
-                        onTap: (){Navigator.of(context).pop();},
-                        child: Icon(PhosphorIcons.xCircle,size: 18,)),
-                    ),
-                  )
-                ],
-              ),
-            ),
-            if (widget.type != "toWorkspace") Column(
+          children: [
+            if(widget.type != "toWorkspace") Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.only(top: 24,bottom: 14,left: 24),
                   child: Text(S.current.descInvite, style: TextStyle(fontSize: 14,color: isDark ?  Palette.defaultTextDark : Color(0xff323F4B),),),
                 ),
-                 Container( 
+                 Container(
                   margin: EdgeInsets.only(bottom: 8, left: 24, right: 24),
                   height: 40,
                   child: CupertinoTextField(
@@ -336,18 +340,22 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
                       borderRadius: BorderRadius.circular(4)
                     ),
                     onChanged: (value) {
-                        searching = true;
-                      if (_debounce?.isActive ?? false) _debounce.cancel();
+                    if (_debounce?.isActive ?? false) _debounce.cancel();
                       _debounce = Timer(const Duration(milliseconds: 500), () {
-                        onInviteToChannel(auth.token, currentWorkspace["id"], currentChannel["id"], value);
-                      });
-                    }
+                          if (value != "") {
+                            onSearchMemberToInvite(auth.token, value);
+                          } else {
+                            setState(() => {members = [], textSearch = ""});
+                          }
+                        }
+                      );
+                    },
                   )
                 )
               ]
             ),
             Container(
-              padding: EdgeInsets.only(top: 20, left: 24, bottom: 8),
+              padding: EdgeInsets.only(top: 12, left: 24, bottom: 8),
               child: Text(
                 _invitePeopleController.text == ""
                     ? widget.type == "toWorkspace"
@@ -358,185 +366,213 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
               )
             ),
             Container(
-              padding: const EdgeInsets.only(left: 10.0, right: 8,top: 4),
-              constraints: BoxConstraints(
+              padding: const EdgeInsets.only(left: 10.0, right: 10,top: 4),
+              constraints: widget.type == "toWorkspace" ? invitationHistory.length > 0 ?
+              BoxConstraints(
+                minHeight: 120, maxHeight: 210
+              ) : BoxConstraints(
+                minHeight: 120, maxHeight: 284
+              ) : BoxConstraints(
                 minHeight: 120, maxHeight: 210
               ),
               decoration: BoxDecoration( color: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),),
-              child: textSearch != ""
-                ? !searching
-                  ? members.length != 0
-                    ? ListView.builder(
-                      itemCount: members.length,
-                      itemBuilder: (context, index) {
-                        return ListTile(
+              child: (textSearch != "" ) || members.length > 0 
+              ? !searching 
+              ? members.length != 0
+              ? Container(
+                padding: const EdgeInsets.only(left: 13, right: 13),
+                child: ListView.builder(
+                  itemCount: members.length,
+                  itemBuilder: (context, index) {
+                    return ListAction(
+                      isDark: isDark,
+                      action: "",
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            width: 1.0,
+                            color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
+                          ),
+                        ),
+                        child: ListTile(
                           leading: CachedImage(
                             members[index]["avatar_url"],
-                            width: 35,
-                            height: 35,
+                            width: 32,
+                            height: 32,
                             isAvatar: true,
                             radius: 20,
                             name: members[index]["full_name"]
                           ),
-                          title: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("${members[index]["full_name"]}", style: TextStyle(fontSize: 14,fontWeight: FontWeight.w400,color: isDark ? Color(0xffffffff):Color(0xff3D3D3D)),),
-                              SizedBox(height: 2,),
-                              Text("${members[index]["email"]}", style: TextStyle(fontSize: 12,fontWeight: FontWeight.w400,color: Color(0xffA6A6A6)),),
-                            ],
-                          ),
+                          title: Text("${Utils.getUserNickName(members[index]["id"]) ?? members[index]["full_name"]}", style: TextStyle(fontSize: 14,fontWeight: FontWeight.w400,color: isDark ? Color(0xffffffff):Color(0xff3D3D3D)),),
                           trailing: Container(
-                            height: 34,
-                            width: 80,
-                            child: validate(members[index]["id"]) == false
-                              ? Container(
-                                decoration: BoxDecoration(borderRadius: BorderRadius.circular(4)),
-                                child: Center(child: Text(currentChannel["is_private"] ? S.current.acceptInvite : S.current.added, style: TextStyle(fontSize: 13, color: Colors.grey)),)
-                                )
-                              : members[index]["invite"] == "Invite" ? TextButton(
-                                  style: ButtonStyle(
-                                    backgroundColor: MaterialStateProperty.all(isDark ? Colors.transparent : Color(0xffEDEDED)),
-                                    shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(5),
-                                      side: BorderSide(color: isDark ? Color(0xffEAE8E8) : Color(0xff5E5E5E)),
-                                    )),
-                                  ),
-                                  child: Text(currentChannel["is_private"] ? S.current.invite : S.current.add, style: TextStyle(fontSize: 13, color: isDark ? Color(0xffEAE8E8) : Color(0xff5E5E5E))),
-                                  onPressed: () {
-                                    _invite(auth.token, currentWorkspace["id"], currentChannel["id"], members[index]);
-                                    this.setState(() {
-                                      members[index]['invite'] = "Invited";
-                                    }); 
-                                  }
-                              ) : Center(child: Text(S.current.invited, style: TextStyle(fontSize: 13, color: Colors.grey)),),
-                          ),
-                        );
-                      },)
-                    : Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 40.0),
-                        child: Column(
-                          children: [
-                            isDark ? SvgPicture.asset('assets/icons/smileSadDark.svg') : SvgPicture.asset('assets/icons/smileSadLight.svg'),
-                            SizedBox(height: 16,),
-                            Text(S.current.nothingTurnedUp, style: TextStyle(color: isDark ? Colors.white : Colors.black.withOpacity(0.85), fontSize: 14, fontWeight: FontWeight.w600)),
-                            SizedBox(height: 8,),
-                            Text(S.current.descNothingTurnedUp, style: TextStyle(color: isDark ? Color(0xffF5F7FA) : Colors.black.withOpacity(0.85), fontSize: 13)),
-                          ]
-                        )
-                      ))
-                  : Container()
-                : Padding(
-                  padding: const EdgeInsets.only(left: 13, right: 13),
-                  child: FriendList(type: widget.type),
-                )
-            ),
-            if (widget.type == "toWorkspace") Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 10),
-                  child: Text(
-                    S.current.typeEmailOrPhoneToInvite,
-                    style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 15, fontWeight: FontWeight.w500, fontFamily: "Roboto")
-                  )
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8, horizontal: 24),
-                  child: Container(
-                    padding: EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      border: Border.all(width: 1, color:  Color(0xffA6A6A6) ),
-                      borderRadius: BorderRadius.circular(5)
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          width: 285,
-                          child: CupertinoTextField(
-                            controller: _inviteEmailController,
-                            padding: EdgeInsets.only(left: 8),
-                            autofocus: true,
                             decoration: BoxDecoration(
-                              border: null,
-                              borderRadius: BorderRadius.circular(4)
+                              borderRadius: BorderRadius.circular(5),
+                              color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                             ),
-                            style: TextStyle(fontFamily: "Roboto", color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.85), fontSize: 14.0),
+                            height: 28, width: 90,
+                            child: validate(members[index]["id"]) == false  
+                              ? Center(
+                                  child: Text( S.current.acceptInvite , 
+                                  style: TextStyle(fontSize: 13, color: Colors.grey)
+                                )
+                              ): members[index]["invite_${currentWorkspace["id"]}_${widget.type == "toChannel"  ? currentChannel["id"] : ""}"] == null 
+                              ? TextButton(
+                                  child: Center(child: Text(currentChannel["is_private"] ? S.current.invite : S.current.invite, 
+                                    style: TextStyle(fontSize: 13, color: isDark ? Color(0xffEAE8E8) : Color(0xff5E5E5E))
+                                  )
+                                ),
+                                onPressed: () {
+                                  _invite(auth.token, currentWorkspace["id"], currentChannel["id"], members[index]);
+                                  this.setState(() {
+                                    members[index]["invite_${currentWorkspace["id"]}_${widget.type == "toChannel"  ? currentChannel["id"] : ""}"] = true;
+                                  }); 
+                                }
+                              ) : Center(
+                              child: Text(
+                                S.current.invited, style: TextStyle(fontSize: 13, color: Colors.grey)),
+                            ),
                           ),
                         ),
-                        Container(
-                          height: 34,
-                          width: 80,
-                          child: VibrateButton(
-                            disableVibration: validEmailOrNumberPhone,
-                            style: ButtonStyle(
-                              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))),
-                              backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor() ),
-                              overlayColor: MaterialStateProperty.all(Color(0xff))
+                      ),
+                    );
+                  }
+                ),
+              ):Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 40.0),
+                  child: Column(
+                    children: [
+                      isDark ? SvgPicture.asset('assets/icons/smileSadDark.svg') : SvgPicture.asset('assets/icons/smileSadLight.svg'),
+                      SizedBox(height: 16,),
+                      Text(S.current.nothingTurnedUp, style: TextStyle(color: isDark ? Colors.white : Colors.black.withOpacity(0.85), fontSize: 14, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 8,),
+                      Text(S.current.descNothingTurnedUp, style: TextStyle(color: isDark ? Color(0xffF5F7FA) : Colors.black.withOpacity(0.85), fontSize: 13)),
+                    ]
+                  )
+                )
+              ) : Container()
+              : Container(
+                padding: const EdgeInsets.only(left: 13, right: 13),
+                child: FriendList(type: widget.type),
+              ),
+            ),
+            if (widget.type == "toWorkspace") Center(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: EdgeInsets.only(top: 14, left: 24, right: 24, bottom: 10),
+                    child: Text(
+                      S.current.typeEmailOrPhoneToInvite,
+                      style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 15, fontWeight: FontWeight.w500, fontFamily: "Roboto")
+                    )
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6, horizontal: 24),
+                    child: Container(
+                      padding: EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        border: Border.all(width: 1, color:  Color(0xffA6A6A6) ),
+                        borderRadius: BorderRadius.circular(5)
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            width: 285,
+                            child: CupertinoTextField(
+                              controller: _inviteEmailController,
+                              padding: EdgeInsets.only(left: 8),
+                              autofocus: true,
+                              decoration: BoxDecoration(
+                                border: null,
+                                borderRadius: BorderRadius.circular(4)
+                              ),
+                              onChanged: (value) {
+                              if (_debounce?.isActive ?? false) _debounce.cancel();
+                                _debounce = Timer(const Duration(milliseconds: 500), () {
+                                  if (value != "") {
+                                    onSearchMemberToInvite(auth.token, value);
+                                  } else {
+                                    setState(() => {members = [], textSearch = ""});
+                                  }
+                                });
+                              },
+                              style: TextStyle(fontFamily: "Roboto", color: isDark ? Colors.white.withOpacity(0.85) : Colors.black.withOpacity(0.85), fontSize: 14.0),
                             ),
-                            onPressed: () {
-                              _invitePeople(auth.token, currentWorkspace["id"], currentChannel["id"], _inviteEmailController.text);
-                            },
-                            child: Text(
-                              S.current.invite,
-                              style: TextStyle(
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.w400,
-                                color: Color(0xffffffff)
+                          ),
+                          Container(
+                            height: 34,
+                            width: 80,
+                            child: VibrateButton(
+                              disableVibration: validEmailOrNumberPhone,
+                              style: ButtonStyle(
+                                shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(5))),
+                                backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor() ),
+                                overlayColor: MaterialStateProperty.all(Color(0xff))
+                              ),
+                              onPressed: () {
+                                _invitePeople(auth.token, currentWorkspace["id"], currentChannel["id"], _inviteEmailController.text);
+                              },
+                              child: Text(
+                                S.current.invite,
+                                style: TextStyle(
+                                  fontSize: 14.0,
+                                  fontWeight: FontWeight.w400,
+                                  color: Color(0xffffffff)
+                                )
                               )
                             )
                           )
+                        ]
+                      )
+                    )
+                  ),
+                  if (invitationHistory.length > 0) Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.only(top: 4, left: 24, bottom: 4),
+                        child: Text(
+                          S.current.invitationHistory,
+                          style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 15, fontWeight: FontWeight.w500, fontFamily: "Roboto")
                         )
-                      ]
-                    )
-                  )
-                ),
-                if (invitationHistory.length > 0) Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.only(top: 4, left: 24, bottom: 4),
-                      child: Text(
-                        S.current.invitationHistory,
-                        style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 15, fontWeight: FontWeight.w500, fontFamily: "Roboto")
-                      )
-                    ),
-                    Container(
-                      constraints: BoxConstraints(
-                        maxHeight: 150,
                       ),
-                      child: ListView.builder(
-                        padding: EdgeInsets.symmetric(vertical: 2, horizontal: 24),
-                        scrollDirection: Axis.vertical,
-                        shrinkWrap: true,
-                        itemCount: invitationHistory.length,
-                        itemBuilder: (context, index){
-                          return Container(
-                            margin: EdgeInsets.symmetric(vertical: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  invitationHistory[index]["email"],
-                                  style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 13.5, fontWeight: FontWeight.w400, fontFamily: "Roboto")
-                                ),
-                                Text(
-                                  invitationHistory[index]['isAccepted'] ? S.current.acceptInvite : S.current.sent,
-                                  style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 13.5, fontWeight: FontWeight.w400, fontFamily: "Roboto")
-                                )
-                              ]
-                            )
-                          );
-                        }
+                      Container(
+                        constraints: BoxConstraints(
+                          maxHeight: 50,
+                        ),
+                        child: ListView.builder(
+                          padding: EdgeInsets.symmetric(vertical: 2, horizontal: 24),
+                          scrollDirection: Axis.vertical,
+                          shrinkWrap: true,
+                          itemCount: invitationHistory.length,
+                          itemBuilder: (context, index){
+                            return Container(
+                              margin: EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    invitationHistory[index]["email"],
+                                    style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 13.5, fontWeight: FontWeight.w400, fontFamily: "Roboto")
+                                  ),
+                                  Text(
+                                    invitationHistory[index]['isAccepted'] ? S.current.acceptInvite : S.current.sent,
+                                    style: TextStyle(color: isDark ? Color(0xffC9C9C9): Color(0xff828282), fontSize: 13.5, fontWeight: FontWeight.w400, fontFamily: "Roboto")
+                                  )
+                                ]
+                              )
+                            );
+                          }
+                        )
                       )
-                    )
-                  ]
-                )
-              ]
+                    ]
+                  )
+                ]
+              ),
             ),
-            SizedBox(height: 5),
+            SizedBox(height: 10) ,
             Container(
               padding: EdgeInsets.only(left: 24, right: 24, bottom: 12),
               child: Row(
@@ -569,7 +605,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
                     )
                   ),
                   TweenAnimationBuilder<double>(
-                    tween: Tween<double>(begin: 0.0, end: 1.0), 
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
                     duration: Duration(milliseconds: 200),
                      builder: (context, value, child) {
                        return Container(
@@ -630,7 +666,7 @@ class _InviteMemberMacOSState extends State<InviteMemberMacOS> {
             },
           ),
         ),
-        errorMessage == "" 
+        errorMessage == ""
         ? Container(height: 5)
         : Container(
             margin: EdgeInsets.only(top: 0,left: 28),

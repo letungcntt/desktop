@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:context_menus/context_menus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
@@ -10,7 +9,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
+import 'package:workcake/channels/change_channel_info_macOS.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
@@ -19,16 +18,26 @@ import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/progress.dart';
 import 'package:workcake/common/styles.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/custom_confirm_dialog.dart';
+import 'package:workcake/components/custom_context_menu.dart';
+import 'package:workcake/components/custom_generic_context.dart';
 import 'package:workcake/components/draggable_scrollbar.dart';
+import 'package:workcake/components/invite_member_macOS.dart';
 import 'package:workcake/components/message_item/attachment_card_desktop.dart';
+import 'package:workcake/components/message_item/attachments/text_file.dart';
+import 'package:workcake/components/message_item/attachments/poll_message.dart';
 import 'package:workcake/components/message_item/forward_message.dart';
 import 'package:workcake/components/message_item/message_card_desktop.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
 import 'package:workcake/components/reactions_dialog.dart';
+import 'package:workcake/components/render_list_emoji.dart';
+import 'package:workcake/components/transitions/modal.dart';
 import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/emoji/itemEmoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/generated/l10n.dart';
+import 'package:workcake/isar/message_conversation/service.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ChatItemMacOS extends StatefulWidget {
   final message;
@@ -70,6 +79,8 @@ class ChatItemMacOS extends StatefulWidget {
   final Function? onShareMessage;
   final isDark;
   final isUnreadThreadMessage;
+  final workspaceId;
+
     // truong nay dc su dung khi tin nhan DM ko the giai ma va dang doi dc gui lai
   final waittingForResponse;
   final currentTime;
@@ -95,6 +106,7 @@ class ChatItemMacOS extends StatefulWidget {
     required this.isThread,
     required this.reactions,
     required this.isViewMention,
+    required this.workspaceId,
     this.isDirect,
     this.isMe,
     this.count,
@@ -113,9 +125,9 @@ class ChatItemMacOS extends StatefulWidget {
     this.showNewUser,
     this.snippet,
     this.blockCode,
-    this.conversationId, 
+    this.conversationId,
     this.channelId,
-    this.isViewThread = false, 
+    this.isViewThread = false,
     this.idMessageToJump,
     this.lastEditedAt,
     this.isUnsent,
@@ -149,7 +161,8 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   var isHover = false;
   bool isHighlightMessage = false;
   bool isChecked = false;
-
+  bool isCheckedShow = false;
+  GlobalKey<ShowMoreCardState> showMoreKey = GlobalKey<ShowMoreCardState>();
   @override
   void initState(){
     super.initState();
@@ -231,7 +244,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 child: Stack(
                   alignment: AlignmentDirectional.centerEnd,
                   children: [
-                    users.length <= 3 ? Container() : 
+                    users.length <= 3 ? Container() :
                     Positioned(
                       right: 45,
                       child: Container(
@@ -246,7 +259,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                         )
                       )
                     ),
-                    users.length <= 2 ? Container() : 
+                    users.length <= 2 ? Container() :
                     Positioned(
                       right: 30,
                       child: Container(
@@ -261,7 +274,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                         )
                       )
                     ),
-                    users.length <= 1 ? Container() : 
+                    users.length <= 1 ? Container() :
                     Positioned(
                       right: 15,
                       child: Container(
@@ -293,13 +306,19 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
               ),
               Container(
                 padding: EdgeInsets.only(left: 4),
-                child: Text("${widget.count} ${widget.count > 1 ? "replies" : "reply"}", style: TextStyle(fontSize: 11, color: Colors.lightBlue[400])),
+                child: RichText(
+                  text: TextSpan(
+                    text: "${widget.count} ${widget.count > 1 ? "replies" : "reply"}", style: TextStyle(fontSize: 11, color: Colors.lightBlue[400])
+                  )
+                ),
               ),
               Container(
                 margin: EdgeInsets.only(left: 5, right: 8),
-                child: Text(
-                  "Last reply at $messageLastTime",
-                  style: TextStyle(fontSize: 11, color: Color(0xFF6a6e74)),
+                child: RichText(
+                  text: TextSpan(
+                    text: "Last reply at $messageLastTime",
+                    style: TextStyle(fontSize: 11, color: Color(0xFF6a6e74)),
+                  ),
                   overflow: TextOverflow.ellipsis
                 )
               ),
@@ -312,7 +331,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   }
 
   getUser(userId) {
-    List users = Provider.of<Workspaces>(context, listen: false).members;
+    List users = Provider.of<Workspaces>(context, listen: false).getListUsers(widget.workspaceId);
 
     if (!widget.isChannel){
       var indexConversation = Provider.of<DirectMessage>(context, listen: false).data.indexWhere((element) => element.id == widget.conversationId);
@@ -337,6 +356,239 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     }
   }
 
+
+  showChangeTopicDialog(context, type) {
+    final auth = Provider.of<Auth>(context, listen: false);
+    final isDark = auth.theme == ThemeType.DARK;
+    final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+    final TextEditingController topicInputController = TextEditingController();
+    final FocusNode focusNode = FocusNode();
+
+    topicInputController.text = currentChannel["topic"] ?? "";
+
+    onChangeChannelInfo() {
+      final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+
+      Map channel = new Map.from(currentChannel);
+      channel["topic"] = topicInputController.text.trim();
+
+      Provider.of<Channels>(context, listen: false).changeChannelInfo(auth.token, currentWorkspace["id"], currentChannel["id"], channel, context);
+      // Navigator.pop(context);
+    }
+    showModal(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+          child: Container(
+            decoration: BoxDecoration(
+              color: isDark ? Color(0xFF3D3D3D) : Colors.white,
+              borderRadius: BorderRadius.circular(10)
+            ),
+            padding: EdgeInsets.all(18),
+            height: 236,
+            width: 580,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(type == 1 ? S.current.editChannelTopic : S.current.editChannelDesc, style: TextStyle(fontSize: 20, color: isDark ? Colors.grey[300] : Color(0xff334E68))),
+                SizedBox(height: 24),
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey[400]!, width: 1),
+                    color: Colors.transparent
+                  ),
+                  child: TextFormField(
+                    focusNode: focusNode,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                    ),
+                    controller: topicInputController,
+                    style: TextStyle(color: isDark ? Colors.grey[300] : Color(0xff334E68)),
+                    minLines: 3,
+                    maxLines: 3,
+                  ),
+                ),
+                SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: 38,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Color(0xffF57572), width: 1),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: Text(S.current.cancel, style: TextStyle(color: Color(0xffF57572))),
+                      ),
+                    ),
+                    SizedBox(width: 20),
+                    Container(
+                      height: 38,
+                      child: TextButton(
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor()),
+                          padding: MaterialStateProperty.all(EdgeInsets.all(18)),
+                        ),
+                        onPressed: () async {
+                          onChangeChannelInfo();
+                          Navigator.pop(context);
+                        },
+                        child: Text(
+                          type == 1 ? S.current.setTopic : S.current.setDesc,
+                          style: TextStyle(color: Colors.white)
+                        ),
+                      ),
+                    )
+                  ],
+                )
+              ],
+            ),
+          ),
+        );
+      }
+    );
+  }
+
+
+  onShowInviteChannelDialog(context) {
+    final auth = Provider.of<Auth>(context, listen: false);
+    final isDark = auth.theme == ThemeType.DARK;
+    Map currentChannel = {};
+    currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+    showModal(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          contentPadding: EdgeInsets.zero,
+          content: Container(
+            height: 440.0,
+            width: 528.0,
+            child: Column(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(5),topRight: Radius.circular(5)),
+                    color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                  ),
+                  padding: const EdgeInsets.only(left: 16, top: 2,bottom: 2,right: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          S.current.inviteTo(currentChannel["name"]),
+                          style: TextStyle(color: isDark ? Palette.defaultTextDark : Color(0xff1F2933), fontSize: 14.0, fontWeight: FontWeight.w700, overflow: TextOverflow.ellipsis)
+                        ),
+                      ),
+                      Container(
+                        height: 35,
+                        width: 35,
+                        child: HoverItem(
+                          colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
+                          child: InkWell(
+                            onTap: (){Navigator.of(context).pop();},
+                            child: Icon(PhosphorIcons.xCircle,size: 18,)),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+                Expanded(child: InviteMemberMacOS(type: 'toChannel', isKeyCode: false)),
+              ],
+            )
+          ),
+        );
+      }
+    );
+  }
+
+onShowInviteWorkspaceDialog(context) {
+  final auth = Provider.of<Auth>(context, listen: false);
+  final isDark = auth.theme == ThemeType.DARK;
+
+  showModal(
+    context: context,
+    builder: (BuildContext context) {
+      return Container(
+        child: AlertDialog(
+          contentPadding: EdgeInsets.zero,
+          content: Container(
+            // constraints: BoxConstraints(
+            //   maxHeight: 622.0,
+            //   maxWidth: 528.0
+            // ),
+            height: 510.0,
+            width: 528.0,
+            child: Column(
+              children: [
+                Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(5),topRight: Radius.circular(5)),
+                    color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                  ),
+                  padding: const EdgeInsets.only(left: 16, top: 2,bottom: 2,right: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          S.current.inviteToWorkspace ,
+                          style: TextStyle(color: isDark ? Palette.defaultTextDark : Color(0xff1F2933), fontSize: 14.0, fontWeight: FontWeight.w700, overflow: TextOverflow.ellipsis)
+                        ),
+                      ),
+                      Container(
+                        height: 35,
+                        width: 35,
+                        child: HoverItem(
+                          colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
+                          child: InkWell(
+                            onTap: (){Navigator.of(context).pop();},
+                            child: Icon(PhosphorIcons.xCircle,size: 18,)),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+                Expanded(child: InviteMemberMacOS(type: 'toWorkspace', isKeyCode: false)),
+              ],
+            )
+          ),
+        ),
+      );
+    }
+  );
+}
+
+
+  showWorkflowDialog(context) {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+            child: Container(
+              width: 398,
+              height: 144,
+              child: ChangeChannelInfoMacOS(type: 3)
+            ),
+          );
+        }
+      );
+  }
+
   showInfo(context, id) {
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
     if (id != null && currentUser["id"] != id) onShowUserInfo(context, id);
@@ -345,6 +597,8 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   renderSystemMessage(attachments) {
     final isDark  = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     final messageTime = DateFormat('kk:mm').format(DateTime.parse(widget.insertedAt).add(Duration(hours: 7)));
+    final workspaceId = Provider.of<Workspaces>(context, listen: false).currentWorkspace['id'];
+    final currentUserWs = Provider.of<Workspaces>(context, listen: true).currentMember;
 
     return Container(
       margin: EdgeInsets.only(top: 5, bottom: 15),
@@ -354,6 +608,25 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
             final params = att["params"];
 
             switch (att["type"]) {
+              case "poll":
+                Map parentMessage = {
+                  "id": widget.id,
+                  "message": widget.message,
+                  "avatarUrl": widget.avatarUrl,
+                  "insertedAt": widget.insertedAt,
+                  "fullName": widget.fullName,
+                  "attachments": widget.attachments,
+                  "isChannel": widget.isChannel,
+                  "userId": widget.userId,
+                  "channelId": widget.channelId,
+                  "workspaceId": workspaceId,
+                  "reactions": widget.reactions,
+                  "lastEditedAt": widget.lastEditedAt,
+                  "isUnsent": widget.isUnsent,
+                  "block_code": widget.blockCode,
+                  "snippet": widget.snippet
+                };
+                return PollCard(att: att, message: parentMessage);
               case "datetime" :
                 final lastMessageReaded = !widget.isChannel ?
                   (Provider.of<DirectMessage>(context, listen: true).getCurrentDataDMMessage(widget.conversationId) ?? {})["last_message_readed"] :
@@ -373,11 +646,13 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Center(
-                          child: Text(
-                            DateFormatter().getVerboseDateTimeRepresentation(DateFormat("yyyy-MM-dd").parse(att["value"]), null).toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w400,
-                              color: isDark ? Color(0xff707070) : Colors.grey[800]
+                          child: RichText(
+                            text: TextSpan(
+                              text: DateFormatter().getVerboseDateTimeRepresentation(DateFormat("yyyy-MM-dd").parse(att["value"]), null).toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w400,
+                                color: isDark ? Color(0xff707070) : Colors.grey[800]
+                              )
                             )
                           )
                         )
@@ -390,14 +665,14 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                         )
                       ),
                       (lastMessageReaded != null && att["id"] == lastMessageReaded) ? Container(
-                        margin: EdgeInsets.only(left: 14, right: 20), 
-                        child: Text("NEW", style: TextStyle(color: Colors.red)),
+                        margin: EdgeInsets.only(left: 14, right: 20),
+                        child: TextWidget("NEW", style: TextStyle(color: Colors.red)),
                       ) : Container()
                     ]
                   )
                 );
 
-              case "header_message_converastion": 
+              case "header_message_converastion":
                 return Column(
                   children: [
                     Row(
@@ -440,61 +715,199 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 );
 
               case "create_channel":
-                String listName = att["data_member"] != null ? att["data_member"].map((ele) => ele["full_name"]).toList().join(", ") : "";
-                return Column(
-                  children: [
-                  Text.rich(
-                      TextSpan( 
-                        children: <InlineSpan>[ 
-                          TextSpan(
-                            text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
-                            recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
-                          ),
-                          TextSpan(text: " has created a channel: ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                          TextSpan(text: "${params["name"]}", style: TextStyle(color: Colors.grey[700])),
-                          TextSpan(text: " at $messageTime. ", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
-                        ]
-                      ),
+                final cuttedName = params["name"].length >= 15 ? params["name"].substring(0, 15) + " ..." : params["name"];
+                final currentMemWs = Provider.of<Workspaces>(context, listen: false).currentMember;
+                final currentChannel = Provider.of<Channels>(context, listen: true).currentChannel;
+                final currentUser = Provider.of<User>(context, listen: true).currentUser;
+
+                return Material(
+                  elevation: 11,
+                  type: isDark ? MaterialType.transparency : MaterialType.canvas,
+                  child: Container(
+                    width: 400,
+                    padding: EdgeInsets.all(24),
+                    margin: EdgeInsets.only(bottom: 40),
+                    decoration: BoxDecoration(
+                      color: isDark ? Color(0xff4C4C4C) : Color(0xffFAFAFA),
+                      borderRadius: BorderRadius.circular(7),
                     ),
-                    if (att["data_member"] != null && att["data_member"].length > 0) 
-                    Text.rich(
-                      TextSpan( 
-                        children: <InlineSpan>[ 
-                          TextSpan(text: listName, style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                          TextSpan(text: " has invited by ${att["user"]}",style: TextStyle(color: Colors.grey[700]))
-                        ]
-                      )
-                    )
-                  ],
+                    child: Column(
+                      children: [
+                        Text("Welcome to \#$cuttedName",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 26,
+                            fontStyle: FontStyle.normal,
+                            fontFamily: 'Roboto',
+                            overflow: TextOverflow.fade,
+                            color: isDark ? Color(0xffF3F3F3) : Colors.black
+                          )
+                        ),
+                        Padding(
+                          padding: EdgeInsets.only(top: 20, bottom: 40),
+                          child: Container(
+                            child: Text("This is the start of \#${params["name"]}",
+                            maxLines: 2,
+                            textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xffC9C9C9),
+                                overflow: TextOverflow.ellipsis
+                              ),
+                            ),
+                          ),
+                        ),
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xff2E2E2E) : Color(0xffEDEDED),
+                                borderRadius: BorderRadius.circular(5)
+                              ),
+                              margin: EdgeInsets.only(top: 10),
+                              child: HoverItem(
+                                 colorHover: (currentMemWs["role_id"] <= 2 || currentMemWs['user_id'] == currentChannel['owner_id']) ? Colors.grey.withOpacity(0.4) : Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    currentMemWs["role_id"] <= 2 || currentMemWs['user_id'] == currentChannel['owner_id']
+                                    ?  currentChannel['is_general'] ?  onShowInviteWorkspaceDialog(context) : onShowInviteChannelDialog(context)
+                                    : showModal(
+                                        context: context,
+                                        builder: (_) => SimpleDialog(
+                                        children: <Widget>[
+                                            new Center(child: new Container(child: new Text('Bạn không có đủ quyền để thực hiện thao tác')))
+                                        ])
+                                      );
+                                  },
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    height: 50,
+                                    padding: EdgeInsets.symmetric(horizontal: 20),
+                                    child: Row(
+                                      children: [
+                                        Icon(PhosphorIcons.userPlus, size: 22, color: isDark ? Color(0xffffffff) : Color(0xff5E5E5E)),
+                                        SizedBox(width: 20,),
+                                        Text(currentChannel['is_general'] ? "Invite to workspace" : "Invite your friend", style: TextStyle(color: isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E))),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: SvgPicture.asset('assets/icons/NewRightArrow.svg', color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark, width: 8),
+                                          )
+                                        )
+                                      ],
+                                    ),
+                                  )
+                                ),
+                              ),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xff2E2E2E) : Color(0xffEDEDED),
+                                borderRadius: BorderRadius.circular(5)
+                              ),
+                              margin: EdgeInsets.only(top: 20),
+                              child: HoverItem(
+                                colorHover: (currentMemWs["role_id"] <= 2 || currentMemWs['user_id'] == currentChannel['owner_id'] ) ? Colors.grey.withOpacity(0.4) : Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    if(currentMemWs["role_id"] <= 2 || currentMemWs['user_id'] == currentChannel['owner_id'] ){
+                                      showChangeTopicDialog(context, 1);
+                                    } else {
+                                      return ;
+                                    }
+                                  },
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    height: 50,
+                                    padding: EdgeInsets.symmetric(horizontal: 20),
+                                    child: Row(
+                                      children: [
+                                        Icon(CupertinoIcons.arrow_right_arrow_left_square, size: 22, color: isDark ? Color(0xffffffff) : Color(0xff5E5E5E)),
+                                        SizedBox(width: 20,),
+                                        Text("Change Topic", style: TextStyle(color:  isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E))),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: SvgPicture.asset('assets/icons/NewRightArrow.svg', color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark, width: 8),
+                                          )
+                                        )
+                                      ],
+                                    ),
+                                  )
+                                ),
+                              ),
+                            ),
+                            (currentChannel["name"] != "newsroom") ? Container(
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xff2E2E2E) : Color(0xffEDEDED),
+                                borderRadius: BorderRadius.circular(5)
+                              ),
+                              margin: EdgeInsets.only(top: 20),
+                              child: HoverItem(
+                                colorHover: ((currentUserWs["role_id"] == 1 || currentUserWs["role_id"] == 2 &&  currentChannel["owner_id"] == currentUser["id"] ) && currentChannel["name"] != "newsroom") ? Colors.grey.withOpacity(0.4) : Colors.transparent,
+                                child: InkWell(
+                                  onTap: () {
+                                    if((currentUserWs["role_id"] == 1 || currentUserWs["role_id"] == 2 &&currentChannel["owner_id"] == currentUser["id"]  ) && currentChannel["name"] != "newsroom"){
+                                      showWorkflowDialog(context);
+                                    } else {
+                                      return ;
+                                    }
+                                  },
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    height: 50,
+                                    padding: EdgeInsets.symmetric(horizontal: 20),
+                                    child: Row(
+                                      children: [
+                                        Icon(PhosphorIcons.bagSimple, size: 22, color: isDark ? Color(0xffffffff) : Color(0xff5E5E5E)),
+                                        SizedBox(width: 20,),
+                                        Text("Choose workflow", style: TextStyle(color:  isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E))),
+                                        Expanded(
+                                          child: Align(
+                                            alignment: Alignment.centerRight,
+                                            child: SvgPicture.asset('assets/icons/NewRightArrow.svg', color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark, width: 8),
+                                          )
+                                        )
+                                      ],
+                                    ),
+                                  )
+                                ),
+                              ),
+                            ):Container()
+                          ],
+                        )
+                      ],
+                    ),
+                  ),
                 );
 
               case "invite":
-                return att["user"] == att["invited_user"] ? Text.rich(
+                return !Utils.checkedTypeEmpty(att["user_id"]) || att["invited_user_id"] == att["user_id"] ? Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: att["invited_user"],
-                        style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["invited_user_id"]) ?? att["invited_user"],
+                        style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["invited_user_id"])
                       ),
                       TextSpan(text: " has joined the channel by invitation code", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400))
                     ]
                   )
                 ) : Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has invited ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
+                      TextSpan(text: " has invited ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                       TextSpan(
-                        text: att["invited_user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["invited_user_id"]) ?? att["invited_user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["invited_user_id"])
                       ),
                       TextSpan(text: " to channel", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400)),
                     ]
                   )
                 );
@@ -503,16 +916,16 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has invite ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
+                      TextSpan(text: " has invite ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                       TextSpan(
-                        text: att["invited_user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["invited_user_id"]) ?? att["invited_user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["invited_user_id"])
                       ),
-                      TextSpan(text: " to this conversation", style: TextStyle(color: Colors.grey[500],fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
+                      TextSpan(text: " to this conversation", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400)),
                     ]
                   )
                 );
@@ -521,10 +934,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: [
                       TextSpan(
-                        text: att["user"]['name'], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["user"]['id']) ?? att["user"]['name'], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user"]['id'])
                       ),
-                      TextSpan(text: "  has changed ${att['avatar_url'] != null ? 'avatar' : 'name'} this group ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
+                      TextSpan(text: "  has changed ${att['avatar_url'] != null ? 'avatar' : 'name'} this group ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
                     ]
                   )
                 );
@@ -533,12 +946,12 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has left ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: "this conversation", style: TextStyle(color: Colors.grey[500],fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
+                      TextSpan(text: " has left ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: "this conversation", style: TextStyle(color: Colors.grey[500],fontSize: 13)),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400)),
                     ]
                   )
                 );
@@ -547,11 +960,11 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has left the channel", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
+                      TextSpan(text: " has left the channel", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400)),
                     ]
                   )
                 );
@@ -560,53 +973,57 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: att["delete_user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14),
+                        text:Utils.getUserNickName(att["delete_user_id"]) ?? att["delete_user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 14 ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["delete_user_id"])
                       ),
-                      TextSpan(text: " was kicked from this channel", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400)),
+                      TextSpan(text: " was kicked from this channel", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400)),
                     ]
                   )
                 );
               case "change_topic":
-                return Text.rich(
-                  TextSpan(
-                    children: <InlineSpan>[
-                      TextSpan(
-                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
-                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
-                      ),
-                      TextSpan(text: " has changed channel topic to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: params["topic"], style: TextStyle(color: Colors.grey[700])),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
-                    ]
-                  )
+                return Container(
+                  width: 600,
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: () => showInfo(context, att["user_id"]),
+                        child: Text(Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue,fontWeight: FontWeight.w400))),
+                      Text(" has changed channel topic to ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      Flexible(child: Container( child: Text(params["topic"], style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400,overflow: TextOverflow.ellipsis)))),
+                      Text(" at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400))
+                    ],
+                  ),
                 );
               case "change_name":
-                return Text.rich(
-                  TextSpan(
-                    children: <InlineSpan>[
-                      TextSpan(
-                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
-                        recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
-                      ),
-                      TextSpan(text: " has changed channel name to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: params["name"], style: TextStyle(color: Colors.grey[700])),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
-                    ]
-                  )
+                return Container(
+                  width: 650,
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      InkWell(
+                        onTap: () => showInfo(context, att["user_id"]),
+                        child: Text(Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue,fontWeight: FontWeight.w400))),
+                      Text(" has changed channel name to ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      Flexible(child: Container( child: Text(params["name"], style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400, overflow: TextOverflow.ellipsis)))),
+                      Text(" at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400, overflow: TextOverflow.ellipsis))
+                    ],
+                  ),
                 );
               case "change_private":
                 return Text.rich(
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has changed channel private to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: "${params["is_private"] ? "private" : "public"}", style: TextStyle(color: Colors.grey[700])),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
+                      TextSpan(text: " has changed channel private to ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: "${params["is_private"] ? "private" : "public"}", style: TextStyle(color: Colors.grey[500])),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400))
                     ]
                   )
                 );
@@ -616,13 +1033,13 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: "${params["is_archived"] ? "archived" : "unarchived"}", style: TextStyle(color: Colors.grey[700])),
-                      TextSpan(text: " this channel", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
+                      TextSpan(text: " has ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: "${params["is_archived"] ? "archived" : "unarchived"}", style: TextStyle(color: Colors.grey[500])),
+                      TextSpan(text: " this channel", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400))
                     ]
                   )
                 );
@@ -632,17 +1049,17 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                   TextSpan(
                     children: <InlineSpan>[
                       TextSpan(
-                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        text: Utils.getUserNickName(att["user_id"]) ?? att["user_name"], style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue ,fontWeight: FontWeight.w400),
                         recognizer: TapGestureRecognizer()..onTapUp = (_) => showInfo(context, att["user_id"])
                       ),
-                      TextSpan(text: " has changed channel workflow to ", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13)),
-                      TextSpan(text: "${params["kanban_mode"] ? "Kanban mode" : "Dev mode"}", style: TextStyle(color: Colors.grey[700])),
-                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Color(0xFF6a6e74), fontWeight: FontWeight.w400))
+                      TextSpan(text: " has changed channel workflow to ", style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                      TextSpan(text: "${params["kanban_mode"] ? "Kanban mode" : "Dev mode"}", style: TextStyle(color: Colors.grey[500])),
+                      TextSpan(text: " at $messageTime", style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400))
                     ]
                   )
                 );
-                
-              default: 
+
+              default:
                 return Container();
               }
             }
@@ -665,7 +1082,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     else {
       memberReaction = users.length > 2 ? users.where((element) => element != userId).toList().sublist(0, 1) : users;
     }
-    
+
     var otherName = memberReaction.where((userId) => userId != Provider.of<Auth>(context, listen: false).userId)
     .map((userId) {
       try {
@@ -731,15 +1148,15 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                         Text(
                           "${renderOtherReaction(e["users"])}",
                           style: TextStyle(
-                            fontSize: 12, 
-                            color: isDark ? Colors.white : Colors.black, 
-                            decoration: TextDecoration.none, 
+                            fontSize: 12,
+                            color: isDark ? Colors.white : Colors.black,
+                            decoration: TextDecoration.none,
                             fontWeight: FontWeight.w500,
                           ),
                         )
                       ],
                     ),
-                  ), 
+                  ),
                   colorHover: null,
                   child: GestureDetector(
                     onTap: (){
@@ -757,7 +1174,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     child: Container(
                       margin: EdgeInsets.only(top: 4),
                       child: Container(
-                        padding: EdgeInsets.only(top: 4, left: 4, right: 4),
+                        padding: Utils.isWinOrLinux() ? EdgeInsets.all(4) : EdgeInsets.only(top: 4.5, right: 4, left: 4, bottom: 2),
                         margin: EdgeInsets.only(right: 4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
@@ -767,7 +1184,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                           ),
                           color: isMe
                             ? isDark ? Color(0xffFFF1B8).withOpacity(0.3): Color(0xffE6F7FF)
-                            : isDark ? Color(0xff4C4C4C) : Color(0xffF3F3F3)
+                            : isDark ? Color(0xff4C4C4C) : Color(0xFFbfbfbf).withOpacity(0.5)
                         ),
                         child: Wrap(
                           crossAxisAlignment: WrapCrossAlignment.start,
@@ -775,12 +1192,16 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                           children: [
                             Container(
                               child: e["emoji"] is ItemEmoji
-                                  ? e["emoji"].render(size: 18.0, padding: 0.0, isEnableHover: false, heightLine: 1.0)
-                                  : e["emoji"]["type"] == "default"
-                                      ? Text("${e["emoji"]["value"]}", style: TextStyle(fontSize: 18, height: 1.0))
-                                      : CachedImage(e["emoji"]["url"], height: 36, width: 36,)
+                                ? e["emoji"].render(size: Utils.isWinOrLinux() ? 15.0 : 16.0, padding: 0.0, isEnableHover: false, heightLine: 1.0)
+                                : e["emoji"]["type"] == "default"
+                                    ? RichText(
+                                      text: TextSpan(
+                                        text: "${e["emoji"]["value"]}", style: TextStyle(fontSize: Utils.isWinOrLinux() ? 15.0 : 17.0, height: 1.0)
+                                      ),
+                                    )
+                                    : CachedImage(e["emoji"]["url"], height: 36, width: 36,)
                             ),
-                            e["count"] > 0 ? Text("  ${e["count"]}", style: TextStyle(fontSize: 11.5, color: isDark? Colors.white : Colors.blue)): Text("")
+                            e["count"] > 0 ? TextWidget("  ${e["count"]}", style: TextStyle(fontSize: 11.5, color: isDark? Colors.white : Colors.blue)): Text("")
                           ]
                         )
                       )
@@ -796,7 +1217,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 child: InkWell(
                   onTap: () {
                     showDialog(
-                      context: context, 
+                      context: context,
                       builder: (BuildContext context) {
                         return Dialog(
                           child: ReactionsDialog(reactions: reactions, channelId: widget.channelId),
@@ -908,7 +1329,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
       for (var i = 0; i < message["attachments"].length; i++) {
         var image = message["attachments"][i];
         if (image["mime_type"] == "image") {
-          description += "\n![${image["name"] ?? "Image"}](${image["content_url"]})";
+          description += "\n![${image["name"] ?? "Image"}](${image["content_    url"]})";
         }
       }
     }
@@ -948,7 +1369,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   parseAttachments(dataM) {
     var message = dataM["message"] ?? "";
     var mentions = dataM["attachments"] != null ?  dataM["attachments"].where((element) => element["type"] == "mention").toList() : [];
-    
+
     if (mentions.length > 0){
       var mentionData =  mentions[0]["data"];
       message = "";
@@ -967,9 +1388,9 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
 
   @override
   void didUpdateWidget (oldWidget) {
-    if (oldWidget.message != widget.message 
+    if (oldWidget.message != widget.message
       || oldWidget.attachments.toString() != widget.attachments.toString()
-      || oldWidget.avatarUrl != widget.avatarUrl 
+      || oldWidget.avatarUrl != widget.avatarUrl
       || oldWidget.fullName != widget.fullName
       || oldWidget.count != widget.count
       || oldWidget.reactions.toString() != widget.reactions.toString()
@@ -1003,7 +1424,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
         isHighlightMessage = true;
         rebuild = false;
       });
-    await Future.delayed(Duration(seconds: 5));  
+    await Future.delayed(Duration(seconds: 5));
     if(this.mounted) {
       setState(() {
         isHighlightMessage = false;
@@ -1044,7 +1465,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     int count = 0;
     final dm = Provider.of<DirectMessage>(context, listen: false).getModelConversation(conversationId);
     if (dm == null || (auth.userId != widget.userId)) return Container();
-    int countDM = dm.user.where((element) => element["status"] == "in_conversation").length; 
+    int countDM = dm.user.where((element) => element["status"] == "in_conversation").length;
     try {
       final dataUnreadMessage = Provider.of<DirectMessage>(context, listen: false).dataUnreadMessage;
       var unreadCount  =  dataUnreadMessage[id]["count_unread"];
@@ -1062,6 +1483,13 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     );
   }
 
+  isShowExit() {
+    setState(() {
+      rebuild = false;
+      showMenu = false;
+    });
+  }
+
   buildPortalEntry() {
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final selectedTab = Provider.of<User>(context, listen: false).selectedTab;
@@ -1073,8 +1501,8 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     final locale = auth.locale;
     DateTime dateTime = DateTime.parse(widget.insertedAt);
     final dayTime = DateFormatter().getVerboseDateTimeRepresentation(dateTime.add(Duration(hours: 7)), locale);
-    var showDateThread = widget.isThread ? ((dayTime == "Today" || dayTime == "Just now") ? "" 
-      : DateFormatter().renderTime(DateTime.parse(widget.insertedAt), type: "MMMd")) + " $messageTime" 
+    var showDateThread = widget.isThread ? ((dayTime == "Today" || dayTime == "Just now") ? ""
+      : DateFormatter().renderTime(DateTime.parse(widget.insertedAt), type: "MMMd")) + " $messageTime"
       : widget.isViewMention || selectedTab == "thread"
         ? (dayTime == "Today" ? "Today" : DateFormatter().renderTime(DateTime.parse(widget.insertedAt), type: "MMMd")) + " at $messageTime"
         : messageTime;
@@ -1082,6 +1510,16 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     final channelId = widget.isChannel ? widget.channelId : null;
     final workspaceId = widget.isChannel ? currentWorkspace["id"] : null;
     bool isPoll = false;
+    bool isAttachmentV2 = false;
+    if(widget.attachments.length > 0 ) {
+      int index = widget.attachments.indexWhere((e) {
+        return e?["attachments_v2"] == true;
+      });
+
+      if(index != -1) {
+        isAttachmentV2 = true;
+      }
+    }
     final conversationId = widget.isChannel ? null : widget.conversationId ?? Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id;
     Map message = {
       "id": widget.id,
@@ -1106,10 +1544,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
 
     int index = (widget.attachments ?? []).indexWhere((e) => e["type"] == "bot");
     int indexSnippet = (widget.attachments ?? []).indexWhere((e) => e["mime_type"] == "html" || e["mime_type"] == "block_code");
-    int indexFromThread = (widget.attachments ?? []).indexWhere((e) => e["type"] == "send_to_channel_from_thread");
     var lastMessageReaded = Provider.of<Channels>(context, listen: false).currentChannel["last_message_readed"];
     final canEdit = index == -1 && indexSnippet == -1 && widget.userId == auth.userId;
-    
+    final bool isInDay = message['current_time'] != null && DateTime.now().add(Duration(hours: -7)).microsecondsSinceEpoch - message['current_time'] < 86400000000;
+
     if (!widget.isChannel){
       lastMessageReaded = (Provider.of<DirectMessage>(context, listen: false).getCurrentDataDMMessage(widget.conversationId) ?? {})["last_message_readed"];
     }
@@ -1123,19 +1561,24 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
     }
 
     return Container(
-      child: PortalEntry(
-      portalAnchor: widget.isShow ? Alignment(1.2, 0.5) : Alignment(1.2, -0.5),
-      childAnchor: widget.isShow ? Alignment.topRight : Alignment.bottomRight,
-      visible: isPoll 
+      child: PortalTarget(
+        anchor: Aligned(
+          follower: widget.isShow ? Alignment(1.2, 0.5) : Alignment(1.2, -0.5),
+          target: widget.isShow ? Alignment.topRight : Alignment.bottomRight
+        ),
+      visible: isPoll
       ? false
       : widget.isThread
         ? widget.isShow && showMenu && !showEmoji && widget.id != null
         : showMenu && !showEmoji && widget.id != null && !widget.isViewMention && (selectedTab == "channel" ),
-      portal: MouseRegion(
+      portalFollower: MouseRegion(
         onEnter: (event) {
           if (Utils.checkedTypeEmpty(widget.id) && widget.success) setState(() {showMenu = true; rebuild = false;});
         },
         onExit: (event) {
+          if (isCheckedShow == true) {
+            return ;
+          }
           if (!showEmoji && widget.id != null && widget.success) setState(() {showMenu = false; rebuild = false;});
         },
         child: Container(
@@ -1152,7 +1595,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!widget.isChannel && widget.userId == auth.userId && Utils.checkedTypeEmpty(widget.id)) 
+                if (!widget.isChannel && widget.userId == auth.userId && Utils.checkedTypeEmpty(widget.id))
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
                   child: Container(
@@ -1160,120 +1603,267 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     child: getReadMessageConversation(widget.id, widget.conversationId)
                   ),
                 ),
-                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && widget.isChannel) 
+                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && widget.isChannel)
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      if (!widget.isChannel) return;
-                      setState(()  {rebuild = false;showEmoji = true;});
-                      var box = context.findRenderObject();
-                      var si = context.size;
-                      var t  =  box == null ? Offset.zero : (box as RenderBox).localToGlobal(Offset.zero);
-                      var isOpenThread  =  Provider.of<Messages>(context, listen: false).openThread;
-                      showPopover(
-                        context: context,
-                        direction: isOpenThread && !widget.isChildMessage ? PopoverDirection.right : PopoverDirection.top,
-                        transitionDuration: Duration(milliseconds: 0),
-                        arrowDyOffset: isOpenThread && !widget.isChildMessage 
-                          ? 0
-                          : t.dy < 380 ? -si!.height : 0,
-                        arrowWidth: 0, 
-                        arrowHeight: 0,
-                        arrowDxOffset: isOpenThread && !widget.isChildMessage ? -320 : 0,
-                        shadow: [],
-                        // barrierColor: null,
-                        onPop: (){
-                          if (this.mounted) this.setState(() {
-                            showMenu = false;
-                            showEmoji= false;
-                          });
-                        },
-                        bodyBuilder: (context) => Emoji(
-                          // can check lai workspaceId
-                          workspaceId: workspaceId,
-                          onSelect: (emoji){
-                            Provider.of<Messages>(context, listen: false)
-                              .handleReactionMessage({
-                              "message_id": widget.id,
-                              "channel_id": widget.channelId,
-                              "workspace_id": workspaceId,
-                              "token": Provider.of<Auth>(context, listen: false).token,
-                              "emoji_id": emoji.id
+                  child: Tooltip(
+                    message: 'Emoji',
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                    ),
+                    height: 40,
+                    padding: const EdgeInsets.all(8.0),
+                    preferBelow: false,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                    ),
+                    // showDuration: const Duration(seconds: 1),
+                    waitDuration: const Duration(seconds: 1),
+                    child: IconButton(
+                      padding: EdgeInsets.zero,
+                      focusColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      splashColor: Colors.transparent,
+                      onPressed: () {
+                        if (!widget.isChannel) return;
+                        if(showMoreKey.currentState!.isshow) {
+                          Navigator.pop(context);
+                        }
+                        setState(()  {rebuild = false;showEmoji = true;});
+                        var box = context.findRenderObject();
+                        var si = context.size;
+                        var t  =  box == null ? Offset.zero : (box as RenderBox).localToGlobal(Offset.zero);
+                        var isOpenThread  =  Provider.of<Messages>(context, listen: false).openThread;
+                        showPopover(
+                          context: context,
+                          direction: isOpenThread && !widget.isChildMessage ? PopoverDirection.right : PopoverDirection.top,
+                          transitionDuration: Duration(milliseconds: 0),
+                          arrowDyOffset: isOpenThread && !widget.isChildMessage
+                            ? 0
+                            : t.dy < 380 ? -si!.height : 0,
+                          arrowWidth: 0,
+                          arrowHeight: 0,
+                          arrowDxOffset: isOpenThread && !widget.isChildMessage ? -320 : 0,
+                          shadow: [],
+                          // barrierColor: null,
+                          onPop: (){
+                            if (this.mounted) this.setState(() {
+                              showMenu = false;
+                              showEmoji= false;
                             });
                           },
-                        onClose: (){
+                          bodyBuilder: (context) => Container(
+                            width: 400, height: 518,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              color:isDark ? const Color(0xFF3D3D3D) : const Color(0xFFFFFFFF),
+                              border: Border.all(width: 0.3, color:isDark ? Colors.grey[700]! :  Colors.grey)
+                            ),
+                            child: ListEmojiWidget(
+                              // can check lai workspaceId
+                              workspaceId: workspaceId,
+                              onSelect: (emoji){
+                                Provider.of<Messages>(context, listen: false)
+                                  .handleReactionMessage({
+                                  "message_id": widget.id,
+                                  "channel_id": widget.channelId,
+                                  "workspace_id": workspaceId,
+                                  "token": Provider.of<Auth>(context, listen: false).token,
+                                  "emoji_id": emoji.id
+                                });
+                              },
+                            onClose: (){
+                              Navigator.pop(context);
+                              if (mounted) {
+                                setState(() {
+                                  showEmoji = false;
+                                  showMenu = false;
+                                });}
+                              }
+                            ),
+                          )
+                        );
+                      },
+                      icon: SvgPicture.asset('assets/icons/happy_light.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282))
+                    ),
+                  ),
+                ),
+                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && !widget.isChildMessage)
+                widget.isUnsent == true ? Container() : HoverItem(
+                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                  child: Tooltip(
+                    message: 'Thread',
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                    ),
+                    height: 40,
+                    padding: const EdgeInsets.all(8.0),
+                    preferBelow: false,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                    ),
+                    // showDuration: const Duration(seconds: 1),
+                    waitDuration: const Duration(seconds: 1),
+                    child: IconButton(
+                      icon: SvgPicture.asset('assets/icons/bubble_chat.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
+                      padding: EdgeInsets.zero,
+                      focusColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      splashColor: Colors.transparent,
+                      onPressed: () {
+                        openThreadAction(context);
+                        if(showMoreKey.currentState!.isshow) {
                           Navigator.pop(context);
-                          if (mounted) {
-                            setState(() {
-                              showEmoji= false;
-                              showMenu = false;
-                            });}
-                          }
-                        )
-                      );
-                    },
-                    icon: SvgPicture.asset('assets/icons/happy_light.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282))
-                  ),
-                ),
-                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && !widget.isChildMessage) 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    icon: SvgPicture.asset('assets/icons/bubble_chat.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () { 
-                      openThreadAction(context);
-                    }
-                  ),
-                ),
-                if (canEdit && !Utils.checkedTypeEmpty(widget.isUnsent) && widget.isChannel) 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    icon: SvgPicture.asset('assets/icons/edited.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      message["attachments"].indexWhere((e) => e["type"] == "bot");
-                      handleUpdateMessage(context, message, widget.updateMessage);
-                      if (Utils.checkedTypeEmpty((widget.conversationId)) && widget.onEditMessage != null){
-                        widget.onEditMessage(widget.id);
+                        }
                       }
-                    }
+                    ),
                   ),
                 ),
-                if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && !widget.isChildMessage && (widget.isChannel == true || widget.isDirect == true)) 
+                if (canEdit && !Utils.checkedTypeEmpty(widget.isUnsent) && widget.isChannel && isInDay)
                 HoverItem(
                   colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    icon: Icon(CupertinoIcons.arrowshape_turn_up_right, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 17),
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      widget.onShareMessage!({"mime_type": "share", "data": message});
-                    }
+                  child: Tooltip(
+                    message: 'Edited',
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                    ),
+                    height: 40,
+                    padding: const EdgeInsets.all(8.0),
+                    preferBelow: false,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                    ),
+                    // showDuration: const Duration(seconds: 1),
+                    waitDuration: const Duration(seconds: 1),
+                    child: IconButton(
+                      icon: SvgPicture.asset('assets/icons/edited.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
+                      padding: EdgeInsets.zero,
+                      focusColor: Colors.transparent,
+                      highlightColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      splashColor: Colors.transparent,
+                      onPressed: () {
+                        if(showMoreKey.currentState!.isshow) {
+                          Navigator.pop(context);
+                        }
+                        message["attachments"].indexWhere((e) => e["type"] == "bot");
+                        handleUpdateMessage(context, message, widget.updateMessage);
+                        if (Utils.checkedTypeEmpty((widget.conversationId)) && widget.onEditMessage != null){
+                          widget.onEditMessage(widget.id);
+                        }
+                      }
+                    ),
                   ),
                 ),
-                if (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") StatefulBuilder(
+
+                if (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention" && !Utils.checkedTypeEmpty(widget.isUnsent) || !widget.isChannel) StatefulBuilder(
                   builder: (context, setState) {
-                    return HoverItem(
+                    return Utils.checkedTypeEmpty(widget.isUnsent) ? Container() : HoverItem(
                       colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                      child: Tooltip(
+                        message: 'Saved',
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(5),
+                          gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                        ),
+                        height: 40,
+                        padding: const EdgeInsets.all(8.0),
+                        preferBelow: false,
+                        textStyle: const TextStyle(
+                          fontSize: 12,
+                        ),
+                        // showDuration: const Duration(seconds: 1),
+                        waitDuration: const Duration(seconds: 1),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          focusColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          hoverColor: Colors.transparent,
+                          splashColor: Colors.transparent,
+                          onPressed: () {
+                            message = {...message, "parentId": widget.parentId};
+                            if (isChecked) {
+                              Provider.of<User>(context, listen: false).unMarkSavedMessage(token, message);
+                            } else {
+                              Provider.of<User>(context, listen: false).markSavedMessage(token, message);
+                            }
+                            setState(() => isChecked = !isChecked);
+                          },
+                          icon: isChecked
+                            ? Icon(CupertinoIcons.bookmark_fill, color: Colors.red, size: 17)
+                            : Icon(CupertinoIcons.bookmark, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 17)
+                        ),
+                      ),
+                    );
+                  }
+                ),
+                if (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention")
+                InkWell(
+                  onTap: (){
+                    isCheckedShow = !isCheckedShow ;
+                  },
+                  child: Tooltip(
+                    message: 'More Actions',
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                    ),
+                    height: 40,
+                    padding: const EdgeInsets.all(8.0),
+                    preferBelow: false,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                    ),
+                    waitDuration: const Duration(seconds: 2),
+                    child: widget.isUnsent == true ? Container() : ShowMoreCard(
+                      key: showMoreKey,
+                      isShowFuntion: (bool value) => isCheckedShow = value,
+                      isShowExit: isShowExit,
+                      isChannel:  widget.isChannel,
+                      isViewThread: false,
+                      conversationId: widget.conversationId,
+                      id: widget.id,
+                      userId: widget.userId,
+                      isChildMessage: widget.isChildMessage,
+                      message: widget.message,
+                      avatarUrl: widget.avatarUrl,
+                      insertedAt: widget.insertedAt,
+                      fullName: widget.fullName,
+                      attachments: widget.attachments,
+                      isThread: false,
+                      count: 0,
+                      reactions:  widget.reactions,
+                      channelId: widget.channelId,
+                      isDark: isDark,
+                      isUnsent: widget.isUnsent,
+                      onShareMessage :widget.onShareMessage,
+                      currentTime : widget.currentTime,
+                      isInDay: isInDay
+                    ),
+                  ),
+                ),
+                if ( showMenu )
+                  widget.isChannel ? Container() : HoverItem(
+                    colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                    child: Tooltip(
+                      message: 'Delete',
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(5),
+                        gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                      ),
+                      height: 40,
+                      padding: const EdgeInsets.all(8.0),
+                      preferBelow: false,
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                      ),
+                      // showDuration: const Duration(seconds: 1),
+                      waitDuration: const Duration(seconds: 1),
                       child: IconButton(
                         padding: EdgeInsets.zero,
                         focusColor: Colors.transparent,
@@ -1281,178 +1871,105 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                         hoverColor: Colors.transparent,
                         splashColor: Colors.transparent,
                         onPressed: () {
-                          message = {...message, "parentId": widget.parentId};
-                          if (isChecked) {
-                            Provider.of<User>(context, listen: false).unMarkSavedMessage(token, message);
-                          } else {
-                            Provider.of<User>(context, listen: false).markSavedMessage(token, message);
+                          if (widget.isChannel)
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return CustomConfirmDialog(
+                                  subtitle: 'Do you want to delete this message ?',
+                                  title: 'Delete message',
+                                  onConfirm: () {
+                                    Provider.of<Messages>(context, listen: false).deleteChannelMessage(token, workspaceId, channelId, message["id"]);
+                                  },
+                                  onCancel: () {
+                                    Navigator.pop(context);
+                                  },
+                                );
+                              }
+                            );
+                          else {
+                            MessageConversationServices.showDailogConfirmDelete(context,
+                              () {
+                                Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
+                                  "id": message["id"],
+                                  "current_time": widget.currentTime,
+                                  "parent_id": widget.parentId,
+                                });
+                              },
+                              () {
+                                Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
+                                  "id": message["id"],
+                                  "current_time": widget.currentTime,
+                                  "parent_id": widget.parentId,
+                                  "sender_id": widget.userId,
+                                }, type: "delete_for_me");
+                              },
+                              currentUser["id"] == message["userId"] && !widget.isUnsent &&  isInDay
+                            );
                           }
-                          setState(() => isChecked = !isChecked);
                         },
-                        icon: isChecked
-                          ? Icon(CupertinoIcons.bookmark_fill, color: Colors.red, size: 17)
-                          : Icon(CupertinoIcons.bookmark, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 17)
-                      ),
-                    );
-                  }
-                ),
-                if (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () => setState(() {showMore = !showMore; rebuild = false;}),
-                    icon: Icon(CupertinoIcons.ellipsis_vertical, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 15,),
-                  ),
-                ),
-                if (showMore) Container(width: 0.5, height: 16, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), margin: EdgeInsets.only(left: 10, right: 10),),
-                if (showMore)
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    icon: Icon(PhosphorIcons.shareNetwork, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 12),
-                    onPressed: () => showDialogForwardMessage(message),
-                  ),
-                ),
-                if (showMore && (selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && checkPinMessage() && !(widget.isThread && widget.isChildMessage) && widget.conversationId == null) 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      Provider.of<Channels>(context, listen: false).pinMessage(token, workspaceId, channelId, message["id"], true);
-                    },
-                    icon: SvgPicture.asset('assets/icons/Pushpin.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282))
-                  ),
-                ),
-                if (showMore) 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      createIssueFromMessage(message);
-                    },
-                    icon: Icon(Icons.add_task_rounded, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 17)
-                  ),
-                ),
-                if (showMore && currentUser["id"] == message["userId"] && !Utils.checkedTypeEmpty(widget.isUnsent)) 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      if (widget.isChannel)
-                        Provider.of<Messages>(context, listen: false).deleteChannelMessage(token, workspaceId, channelId, message["id"]);
-                      else {
-                        Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
-                          "id": message["id"],
-                          "current_time": widget.currentTime,
-                          "parent_id": widget.parentId,
-                        });
-                      }
-                    },
-                    icon: SvgPicture.asset('assets/icons/delete.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
-                  ),
-                ),
-                if (showMore && !(widget.isChannel)) 
-                HoverItem(
-                  colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    focusColor: Colors.transparent,
-                    highlightColor: Colors.transparent,
-                    hoverColor: Colors.transparent,
-                    splashColor: Colors.transparent,
-                    onPressed: () {
-                      Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
-                        "id": message["id"],
-                        "current_time": widget.currentTime,
-                        "parent_id": widget.parentId,
-                        "sender_id": widget.userId,
-                      }, type: "delete_for_me");
-                    },
-                     icon: SvgPicture.asset('assets/icons/delete.svg', color: Colors.red),
-                  ),
-                )
+                        icon: SvgPicture.asset('assets/icons/delete.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
+                      )
+                    )
+                  )
               ]
             ),
           ),
-        ),  
+        ),
       ),
       child: ContextMenuRegion(
-        contextMenu: GenericContextMenu(
-          buttonConfigs: widget.isSystemMessage || isPoll ? [] : [
-            if((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && widget.isChannel) ContextMenuButtonConfig(
-              'Emoji',
-              icon: SvgPicture.asset(
-                "assets/icons/happy_light.svg",
-                color: isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E), width: 12, height: 12
+        contextMenu: CustomGenericContextMenu(
+          otherWidget: [
+            if((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && widget.isChannel) ContextMenu(
+              child: HoverItem(
+                radius: 4.0,
+                isRound: true,
+                colorHover: auth.theme == ThemeType.DARK ? Color(0xff0050b3) : Color(0xff91d5ff),
+                child: Container(
+                  padding: EdgeInsets.symmetric(vertical: 3, horizontal: 9),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      SvgPicture.asset(
+                        "assets/icons/happy_light.svg",
+                        color: isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E), width: 12, height: 12
+                      ),
+                      SizedBox(width: 8),
+                      Text('Emoji', style: TextStyle(
+                        color: isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E),
+                        fontSize: 12
+                      )),
+                    ],
+                  ),
+                ),
               ),
-              onPressed: () {
-                if (!widget.isChannel) return;
-                setState(()  {rebuild = false;showEmoji = true;});
-                var box = context.findRenderObject();
-                var si = context.size;
-                var t  =  box == null ? Offset.zero : (box as RenderBox).localToGlobal(Offset.zero);
-                var isOpenThread  =  Provider.of<Messages>(context, listen: false).openThread;
-                showPopover(
-                  context: context,
-                  direction: isOpenThread && !widget.isChildMessage ? PopoverDirection.right : PopoverDirection.top,
-                  transitionDuration: Duration(milliseconds: 0),
-                  arrowDyOffset: isOpenThread && !widget.isChildMessage 
-                    ? 0
-                    : t.dy < 380 ? -si!.height : 0,
-                  arrowWidth: 0, 
-                  arrowHeight: 0,
-                  arrowDxOffset: isOpenThread && !widget.isChildMessage ? -320 : 0,
-                  shadow: [],
-                  // barrierColor: null,
-                  onPop: (){
-                    if (this.mounted) this.setState(() {
-                      showMenu = false;
-                      showEmoji= false;
+              contextMenu: Container(
+                width: 400, height: 556.75,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color:isDark ? const Color(0xFF3D3D3D) : const Color(0xFFFFFFFF),
+                  border: Border.all(width: 0.3, color:isDark ? Colors.grey[700]! :  Colors.grey)
+                ),
+                child: ListEmojiWidget(
+                  // can check lai workspaceId
+                  workspaceId: workspaceId,
+                  onSelect: (emoji){
+                    Provider.of<Messages>(context, listen: false).handleReactionMessage({
+                      "message_id": widget.id,
+                      "channel_id": widget.channelId,
+                      "workspace_id": workspaceId,
+                      "token": Provider.of<Auth>(context, listen: false).token,
+                      "emoji_id": emoji.id
                     });
                   },
-                  bodyBuilder: (context) => Emoji(
-                    // can check lai workspaceId
-                    workspaceId: workspaceId,
-                    onSelect: (emoji){
-                      Provider.of<Messages>(context, listen: false)
-                        .handleReactionMessage({
-                        "message_id": widget.id,
-                        "channel_id": widget.channelId,
-                        "workspace_id": workspaceId,
-                        "token": Provider.of<Auth>(context, listen: false).token,
-                        "emoji_id": emoji.id
-                      });
-                    },
-                    onClose: (){
-                      Navigator.pop(context);
-                      setState(() {
-                      showEmoji= false;
-                      showMenu = false;
-                    });}
-                  )
-                );
-              },
+                  onClose: () {
+                    context.contextMenuOverlay.close();
+                  }
+                ),
+              )
             ),
+          ],
+          buttonConfigs: widget.isSystemMessage || isPoll ? [] : [
             if ((selectedTab == "channel" || selectedTab == "thread") && !widget.isChildMessage) ContextMenuButtonConfig(
               'Reply in thread',
               icon: SvgPicture.asset(
@@ -1467,9 +1984,9 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 "assets/icons/Pushpin.svg",
                 color: isDark ? Color(0xffDBDBDB) : Color(0xff5E5E5E), width: 12, height: 12
               ),
-              onPressed: () => Provider.of<Channels>(context, listen: false).pinMessage(token, workspaceId, channelId, message["id"], true),
+              onPressed: () => Provider.of<Channels>(context, listen: false).pinMessage(token, workspaceId, channelId, message["id"]),
             ),
-            if(canEdit && !Utils.checkedTypeEmpty(widget.isUnsent) && widget.isChannel) ContextMenuButtonConfig(
+            if(canEdit && !Utils.checkedTypeEmpty(widget.isUnsent) && widget.isChannel && isInDay) ContextMenuButtonConfig(
               'Edit message',
               icon: SvgPicture.asset(
                 "assets/icons/edited.svg",
@@ -1483,13 +2000,14 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                 }
               },
             ),
-            if ((selectedTab == "channel" || selectedTab == "thread") && !widget.isChildMessage && widget.isChannel) ContextMenuButtonConfig(
-              'Share message',
+            // if ((selectedTab == "channel" || selectedTab == "thread") && !widget.isChildMessage && widget.isChannel)
+            if(!widget.isChildMessage) ContextMenuButtonConfig(
+              'Reply message',
               icon: Icon(CupertinoIcons.arrowshape_turn_up_right, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 12),
               onPressed: () => widget.onShareMessage!({"mime_type": "share", "data": message}),
             ),
             ContextMenuButtonConfig(
-              'Forward message',
+              'Share message',
               icon: Icon(PhosphorIcons.shareNetwork, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 12),
               onPressed: () => showDialogForwardMessage(message),
             ),
@@ -1498,7 +2016,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
               icon: Icon(Icons.add_task_rounded, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 12),
               onPressed: () => createIssueFromMessage(message),
             ),
-            if (currentUser["id"] == message["userId"] && !Utils.checkedTypeEmpty(widget.isUnsent)) ContextMenuButtonConfig(
+            if (currentUser["id"] == message["userId"] && !Utils.checkedTypeEmpty(widget.isUnsent) && isInDay) ContextMenuButtonConfig(
               'Delete message',
               icon: SvgPicture.asset(
                 "assets/icons/delete.svg",
@@ -1506,13 +2024,37 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
               ),
               onPressed: () {
                 if (widget.isChannel)
-                  Provider.of<Messages>(context, listen: false).deleteChannelMessage(token, workspaceId, channelId, message["id"]);
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return CustomConfirmDialog(
+                        subtitle: 'Do you want to delete this message ?',
+                        title: 'Delete message',
+                        onConfirm: () {
+                          Provider.of<Messages>(context, listen: false).deleteChannelMessage(token, workspaceId, channelId, message["id"]);
+                        },
+                      );
+                    }
+                  );
                 else {
-                  Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
-                    "id": message["id"],
-                    "current_time": widget.currentTime,
-                    "parent_id": widget.parentId,
-                  });
+                  MessageConversationServices.showDailogConfirmDelete(context,
+                    () {
+                      Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
+                        "id": message["id"],
+                        "current_time": widget.currentTime,
+                        "parent_id": widget.parentId,
+                      });
+                    },
+                    () {
+                      Provider.of<DirectMessage>(context, listen: false).deleteMessage(token, widget.conversationId, {
+                        "id": message["id"],
+                        "current_time": widget.currentTime,
+                        "parent_id": widget.parentId,
+                        "sender_id": widget.userId,
+                      }, type: "delete_for_me");
+                    },
+                    currentUser["id"] == message["userId"] && !widget.isUnsent
+                  );
                 }
               },
             ),
@@ -1530,6 +2072,9 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                     if (widget.keyScroll != null) widget.keyScroll!.currentState!.onIsVisibleWidget();
                   },
                   onExit: (event) {
+                    if (isCheckedShow == true) {
+                      return ;
+                    }
                     Utils.setHoverMessageContext(null);
                     if (showMore) setState(() {showMore = false; rebuild = false;});
                     if (!showEmoji && widget.id != null && widget.success) setState(() {showMenu = false; rebuild = false;}); checkMarkSavedMessage();
@@ -1553,7 +2098,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                                   ),
                                 ),
                                 Container(
-                                  margin: EdgeInsets.only(left: 10, right: 20), 
+                                  margin: EdgeInsets.only(left: 10, right: 20),
                                   child: Text("NEW", style: TextStyle(color: Colors.red)),
                                 )
                               ]
@@ -1563,10 +2108,10 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                                 color: (isHighlightMessage == true) && Utils.checkedTypeEmpty(widget.id)
                                     ? isDark ? Palette.borderSideColorDark : Color(0xffEDEDED)
                                     : showMenu && (selectedTab == "channel" || selectedTab == "thread")
-                                      ? !isDark ? Color(0xffF8F8F8) : Color(0xff353535)
+                                      ? isDark ? Color(0xff353535) : (widget.isThread && !widget.isViewThread ? Palette.hoverColorDefault : Color.fromARGB(255, 245, 242, 242))
                                       : widget.isThread || widget.isViewThread || widget.isViewMention
                                         ? Colors.transparent
-                                        : isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight 
+                                        : isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight
                               ),
                               // margin: EdgeInsets.only(bottom: widget.isLast ? 6 : 0, left: 0),
                               padding: EdgeInsets.only(
@@ -1655,80 +2200,42 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                                                 ),
                                               ]
                                             ),
-                                            isDark: isDark,
                                             key: Key('ChatItemName${widget.id}')
                                           )
                                         ) : Container(),
                                         Utils.checkedTypeEmpty(widget.isUnsent) || Utils.checkedTypeEmpty(widget.waittingForResponse)
                                           ? Container(
                                             height: 19,
-                                            child: TextWidget(
-                                              (Utils.checkedTypeEmpty(widget.isUnsent) ? "[This message was deleted.]"
-                                              : Utils.checkedTypeEmpty(widget.waittingForResponse)? "[Waitting for response, tap to learn more.]"
-                                              : ""),
-                                              style: TextStyle(
-                                                fontStyle: FontStyle.italic,
-                                                color: Color(isDark ? 0xffe8e8e8 : 0xff898989)
-                                              ),
+                                            child: RichTextWidget(
+                                              TextSpan(
+                                                text: (Utils.checkedTypeEmpty(widget.isUnsent) ? "[This message was deleted.]"
+                                                : Utils.checkedTypeEmpty(widget.waittingForResponse)? "[Waitting for response, tap to learn more.]"
+                                                : ""),
+                                                style: TextStyle(
+                                                  fontStyle: FontStyle.italic,
+                                                  color: Color(isDark ? 0xffe8e8e8 : 0xff898989)
+                                                ),
+                                              )
                                             )
                                           )
-                                          : (widget.message != "" && widget.message != null)
-                                            ? Container(
-                                              padding: EdgeInsets.only(left: widget.isFirst || widget.showNewUser || widget.isAfterThread ? 0 : 3, right: 24),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: indexFromThread != -1
-                                                ? [
-                                                  widget.attachments != null && widget.attachments.length > 0
-                                                    ? AttachmentCardDesktop(
-                                                      blockCode: widget.blockCode,
-                                                      snippet: widget.snippet,
-                                                      attachments: widget.attachments,
-                                                      isChannel: widget.isChannel,
-                                                      id: widget.id,
-                                                      isChildMessage: widget.isChildMessage,
-                                                      isThread: widget.isThread,
-                                                      lastEditedAt: parseTime(widget.lastEditedAt),
-                                                      message: message
-                                                    )
-                                                    : Container(),
-                                                  MessageCardDesktop(message: widget.message, id: widget.id, lastEditedAt: parseTime(widget.lastEditedAt))
-                                                ]
-                                                : [
-                                                  MessageCardDesktop(message: widget.message, id: widget.id, lastEditedAt: parseTime(widget.lastEditedAt)),
-                                                  widget.attachments != null && widget.attachments.length > 0
-                                                    ? AttachmentCardDesktop(blockCode: widget.blockCode,
-                                                    snippet: widget.snippet,
-                                                    attachments: widget.attachments,
-                                                    isChannel: widget.isChannel,
-                                                    id: widget.id,
-                                                    isChildMessage: widget.isChildMessage,
-                                                    isThread: widget.isThread,
-                                                    lastEditedAt: parseTime(widget.lastEditedAt),
-                                                    message: message
-                                                  )
-                                                    : Container()
-                                                ],
-                                              ),
+                                          : (widget.message != "" && widget.message != null && !isAttachmentV2) ?
+                                           MessageCardDesktop(message: widget.message, id: widget.id, lastEditedAt: widget.lastEditedAt,) : Container(),
+                                          if(!Utils.checkedTypeEmpty(widget.isUnsent) && !Utils.checkedTypeEmpty(widget.waittingForResponse)) Container(
+                                            padding: EdgeInsets.only(left: widget.isFirst ? 0 : 3, right: 24),
+                                            child: AttachmentCardDesktop(
+                                              blockCode: widget.blockCode,
+                                              snippet: widget.snippet,
+                                              attachments: widget.attachments,
+                                              isChannel: widget.isChannel,
+                                              id: widget.id,
+                                              isChildMessage: widget.isChildMessage,
+                                              isThread: widget.isThread,
+                                              conversationId: widget.conversationId,
+                                              lastEditedAt: parseTime(widget.lastEditedAt),
+                                              message: message
                                             )
-                                            : widget.attachments != null && widget.attachments.length > 0
-                                              ? Container(
-                                                padding: EdgeInsets.only(left: widget.isFirst ? 0 : 3, right: 24),
-                                                child: AttachmentCardDesktop(
-                                                  blockCode: widget.blockCode,
-                                                  snippet: widget.snippet,
-                                                  attachments: widget.attachments,
-                                                  isChannel: widget.isChannel,
-                                                  id: widget.id,
-                                                  isChildMessage: widget.isChildMessage,
-                                                  isThread: widget.isThread,
-                                                  conversationId: widget.conversationId,
-                                                  lastEditedAt: parseTime(widget.lastEditedAt),
-                                                  message: message
-                                                )
-                                              )
-                                              : Container(),
-                                        (widget.isThread == false || widget.isThread == true && widget.isChildMessage == true) ? renderReactions(widget.reactions ?? [], []) : Container(),
+                                          ),
+                                        (widget.isThread == false || widget.isThread == true) ? renderReactions(widget.reactions ?? [], []) : Container(),
                                         (widget.count != null) && (widget.count > 0) && widget.infoThread.length > 0 ? renderInfoThread() : Container()
                                       ]
                                     )
@@ -1738,7 +2245,7 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
                             ),
                             if(widget.isFetchingUp) shimmerEffect(context, number: 5),
                           ]
-                        ), 
+                        ),
                       ],
                     ),
                   )
@@ -1751,8 +2258,353 @@ class _ChatItemMacOSState extends State<ChatItemMacOS> {
   }
 }
 
+class ShowMoreCard extends StatefulWidget {
+  const ShowMoreCard({
+    Key? key,
+    this.message,
+    this.avatarUrl,
+    this.insertedAt,
+    this.fullName,
+    this.id,
+    this.attachments,
+    this.count,
+    this.isChannel,
+    this.parentId,
+    this.isChildMessage,
+    this.userId,
+    this.width,
+    this.isThread,
+    this.reactions,
+    this.snippet,
+    this.conversationId,
+    this.channelId,
+    required this.isViewThread,
+    this.lastEditedAt,
+    this.isUnsent,
+    this.onShareMessage,
+    this.isDark,
+    this.currentTime,
+    required this.isShowFuntion,
+    required this.isShowExit,
+    this.isDirect,
+    this.isInDay = true
+
+
+  }) : super(key: key);
+  final message;
+  final avatarUrl;
+  final insertedAt;
+  final fullName;
+  final id;
+  final attachments;
+  final count;
+  final isChannel;
+  final parentId;
+  final isChildMessage;
+  final userId;
+  final width;
+  final isThread;
+  final reactions;
+  final snippet;
+  final conversationId;
+  final channelId;
+  final bool isViewThread;
+  final lastEditedAt;
+  final isUnsent;
+  final Function? onShareMessage;
+  final isDark;
+  final currentTime;
+  final isShowFuntion;
+  final isShowExit;
+  final isDirect;
+  final bool isInDay;
+
+  @override
+  State<ShowMoreCard> createState() => ShowMoreCardState();
+
+}
+class ShowMoreCardState extends State<ShowMoreCard> {
+  bool isshow = false;
+  parseAttachments(dataM) {
+    var message = dataM["message"] ?? "";
+    var mentions = dataM["attachments"] != null ?  dataM["attachments"].where((element) => element["type"] == "mention").toList() : [];
+
+    if (mentions.length > 0){
+      var mentionData =  mentions[0]["data"];
+      message = "";
+      for(var i= 0; i< mentionData.length ; i++){
+        if (mentionData[i]["type"] == "text" ) message += mentionData[i]["value"];
+        else message += "=======${mentionData[i]["trigger"] ?? "@"}/${mentionData[i]["value"]}^^^^^${mentionData[i]["name"]}^^^^^${mentionData[i]["type"] ?? ((mentionData[i]["id"].length < 10) ? "all" : "user")}+++++++";
+      }
+    }
+
+    return message;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+    final auth = Provider.of<Auth>(context);
+    final token = auth.token;
+    final selectedTab = Provider.of<User>(context, listen: false).selectedTab;
+    final channelId = widget.isChannel ? widget.channelId : null;
+    final workspaceId = widget.isChannel ? currentWorkspace["id"] : null;
+    final currentUser = Provider.of<User>(context, listen: false).currentUser;
+    final conversationId = widget.isChannel ? null : widget.conversationId ?? Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id;
+    final pinnedMessages = Provider.of<Channels>(context, listen: false).pinnedMessages;
+    final index = pinnedMessages.indexWhere((e) => e["id"] == widget.id);
+    Map message = {
+      "id": widget.id,
+      "message": widget.message,
+      "avatarUrl": widget.avatarUrl,
+      "insertedAt": widget.insertedAt,
+      "fullName": widget.fullName,
+      "attachments": widget.attachments,
+      "isChannel": widget.isChannel,
+      "userId": widget.userId,
+      "channelId": channelId,
+      "workspaceId": workspaceId,
+      "conversationId": conversationId,
+      "reactions": widget.reactions,
+      "lastEditedAt": widget.lastEditedAt,
+      "isUnsent": widget.isUnsent,
+      "count": widget.count,
+      "isChildMessage": widget.isChildMessage,
+      "current_time": widget.currentTime,
+      "conversation_id": conversationId
+    };
+    return InkWell(
+      onTap:(){
+        isshow = !isshow ;
+        widget.isShowFuntion(isshow);
+          isshow ? showPopover(
+            backgroundColor: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
+            radius: 2, context: context,
+            transitionDuration: const Duration(milliseconds: 50),
+            direction: PopoverDirection.top,
+            barrierColor: Colors.transparent,
+            width: 150,
+            arrowHeight: 8, arrowWidth: 20,
+            bodyBuilder: (BuildContext context) {
+              return SingleChildScrollView(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xff5E5E5E),width: 0.5),
+                    borderRadius: BorderRadius.circular(4)
+                  ),
+                  child: Column(
+                    children: [
+                      HoverItem(
+                        colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                        child: InkWell(
+                            onTap: () => setState(() {
+                              Navigator.pop(context);
+                              if (Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id != ""){
+                                Provider.of<DirectMessage>(context, listen: false).removeMarkNewMessage(Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id);
+                              }
+                              if ( Provider.of<Channels>(context, listen: false).currentChannel["id"] != null) {
+                                Provider.of<Channels>(context, listen: false).updateLastMessageReaded(Provider.of<Channels>(context, listen: false).currentChannel["id"], null);
+                              }
+                              widget.onShareMessage!({"mime_type": "share", "data": message});
+                            }),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 13,vertical: 10),
+                              child: Row(
+                                children: [
+                                  Icon(CupertinoIcons.arrowshape_turn_up_right, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 13),
+                                  SizedBox(width: 12,),
+                                  Text("Reply message",style: TextStyle(fontSize: 12 , color: isDark ? Color(0xffA6A6A6) : Color(0xff828282) ),)
+                                ],
+                          ),
+                            ),
+                        ),
+                      ),
+                      Divider(color: Color(0xff5E5E5E), thickness: 0.5, height: 0.5),
+                      HoverItem(
+                        colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                        child: InkWell(
+                          onTap: () => {
+                            Navigator.pop(context),
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return AlertDialog(
+                                  contentPadding: EdgeInsets.zero,
+                                  content: ForwardMessage(message: message)
+                                );
+                              }
+                            ),
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 13,vertical: 10),
+                            child: Row(
+                              children: [
+                                Icon(PhosphorIcons.shareNetwork, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 13),
+                                SizedBox(width: 12,),
+                                Text("Share message",style: TextStyle(fontSize: 12 , color: isDark ? Color(0xffA6A6A6) : Color(0xff828282) ),)
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Divider(color: Color(0xff5E5E5E), thickness: 0.5, height: 0.5),
+                      if ((selectedTab == "channel" || selectedTab == "thread" || selectedTab == "mention") && (index == -1) && !(widget.isThread && widget.isChildMessage) && widget.conversationId == null)
+                      HoverItem(
+                        colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                        child: InkWell(
+                          onTap: (){
+                            Provider.of<Channels>(context, listen: false).pinMessage(token, workspaceId, channelId, message["id"]);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12,vertical: 10),
+                            child: Row(
+                              children: [
+                                SvgPicture.asset('assets/icons/Pushpin.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
+                                SizedBox(width: 10,),
+                                Text("Push pin",style: TextStyle(fontSize: 12 , color: isDark ? Color(0xffA6A6A6) : Color(0xff828282) ),)
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Divider(color: Color(0xff5E5E5E), thickness: 0.5, height: 0.5),
+                      HoverItem(
+                        colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                        child: InkWell(
+                          onTap: (){
+                            final auth = Provider.of<Auth>(context, listen: false);
+                            DateTime dateTime = DateTime.parse(message["insertedAt"]);
+                            final messageTime = DateFormat('kk:mm').format(DateTime.parse(message["insertedAt"]).add(Duration(hours: 7)));
+                            final dayTime = DateFormatter().getVerboseDateTimeRepresentation(dateTime, auth.locale);
+
+                            final messageLastTime = (message["insertedAt"] != "" && message["insertedAt"] != null)
+                              ? "${dayTime == "Today" ? messageTime : DateFormatter().renderTime(DateTime.parse(widget.insertedAt), type: "MMMd") + " at $messageTime"}"
+                              : "";
+                            final workspaceId = Provider.of<Workspaces>(context, listen: false).currentWorkspace["id"];
+                            final channelId = Provider.of<Channels>(context, listen: false).currentChannel["id"];
+
+                            String description = (message["message"] != "" && message["message"] != null) ? message["message"] : message["attachments"].length > 0 ? parseAttachments(message) : "";
+
+                            if (message["attachments"].length > 0) {
+                              for (var i = 0; i < message["attachments"].length; i++) {
+                                var image = message["attachments"][i];
+                                if (image["mime_type"] == "image") {
+                                  description += "\n![${image["name"] ?? "Image"}](${image["content_url"]})";
+                                }
+                              }
+                            }
+                            /*
+                              required data Message Create Issue
+                              final message = {
+                                'id': widget.id,
+                                'message': widget.message,
+                                'attachments': widget.attachments,
+                                "avatarUrl": widget.avatarUrl ?? "",
+                                "fullName": widget.fullName ?? "",
+                                "workspaceId": widget.conversationId != null ? null : currentWorkspace['id'],
+                                "channelId": widget.channelId,
+                                'conversationId': widget.conversationId,
+                                'insertedAt': widget.insertedAt,
+                                'isChannel': widget.isChannel
+                              };
+                            */
+                            Map newIssue = {
+                              "workspace_id": workspaceId,
+                              "channel_id": channelId,
+                              "title": message["message"].length < 48 ? message["message"].replaceAll("\n", " ") : message["message"].replaceAll("\n", " ").substring(0, 48),
+                              "description": "$description \n\n${widget.fullName} - $messageLastTime",
+                              "comments": [],
+                              "timelines": [],
+                              "type": "create",
+                              "is_closed": false,
+                              "from_message": true,
+                              "message": message
+                            };
+
+                            Provider.of<Channels>(context, listen: false).onChangeOpenIssue(newIssue);
+                            Provider.of<Auth>(context, listen: false).keyDrawer.currentState!.openEndDrawer();
+                            widget.isShowFuntion(isshow);
+                            Navigator.pop(context);
+                          },
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12,vertical: 10),
+                            child: Row(
+                              children: [
+                                Icon(Icons.add_task_rounded, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 17),
+                                SizedBox(width: 10,),
+                                Text("New issue",style: TextStyle(fontSize: 12 , color: isDark ? Color(0xffA6A6A6) : Color(0xff828282) ),)
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if ( currentUser["id"] == message["userId"] && !Utils.checkedTypeEmpty(widget.isUnsent) || !widget.isChannel)
+                      Divider(color: Color(0xff5E5E5E), thickness: 0.5, height: 0.5),
+                      if ( currentUser["id"] == message["userId"] && !Utils.checkedTypeEmpty(widget.isUnsent) || !widget.isChannel)
+                      (widget.isChannel && widget.isInDay) ? HoverItem(
+                        colorHover: isDark ? Palette.hoverColorDefault : Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
+                        child: InkWell(
+                          onTap: () => {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return CustomConfirmDialog(
+                                  subtitle: 'Do you want to delete this message ?',
+                                  title: 'Delete message',
+                                  onConfirm: () {
+                                    Provider.of<Messages>(context, listen: false).deleteChannelMessage(token, workspaceId, channelId, message["id"]);
+                                    Navigator.pop(context);
+                                  },
+                                  onCancel: () {
+                                    Navigator.pop(context);
+                                  },
+                                );
+                              }
+                            )
+                          },
+                          child: Row(
+                            children: [
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                focusColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                                hoverColor: Colors.transparent,
+                                splashColor: Colors.transparent,
+                                onPressed: () {},
+                                icon: SvgPicture.asset('assets/icons/delete.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282)),
+                              ),
+                              Text("Delete message",style: TextStyle(fontSize: 12 , color: isDark ? Color(0xffA6A6A6) : Color(0xff828282) ),)
+                            ],
+                          ),
+                        ),
+                      ) : SizedBox(),
+                    ]
+                  )
+                ),
+              );
+            }
+          ).then((value) {
+            widget.isShowExit();
+            widget.isShowFuntion(false);
+          }
+        ): Navigator.pop(context);
+      },
+      child: ListAction(
+        action: '',
+        isDark: isDark,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 10,right: 10,top: 8,bottom: 8),
+          child: Icon(CupertinoIcons.ellipsis_vertical, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), size: 15,),
+        ),
+      ),
+    );
+  }
+}
+
 onShowUserInfo(context, id) {
-  showDialog(
+  showModal(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(

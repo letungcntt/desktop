@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
+import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/styles.dart';
@@ -12,7 +12,7 @@ import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/dropdown_overlay.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class WorkspaceSettingsRole extends StatefulWidget {
   const WorkspaceSettingsRole({ Key? key }) : super(key: key);
@@ -30,6 +30,7 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
   String? filter;
   int action = 0;
   String? selectedId;
+  Map? transferId;
   bool loading = false;
 
   void dispose(){
@@ -46,6 +47,8 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
     final currentMember = Provider.of<Workspaces>(context, listen: false).currentMember;
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+    final wsMembers = Provider.of<Workspaces>(context, listen: true).members;
+    final members = wsMembers.where((ele) => ele["account_type"] == 'user' && ele['role_id'] != 1).toList();
 
     return Container(
       margin: EdgeInsets.only(right: 10),
@@ -87,7 +90,7 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                 final member = roleMembers[index];
                 return Container(
                   padding: EdgeInsets.only(top: 12, left: 16, right: 16, bottom: ((action != 0) && selectedId == member['id']) ? 6 : 12),
-                  color: ((action != 0) && selectedId == member['id']) ? Color(0xff5E5E5E).withOpacity(0.8) : Colors.transparent,
+                  color: ((action != 0) && selectedId == member['id']) ? isDark ? Color(0xff5E5E5E).withOpacity(0.8) : Colors.black12 : Colors.transparent,
                   child: Column(
                     children: [
                       Row(
@@ -122,7 +125,7 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                                 SizedBox(width: 12),
                                 Container(
                                   child: Text(
-                                    member['full_name'],
+                                    member['full_name'] ?? "",
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(color: isDark ? Colors.white : Color(0xff1d1c1d), fontSize: 15, fontWeight: FontWeight.w500),
                                   ),
@@ -137,7 +140,7 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    member['email'],
+                                    member['email'] ?? "None",
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(color: isDark ? Colors.white70 : Color(0xff616061), fontSize: 15),
                                   ),
@@ -182,7 +185,7 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                                         ? S.current.cantActionsForYou(member['full_name'])
                                         : S.current.yourRoleCannotAction
                                     ),
-                                  ), 
+                                  ),
                                   colorHover: null,
                                   child: Icon(CupertinoIcons.ellipsis, size: 16, color: isDark ? Colors.white24 : Color(0x1d1c1d21))
                                 ),
@@ -218,7 +221,7 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                                   ),
                                   borderRadius: BorderRadius.all(Radius.circular(2))
                                 ),
-                                child: Text(S.current.cancel, style: TextStyle(color: Colors.white)),
+                                child: Text(S.current.cancel, style: TextStyle()),
                               ),
                             ),
                             SizedBox(width: 5),
@@ -258,17 +261,18 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                           ],)
                         ],
                       ),
-                      if ((action == 3) && selectedId == member['id']) LayoutBuilder(
+                      if ((action == 3) && member["role_id"] == 1 && selectedId == member['id']) LayoutBuilder(
                         builder: (context, contraints) => Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             Text(S.current.transferTo),
                             SizedBox(width: 5),
-                            InkWell(
-                              onTap: () {},
+                            DropdownOverlay(
+                              isAnimated: true,
+                              menuDirection: MenuDirection.end,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Palette.backgroundTheardDark,
+                                  color: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
                                   borderRadius: BorderRadius.all(Radius.circular(2))
                                 ),
                                 height: 32, width: contraints.maxWidth * 1/3,
@@ -276,18 +280,113 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [
                                     Container(
-                                      child: Text(
-                                        S.current.selectMember,
-                                        style: TextStyle(
-                                          color: Color(0xffF0F4F8),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                      child: transferId != null
+                                        ? Row(
+                                            children: [
+                                              CachedAvatar(
+                                                transferId!["avatar_url"] ?? "",
+                                                name: transferId!["full_name"],
+                                                width: 28,
+                                                height: 28
+                                              ),
+                                              SizedBox(width: 10),
+                                              Text(
+                                                transferId!["full_name"],
+                                                style: TextStyle(
+                                                  color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 065)
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            S.current.selectMember,
+                                            style: TextStyle(
+                                              color: isDark ? Color(0xffF0F4F8) : Colors.black45,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                     ),
                                     SizedBox(width: 4),
                                     Icon(Icons.arrow_drop_down, color: Colors.white, size: 20)
                                   ]
                                 )
+                              ),
+                              dropdownWindow: StatefulBuilder(
+                                builder: ((context, setState) {
+                                  return Container(
+                                    constraints: new BoxConstraints(
+                                      maxHeight: 300.0,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isDark ? Palette.backgroundTheardDark : Colors.white,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)
+                                    ),
+                                    child: SingleChildScrollView(
+                                      child: Column(
+                                        children: [
+                                          ListView.builder(
+                                            shrinkWrap: true,
+                                            itemCount: members.length,
+                                            itemBuilder: (BuildContext context, int index) {
+                                              final item = members[index];
+
+                                              return TextButton(
+                                                style: ButtonStyle(
+                                                  overlayColor: MaterialStateProperty.all(isDark ? Palette.selectChannelColor : Color(0xffF3F3F3)),
+                                                  padding: MaterialStateProperty.all(EdgeInsets.zero)
+                                                ),
+                                                onPressed: () {
+                                                  if (transferId != null && transferId!["id"] == item["id"]) setState(() => transferId = null);
+                                                  else setState(() => transferId = {"id": item["id"], "full_name": item["full_name"], "avatar_url": item["avatar_url"]});
+                                                  this.setState(() {});
+                                                },
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    border: index != members.length -1 ? Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)) : null,
+                                                  ),
+                                                  padding: EdgeInsets.all(12),
+                                                  child: Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Row(
+                                                        children: [
+                                                          CachedAvatar(
+                                                            item["avatar_url"] ?? "",
+                                                            name: item["name"],
+                                                            width: 28,
+                                                            height: 28
+                                                          ),
+                                                          SizedBox(width: 10),
+                                                          Text(
+                                                            item["full_name"],
+                                                            style: TextStyle(
+                                                              color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 065)
+                                                            ),
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      Flexible(
+                                                        child: Container(
+                                                          margin: EdgeInsets.only(right: 5),
+                                                          child: transferId != null && transferId!["id"] == item["id"]
+                                                            ? Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 16, color: Palette.buttonColor)
+                                                            : Container(width: 16, height: 16)
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            }
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  );
+                                }),
                               ),
                             ),
                             SizedBox(width: 5),
@@ -338,7 +437,11 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                             ),
                             SizedBox(width: 5),
                             InkWell(
-                              onTap: () {},
+                              onTap: () async {
+                                setState(() => loading = true);
+                                await Provider.of<Workspaces>(context, listen: false).transferOwner(auth.token, transferId!["id"], _passwordController.text)
+                                  .then((e) => setState(() { loading = false; action = 0; selectedId = null; }));
+                              },
                               child: Container(
                                 width: 100,
                                 margin: EdgeInsets.symmetric(vertical: 12),
@@ -357,7 +460,8 @@ class _WorkspaceSettingsRoleState extends State<WorkspaceSettingsRole> {
                                   )
                                   : Text(
                                     S.current.transfer,
-                                    style: TextStyle(color: Colors.white)
+                                    style: TextStyle(color: Colors.white),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                               ),
                             )

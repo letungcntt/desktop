@@ -5,7 +5,7 @@
   "entities": [
     {
       "id": "1:6861805016079206464",
-      "lastPropertyId": "9:2329653410046300580",
+      "lastPropertyId": "10:3413264603912303315",
       "name": "Media",
       "properties": [
         {
@@ -57,6 +57,11 @@
           "id": "9:2329653410046300580",
           "name": "status",
           "type": 9
+        },
+        {
+          "id": "10:3413264603912303315",
+          "name": "version",
+          "type": 6
         }
       ],
       "relations": []

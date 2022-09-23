@@ -1,23 +1,29 @@
-// ignore_for_file: body_might_complete_normally_nullable
-
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:bitsdojo_window/bitsdojo_window.dart';
+import 'package:context_menus/context_menus.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/video_player.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
+import 'package:workcake/components/custom_context_menu.dart';
 import 'package:workcake/components/image_reply.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/media_conversation/model.dart';
 import 'package:workcake/media_conversation/stream_media_downloaded.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:crypto/crypto.dart';
+
+import '../../../services/download_status.dart';
+import '../../main_menu/task_download_item.dart';
 
 class ImagesGallery extends StatefulWidget {
   ImagesGallery({
@@ -74,6 +80,8 @@ class _ImagesGalleryState extends State<ImagesGallery> {
   @override
   Widget build(BuildContext context) {
     final messageImage = Provider.of<Messages>(context, listen: true).messageImage;
+    final auth = Provider.of<Auth>(context, listen: false);
+    final isDark = auth.theme == ThemeType.DARK;
 
     return Container(
       alignment: Alignment.centerLeft,
@@ -95,32 +103,70 @@ class _ImagesGalleryState extends State<ImagesGallery> {
             child: GestureDetector(
               onTap: img["content_url"].toString().toLowerCase().split(".").last == "mov" ? null : () async{
                 onTapImage(img);
-                if(Utils.checkedTypeEmpty(widget.message)) Provider.of<Messages>(context, listen: false).onChangeMessageImage((widget.message['isChildMessage'] ?? false) ? messageImage : (widget.message ?? {}));
-                Navigator.push(context, PageRouteBuilder(
-                  barrierColor: Colors.black.withOpacity(1.0),
-                  barrierLabel: '',
-                  opaque: false,
-                  barrierDismissible: true,
-                  pageBuilder: (context,_, __) => (Utils.checkedTypeEmpty(widget.message) && !widget.message['isChildMessage'])
-                    ? ImageReply(page: page, tags: tags, att: widget.att)
-                    : Gallery(
-                      page: page,
-                      tags: tags,
-                      att: widget.att,
-                      isShowThread: false,
-                      isChildMessage: true,
-                      isConversation: widget.isConversation
-                    )
-                )).then((value) {
-                  if (widget.message == null) return;
-                  Provider.of<Messages>(context, listen: false).onChangeMessageImage(widget.message['isChildMessage'] ? messageImage : {});
+                SchedulerBinding.instance.addPostFrameCallback((_) {
+                  if(Utils.checkedTypeEmpty(widget.message))
+                  Provider.of<Messages>(context, listen: false).onChangeMessageImage((widget.message['isChildMessage'] ?? false) ? messageImage : (widget.message ?? {}));
+                  Navigator.push(context, PageRouteBuilder(
+                    barrierColor: Colors.black.withOpacity(1.0),
+                    barrierLabel: '',
+                    opaque: false,
+                    barrierDismissible: true,
+                    pageBuilder: (context,_, __) => (Utils.checkedTypeEmpty(widget.message) && !widget.message['isChildMessage'])
+                      ? ImageReply(page: page, tags: tags, att: widget.att)
+                      : Gallery(
+                        page: page,
+                        tags: tags,
+                        att: widget.att,
+                        isShowThread: false,
+                        isChildMessage: true,
+                        isConversation: widget.isConversation
+                      )
+                  )).then((value) {
+                    if (widget.message == null) return;
+                    Provider.of<Messages>(context, listen: false).onChangeMessageImage(widget.message['isChildMessage'] ? messageImage : {});
+                  });
                 });
               },
               child: img["content_url"] == null
               ? Text("Message unavailable", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13, fontWeight: FontWeight.w200))
               : img["content_url"].toString().toLowerCase().split(".").last == "mov" || img["content_url"].toString().toLowerCase().split(".").last == "mp4" ? VideoPlayer(att: img) : ImageItem(tag: tags[index], img: img, isThread: widget.isThread, previewComment: true, isConversation: widget.isConversation)
             ),
-          ) : Container(
+          ) : ContextMenuRegion(
+            contextMenu: GenericContextMenu(
+              buttonConfigs: [
+                ContextMenuButtonConfig(
+                  widget.isConversation ? 'Copy image' : 'Copy link image',
+                  icon: Icon(Icons.copy, size: 16),
+                  onPressed: () async{
+                    if(widget.isConversation) {
+                      MethodChannel channel = MethodChannel("copy");
+                      String urlImage = await ServiceMedia.getDownloadedPath(img["content_url"]) ?? img["content_url"];
+                      channel.invokeMethod("copy_image", urlImage);
+                    } else {
+                      Clipboard.setData(new ClipboardData(text: img["content_url"]));
+                    }
+                  }
+                ),
+                ContextMenuButtonConfig(
+                  'Save image',
+                  icon: Icon(CupertinoIcons.cloud_download, size: 16),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (dialogContex)  {
+                        return CustomConfirmDialog(
+                          title: "Download attachment",
+                          subtitle: "Do you want to download ${img["name"]}",
+                          onConfirm: () async {
+                            Provider.of<Work>(context, listen: false).addTaskDownload({"content_url":img["content_url"], "name": img["name"],  "key_encrypt": img["key_encrypt"], "version": img["version"]});
+                          }
+                        );
+                      }
+                    );
+                  }
+                ),
+              ]
+            ),
             child: GestureDetector(
               onTap: img["content_url"].toString().toLowerCase().split(".").last == "mov" ? null : () async{
                 onTapImage(img);
@@ -129,33 +175,86 @@ class _ImagesGalleryState extends State<ImagesGallery> {
                   ? (messageImage['id'] != null ?  messageImage : widget.message)
                   : (widget.message ?? {})
                 );
-                if(Utils.checkedTypeEmpty(widget.message)) Navigator.push(context, PageRouteBuilder(
-                  barrierColor: Colors.black.withOpacity(1.0),
-                  barrierLabel: '',
-                  opaque: false,
-                  barrierDismissible: true,
-                  pageBuilder: (context,_, __) => (Utils.checkedTypeEmpty(widget.message) && !widget.message['isChildMessage'])
-                    ? ImageReply(page: page, tags: tags, att: widget.att)
-                    : Gallery(
-                      page: page,
-                      tags: tags,
-                      att: widget.att,
-                      isShowThread: false,
-                      isChildMessage: true,
-                      isConversation: widget.isConversation,
-                    )
-                )).then((value) {
-                  Provider.of<Messages>(context, listen: false).onChangeMessageImage(
-                    widget.message != null && (widget.message['isChildMessage'] ?? false)
-                    ? (messageImage['id'] != null ? (messageImage['id'] ==  widget.message['id'] ? {} : messageImage) : {})
-                    : {}
-                  );
-                }
-                );
+                // if (Utils.checkedTypeEmpty(widget.message))
+                  SchedulerBinding.instance.addPostFrameCallback((_) {
+                    Navigator.push(context, PageRouteBuilder(
+                      barrierColor: Colors.black.withOpacity(1.0),
+                      barrierLabel: '',
+                      opaque: false,
+                      barrierDismissible: true,
+                      pageBuilder: (context,_, __) => (Utils.checkedTypeEmpty(widget.message) && !widget.message['isChildMessage'])
+                        ? ImageReply(page: page, tags: tags, att: widget.att)
+                        : Gallery(
+                          page: page,
+                          tags: tags,
+                          att: widget.att,
+                          isShowThread: false,
+                          isChildMessage: true,
+                          isConversation: widget.isConversation,
+                        )
+                    )).then((value) {
+                      Provider.of<Messages>(context, listen: false).onChangeMessageImage(
+                        widget.message != null && (widget.message['isChildMessage'] ?? false)
+                        ? (messageImage['id'] != null ? (messageImage['id'] ==  widget.message['id'] ? {} : messageImage) : {})
+                        : {}
+                      );
+                    });
+                  });
               },
-              child: img["content_url"] == null
+              child: img["uploading"] == true ?   Container(
+                constraints: BoxConstraints(maxWidth: 330, minWidth: 250),
+                margin: EdgeInsets.only(bottom: 5, top: 5),
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Color(0X55D1D2D3)
+                  ),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      child: Icon(CupertinoIcons.doc_fill, size: 30.0, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)
+                    ),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              img["name"] ?? "",
+                              style: TextStyle(
+                                overflow: TextOverflow.ellipsis,
+                                color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15
+                              )
+                            ),
+                            SizedBox(height: 2),
+                            ClipRRect(
+                              borderRadius: BorderRadius.all(Radius.circular(10)),
+                              child:  Text(
+                                "Processing",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Palette.defaultTextDark.withOpacity(0.7) : Palette.defaultTextLight,
+                                  fontWeight: FontWeight.w300
+                                )
+                              )
+                            )
+                          ]
+                        )
+                      )
+                    )
+                  ]
+                )
+              ) : img["content_url"] == null
                 ? Text("Message unavailable", style: TextStyle(color: Colors.grey[500], fontStyle: FontStyle.italic, fontSize: 13, fontWeight: FontWeight.w200))
-                : img["content_url"].toString().toLowerCase().split(".").last == "mov" || img["content_url"].toString().toLowerCase().split(".").last == "mp4" ? VideoPlayer(att: img) : ImageItem(tag: tags[index], img: img, isThread: widget.isThread, isConversation: widget.isConversation)
+                : img["content_url"].toString().toLowerCase().split(".").last == "mov" || img["content_url"].toString().toLowerCase().split(".").last == "mp4"
+                  ? VideoPlayer(att: img)
+                  : ImageItem(tag: tags[index], img: img, isThread: widget.isThread, isConversation: widget.isConversation)
             )
           );
         }).toList()
@@ -171,6 +270,7 @@ class ImageItem extends StatefulWidget {
     this.previewComment = false,
     this.isThread,
     this.fromIssue = false,
+    this.failed,
     required this.isConversation
   }) : super(key: key);
 
@@ -180,6 +280,7 @@ class ImageItem extends StatefulWidget {
   final isThread;
   final fromIssue;
   final bool isConversation;
+  final failed;
 
   @override
   State<ImageItem> createState() => _ImageItemState();
@@ -189,19 +290,27 @@ class _ImageItemState extends State<ImageItem> {
   bool failed = false;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.failed != null) {
+      this.setState(() {
+        failed = widget.failed;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     var img = widget.img;
     final imageData = img["image_data"];
     double? height = (imageData != null && imageData["height"] != null) ? int.parse(imageData["height"].toString()).toDouble() : null;
     double? width = (imageData != null && imageData["width"] != null) ? int.parse(imageData["width"].toString()).toDouble() : null;
     int? cacheWidth = (imageData != null && imageData["width"] != null) ? int.parse(imageData["width"].toString()): null;
-    // var cacheHeight = (imageData != null && imageData["height"] != null) ? imageData["height"] : null;
-    // var ratio = (cacheWidth != null && cacheHeight != null) ? cacheWidth/cacheHeight : 1;
 
     return Hero(
       tag: widget.tag,
       child: Container(
-        constraints: (widget.isThread != null && widget.isThread)
+        constraints: (widget.isThread == true)
           ? BoxConstraints(maxHeight: 124, maxWidth: 220)
           : BoxConstraints(maxHeight: 220),
         decoration: BoxDecoration(
@@ -220,7 +329,7 @@ class _ImageItemState extends State<ImageItem> {
                   return  CustomConfirmDialog(title: "Download attachment",
                     subtitle: "Do you want to download ${img["name"]}",
                     onConfirm: ()  async {
-                      Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": img["content_url"], 'name': img["name"],  "key_encrypt": img["key_encrypt"],});
+                      Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": img["content_url"], 'name': img["name"],  "key_encrypt": img["key_encrypt"], "version": img["version"]});
                     }
                   );
                 }
@@ -235,7 +344,7 @@ class _ImageItemState extends State<ImageItem> {
                 borderRadius: BorderRadius.circular(6.0),
               ),
               child: Wrap(
-                alignment: WrapAlignment.center,  
+                alignment: WrapAlignment.center,
                 direction: Axis.vertical,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
@@ -245,7 +354,7 @@ class _ImageItemState extends State<ImageItem> {
               )
             )
           ) :
-          widget.isConversation 
+          widget.isConversation
           ?  ImageDirect.build(context, img["content_url"])
           :  ExtendedImage.network(
             img["content_url"],
@@ -274,7 +383,7 @@ class _ImageItemState extends State<ImageItem> {
                           subtitle: "Do you want to download ${img["name"]}",
                           onConfirm: ()  async {
                             var url = img["content_url"];
-                            Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": url, 'name': img["name"],  "key_encrypt": img["key_encrypt"],});
+                            Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": url, 'name': img["name"],  "key_encrypt": img["key_encrypt"],  "version": img["version"]});
                           }
                         );
                       }
@@ -288,7 +397,7 @@ class _ImageItemState extends State<ImageItem> {
                           return  CustomConfirmDialog(title: "Download attachment",
                             subtitle: "Do you want to download ${img["name"]}",
                             onConfirm: ()  async {
-                              Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": img["content_url"], 'name': img["name"],  "key_encrypt": img["key_encrypt"],});
+                              Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": img["content_url"], 'name': img["name"],  "key_encrypt": img["key_encrypt"],  "version": img["version"]});
                             }
                           );
                         }
@@ -304,7 +413,7 @@ class _ImageItemState extends State<ImageItem> {
                       ),
                       child: Center(
                         child: Wrap(
-                          alignment: WrapAlignment.center,  
+                          alignment: WrapAlignment.center,
                           direction: Axis.vertical,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
@@ -385,12 +494,18 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
   bool isRightHovered = false;
   bool isLeftHovered = false;
   bool hideCopied = true;
+  bool hideDowload = true;
   bool showActionButton = false;
   int lastTime = 0;
   bool hoveredActionButton = false;
+  String drawerType = "file";
+  String id  = "";
+  MethodChannel channel = MethodChannel("copy");
+  var _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
+    page = widget.page ?? 0;
     _controller = AnimationController(
       duration: const Duration(milliseconds: 100),
       vsync: this,
@@ -466,6 +581,18 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
     _controller!.forward();
   }
 
+  openDrawer(type) {
+    setState(() => drawerType = type);
+
+    if (drawerType == "file") {
+      _scaffoldKey.currentState!.openDrawer();
+    } else if (drawerType == "savedMessages") {
+      _scaffoldKey.currentState!.openDrawer();
+    } else {
+      _scaffoldKey.currentState!.openEndDrawer();
+    }
+  }
+
   onEntered(bool isHover, bool isRight) {
     if(isRight == true) {
       setState(() {
@@ -486,6 +613,8 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
     final url = widget.att["data"][page]["content_url"];
     final name = widget.att["data"][page]["name"] ?? widget.att["data"][page]["filename"];
     final keyEncrypt =  widget.att["data"][page]["key_encrypt"] ?? "";
+    final version =  widget.att["data"][page]["version"] ?? "";
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: LayoutBuilder(
@@ -495,7 +624,6 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
               Listener(
                 onPointerHover: (event) {
                   onPointerHover();
-                  // print(mou);
                 },
                 child: RotationTransition(
                   turns: animation!,
@@ -519,7 +647,9 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                         item,
                         fit: BoxFit.contain,
                         cache: true,
-                        initGestureConfigHandler: initGestureConfigHandler
+                        initGestureConfigHandler: initGestureConfigHandler,
+                        clearMemoryCacheWhenDispose: true,
+                        mode: ExtendedImageMode.gesture,
                       );
                       image = Container(
                         child: image,
@@ -596,7 +726,7 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                   ),
                 )
               ) : Positioned(child: Container()),
-              
+
               page > 0 ? Positioned(
                 top: 0, left: 0,
                 child: MouseRegion(
@@ -655,7 +785,12 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
+                        Expanded(
+                          child: MoveWindow(),
+                        ),
                         if(hideCopied == false) Text("Image has been copied", style: TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.w700, color: Color(0xff27AE60))),
+                        if(hideDowload == false) Text("Image has been downloaded", style: TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.w700, color: Color(0xff27AE60))),
+
                         widget.isChildMessage ?? false ? Container() : Container(
                           height: 50, width: 50,
                           child: HoverItem(
@@ -670,7 +805,7 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                             ),
                           )
                         ),
-                        Container(
+                        widget.isConversation ? Container(
                           height: 50,
                           width: 50,
                           child: HoverItem(
@@ -682,31 +817,73 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                                 setState(() {
                                   hideCopied = false;
                                 });
-                                MethodChannel channel = MethodChannel("copy");
                                 String urlImage = await ServiceMedia.getDownloadedPath(url) ?? url;
                                 channel.invokeMethod("copy_image", urlImage);
                                 Future.delayed(Duration(milliseconds: 2500), () {
                                   if (!mounted) return;
                                   setState(() {
                                     hideCopied = true;
-                                  });    
+                                  });
                                 });
-                              
+
                               },
                               child: Icon(Icons.copy, size: 20, color: Colors.white,)
                             ),
                           )
+                        ) : ContextMenu(
+                          contextMenu: GenericContextMenu(
+                            buttonConfigs: [
+                              ContextMenuButtonConfig(
+                                'Copy File',
+                                onPressed: () async{
+                                  setState(() {
+                                    hideCopied = false;
+                                  });
+                                  String urlImage = await ServiceMedia.getDownloadedPath(url) ?? url;
+                                  channel.invokeMethod("copy_image", urlImage);
+                                  Future.delayed(Duration(milliseconds: 2500), () {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      hideCopied = true;
+                                    });
+                                  });
+                                }
+                              ),
+                              ContextMenuButtonConfig(
+                                'Copy Link',
+                                onPressed: () => Clipboard.setData(new ClipboardData(text: url)),
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            height: 50,
+                            width: 50,
+                            child: HoverItem(
+                              colorHover: Colors.grey.withOpacity(0.4),
+                              child: Icon(Icons.copy, size: 20, color: Colors.white,),
+                            )
+                          ),
                         ),
-                        Container(
-                          height: 50,
-                          width: 50,
-                          child: HoverItem(
-                            colorHover: Colors.grey.withOpacity(0.4),
-                            child: InkWell(
-                              focusNode: FocusNode(skipTraversal: true),
-                              highlightColor: Color(0xff27AE60),
-                              onTap: () => Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": url, "name": name,  "key_encrypt": keyEncrypt}),
-                              child: Icon(Icons.file_download, size: 20, color: Color(0xFFFFFFFF))
+                        InkWell(
+                          child: Container(
+                            height: 50,
+                            width: 50,
+                            child: HoverItem(
+                              colorHover: Colors.grey.withOpacity(0.4),
+                              child: InkWell(
+                                focusNode: FocusNode(skipTraversal: true),
+                                highlightColor: Color(0xff27AE60),
+                                onTap: () {
+                                  setState(() => id = Utils.getRandomString(10));
+                                  hideDowload = false;
+                                  Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": url, "name": name, "id": id,  "key_encrypt": keyEncrypt,  "version": version});
+                                  Future.delayed(Duration(milliseconds: 2500), () {
+                                  if (!mounted) return;
+                                    setState(() => hideDowload = true);
+                                  });
+                                },
+                                child: Icon(Icons.file_download, size: 20, color: Color(0xFFFFFFFF))
+                              ),
                             ),
                           ),
                         ),
@@ -722,9 +899,9 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                               child: Icon(Icons.close_rounded, size: 24, color: Colors.white)
                             ),
                           )
-                        )
+                        ),
                       ]
-                    )
+                    ),
                   ),
                 )
               ),
@@ -802,10 +979,60 @@ class _GalleryState extends State<Gallery> with TickerProviderStateMixin {
                   ),
                 )
               ),
+              Positioned(
+                bottom: 8, right: 8,
+                child: Container(
+                  height: 90,
+                  child: TaskDownloadImage(idShow: id,)), 
+              ),
             ]
           );
         }
       ),
     );
+  }
+}
+
+class TaskDownloadImage extends StatefulWidget{
+  final showDownload;
+  final idShow;
+
+  TaskDownloadImage({
+    Key? key,
+    this.showDownload, required this.idShow,
+  }): super(key: key);
+  @override
+  _TaskDownloadImage createState() => _TaskDownloadImage();
+}
+
+class _TaskDownloadImage extends State<TaskDownloadImage>{
+
+  @override
+  Widget build(BuildContext context) {
+    List tasks = Provider.of<Work>(context, listen: true).taskDownload;
+  return StreamBuilder(
+    stream: StreamDownloadStatus.instance.status,
+    initialData: {},
+    builder: (context, data){
+
+    return Container(
+        child: SingleChildScrollView(
+          child: Column(
+            children: tasks.map((e) {
+              var id = e["id"];
+              var progress = 0.0;
+              if (data.data != null){
+                progress = (data.data as Map?)![id] ?? 0.0;
+              }
+              if (e["id"] != widget.idShow) {
+                return SizedBox();
+              } 
+                return TaskDownloadItem(att: {...e, "progress": progress}, showDownload: widget.showDownload == null ? false : widget.showDownload);
+              
+            }).toList(),
+          ),
+        )
+      );
+    });
   }
 }

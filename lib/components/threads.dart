@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ThreadsTab extends StatefulWidget {
   ThreadsTab({Key? key, this.threadTabKey}) : super(key: key);
@@ -61,12 +60,12 @@ class _ThreadsTabState extends State<ThreadsTab> {
       decoration: selectedTab == "thread" ? BoxDecoration(
         borderRadius: BorderRadius.all(Radius.circular(3)),
         color: Palette.selectChannelColor
-      ) 
+      )
       : isHover ? BoxDecoration(
           borderRadius: BorderRadius.all(Radius.circular(3)),
           color: Palette.backgroundRightSiderDark
       ) : BoxDecoration(),
-      
+
       margin: EdgeInsets.only(top: 4, right: 8, left: 8, bottom: 4),
       child: InkWell(
         onHover: (value) => setState(() => isHover = value),
@@ -101,7 +100,7 @@ class _ThreadsTabState extends State<ThreadsTab> {
                               ? Palette.darkTextListChannel
                               : Palette.lightTextListChannel,
                   ),
-                  SizedBox(width: 10),
+                  SizedBox(width: 8),
                   Text(
                     S.of(context).threads,
                     style: TextStyle(

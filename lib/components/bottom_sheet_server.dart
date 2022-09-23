@@ -1,9 +1,8 @@
 import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class BottomSheetWorkspace extends StatefulWidget {
   BottomSheetWorkspace({key, this.action}) : super(key: key);
@@ -133,7 +132,7 @@ class _BottomSheetWorkspaceState extends State<BottomSheetWorkspace> {
               child: TextButton(
                 onPressed: () {
                   if (serverName != "") {
-                    createWorkspace(serverName); 
+                    createWorkspace(serverName);
                   }
                 },
                 style: ButtonStyle(
@@ -191,10 +190,10 @@ class MyPainter extends CustomPainter {
   final completeColor;
   final width;
 
-  MyPainter({ 
+  MyPainter({
     this.completeColor, this.width
   });
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     Paint complete = new Paint()

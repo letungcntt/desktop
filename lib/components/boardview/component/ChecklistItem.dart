@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/boardview/CardItem.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'TaskItem.dart';
 
@@ -28,6 +27,27 @@ class ChecklistItem extends StatefulWidget {
 class _ChecklistItemState extends State<ChecklistItem> {
   TextEditingController taskController = TextEditingController();
   bool onAddTask = false;
+  bool editChecklistTitle = false;
+  TextEditingController titleController = TextEditingController();
+
+  onEditChecklistTitle(value) {
+    this.setState(() {
+      editChecklistTitle = true;
+    });
+    titleController.text = widget.checklist["title"];
+  }
+
+  updateChecklist() {
+    final token = Provider.of<Auth>(context, listen: false).token;
+    CardItem? card =  Provider.of<Boards>(context, listen: false).selectedCard;
+    if (card == null || titleController.text.trim() == "") return;
+    Provider.of<Boards>(context, listen: false).updateChecklist(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id, widget.checklist["id"], titleController.text);
+    widget.checklist["title"] = titleController.text;
+    titleController.clear();
+    this.setState(() {
+      editChecklistTitle = false;
+    });
+  }
 
   onDeleteTask(index) {
     final token = Provider.of<Auth>(context, listen: false).token;
@@ -88,8 +108,29 @@ class _ChecklistItemState extends State<ChecklistItem> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(checklist["title"], style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)),
-              ShowMoreChecklistItem(indexChecklist: widget.indexChecklist, deleteChecklist: widget.deleteChecklist, onCheckAll: onCheckAll)
+              !editChecklistTitle ? Text(checklist["title"], style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight)) : Expanded(
+                child: TextFormField(
+                  autofocus: true,
+                  onEditingComplete: () {
+                    updateChecklist();
+                  },
+                  controller: titleController,
+                  style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: "Please input checklist title",
+                    hintStyle: TextStyle(color: Color(0xffA6A6A6), fontSize: 14),
+                    contentPadding: EdgeInsets.only(left: 2, bottom: 8),
+                    border: InputBorder.none
+                  )
+                )
+              ),
+              ShowMoreChecklistItem(
+                indexChecklist: widget.indexChecklist, 
+                deleteChecklist: widget.deleteChecklist, 
+                onCheckAll: onCheckAll, 
+                onEditChecklistTitle: onEditChecklistTitle, 
+                editChecklistTitle: editChecklistTitle
+              )
             ]
           )
         ),
@@ -101,7 +142,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
           }).toList(),
         ),
         Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
-        onAddTask ? Container(
+        (onAddTask || checklist["isNew"] == true) ? Container(
           padding: EdgeInsets.only(left: 4, bottom: 2),
           height: 40,
           decoration: BoxDecoration(
@@ -118,7 +159,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
                 child: Transform.scale(
                   scale: 0.9,
                   child: Checkbox(
-                    onChanged: (bool? value) {  }, 
+                    onChanged: (bool? value) {  },
                     value: false
                   ),
                 ),
@@ -129,6 +170,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
                   onFocusChange: (focus) {
                     if (!focus) {
                       setState(() { onAddTask = false; });
+                      widget.checklist["isNew"] = false;
                     }
                   },
                   child: TextFormField(
@@ -148,10 +190,10 @@ class _ChecklistItemState extends State<ChecklistItem> {
                       border: InputBorder.none
                     )
                   ),
-                ) 
+                )
               )
             ]
-          ) 
+          )
         ) : InkWell(
           onTap: () {
             setState(() { onAddTask = true; });
@@ -165,7 +207,7 @@ class _ChecklistItemState extends State<ChecklistItem> {
               )
             ),
             height: 40,
-            padding: EdgeInsets.only(left: 12),
+            padding: EdgeInsets.only(left: 7),
             child: Row(
               children: [
                 Icon(PhosphorIcons.plusCircle, size: 18, color: isDark ? Color(0xffC9C9C9) : Color(0xff5E5E5E)),
@@ -185,12 +227,16 @@ class ShowMoreChecklistItem extends StatefulWidget {
     Key? key,
     this.deleteChecklist,
     this.indexChecklist,
-    this.onCheckAll
+    this.onCheckAll,
+    this.onEditChecklistTitle,
+    this.editChecklistTitle
   }) : super(key: key);
 
   final deleteChecklist;
   final indexChecklist;
   final onCheckAll;
+  final onEditChecklistTitle;
+  final editChecklistTitle;
 
   @override
   State<ShowMoreChecklistItem> createState() => _ShowMoreChecklistItemState();
@@ -204,7 +250,7 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
     return InkWell(
       onTap: () {
         showPopover(
-          context: context, 
+          context: context,
           backgroundColor: isDark ? Color(0xff2E2E2E) : Colors.white,
           transitionDuration: const Duration(milliseconds: 50),
           direction: PopoverDirection.bottom,
@@ -222,15 +268,21 @@ class _ShowMoreChecklistItemState extends State<ShowMoreChecklistItem> {
             ),
             child: Column(
               children: [
-                Container(
-                  height: 40,
-                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  child: Row(
-                    children: [
-                      Icon(PhosphorIcons.pencilSimpleLine, size: 17),
-                      SizedBox(width: 14),
-                      Text("Edit Title", style: TextStyle(fontSize: 14))
-                    ]
+                InkWell(
+                  onTap: () {
+                    widget.onEditChecklistTitle(true);
+                    Navigator.pop(context);
+                  },
+                  child: Container(
+                    height: 40,
+                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    child: Row(
+                      children: [
+                        Icon(PhosphorIcons.pencilSimpleLine, size: 17),
+                        SizedBox(width: 14),
+                        Text("Edit Title", style: TextStyle(fontSize: 14))
+                      ]
+                    )
                   )
                 ),
                 Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),

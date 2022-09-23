@@ -1,18 +1,24 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_macos_webview/flutter_macos_webview.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/widget_text.dart';
+import 'package:workcake/media_conversation/model.dart';
+import 'package:workcake/media_conversation/stream_media_downloaded.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'attachments.dart';
 
 class RenderFile extends StatefulWidget {
-  const RenderFile({ Key? key, @required this.att, this.isDark }) : super(key: key);
+  const RenderFile({ Key? key, @required this.att, this.isDark, required this.isConversation }) : super(key: key);
 
   final att;
   final isDark;
+  final bool isConversation;
 
   @override
   State<RenderFile> createState() => _RenderFileState();
@@ -20,6 +26,7 @@ class RenderFile extends StatefulWidget {
 
 class _RenderFileState extends State<RenderFile> {
   bool isHover = false;
+  FlutterMacOSWebView webview = FlutterMacOSWebView();
 
   @override
   Widget build(BuildContext context) {
@@ -32,16 +39,28 @@ class _RenderFileState extends State<RenderFile> {
         child: InkWell(
           onHover: (e) => setState(() => isHover = e),
           mouseCursor: att['mime_type'] == 'pdf' ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          onTap: () {
+          onTap: () async{
             if(att['mime_type'] != 'pdf') return;
 
+            if(Platform.isMacOS) {
+              String url = att['content_url'];
+              if(widget.isConversation) {
+                final String? path = await ServiceMedia.getDownloadedPath(url) ;
+                url = path != null ? 'file://' + path : att['content_url'];
+              }
+              webview.open(
+                url: url,
+                modalTitle: "${widget.att["name"]}",
+                size: Size(1000.0, 900),
+              );
+            } else
             showDialog(
               context: context,
               builder: (context) {
                 return AlertDialog(
                   contentPadding: EdgeInsets.zero,
                   content: Container(
-                    width: 820, height: 1000,
+                    width: 888, height: 1250,
                     child: Column(
                       children: [
                         Container(
@@ -57,7 +76,7 @@ class _RenderFileState extends State<RenderFile> {
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
+                                child: TextWidget(
                                   att['name'],
                                   style: TextStyle(
                                     color: isDark ? Colors.white70 : Colors.grey[800]
@@ -77,7 +96,7 @@ class _RenderFileState extends State<RenderFile> {
                                       highlightColor: Colors.transparent,
                                       onPressed: () {
                                         final url = att['content_url'];
-                                        Provider.of<Work>(context, listen: false).addTaskDownload({'content_url': url, 'name': att['name'],  "key_encrypt": widget.att["key_encrypt"],});
+                                        Provider.of<Work>(context, listen: false).addTaskDownload({'content_url': url, 'name': att['name'],  "key_encrypt": widget.att["key_encrypt"], "version": widget.att["version"]});
                                         Navigator.pop(context);
                                       },
                                       icon: Icon(
@@ -101,11 +120,29 @@ class _RenderFileState extends State<RenderFile> {
                           )
                         ),
                         Expanded(
-                          child: SfPdfViewer.network(
-                            att['content_url'],
-                            initialZoomLevel: 1.35,
-                            onZoomLevelChanged: (PdfZoomDetails zoomDetails) { },
-                          ),
+                          child: widget.isConversation
+                            ? StreamBuilder(
+                              stream: StreamMediaDownloaded.instance.status,
+                              initialData: StreamMediaDownloaded.dataStatus,
+                              builder: ((BuildContext c, AsyncSnapshot<dynamic> snapshot) {
+                                Map data = snapshot.data ?? {};
+                                if (Utils.checkedTypeEmpty(data[att['content_url']]) && data[att['content_url']]["type"] == "local") {
+                                  return SfPdfViewer.file(
+                                    File.fromUri(
+                                      Uri.parse(data[ att['content_url']]["path"])
+                                    )
+                                  );
+                                }
+                                return Container(
+                                  child: TextWidget("Loading"),
+                                );
+                              }),
+                            )
+                            : SfPdfViewer.network(
+                              att['content_url'],
+                              initialZoomLevel: 1.35,
+                              onZoomLevelChanged: (PdfZoomDetails zoomDetails) { },
+                            ),
                         ),
                       ],
                     ),
@@ -139,23 +176,28 @@ class _RenderFileState extends State<RenderFile> {
                             mainAxisAlignment: MainAxisAlignment.start,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                att["name"] ?? "",
-                                style: TextStyle(
-                                  overflow: TextOverflow.ellipsis,
-                                  color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15
-                                )
+                              Expanded(
+                                child: TextWidget(
+                                  att["name"] ?? "",
+                                  style: TextStyle(
+                                    overflow: TextOverflow.ellipsis,
+                                    color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15
+                                  )
+                                ),
                               ),
-                              SizedBox(height: 2),
-                              Text(
-                                "$urlSplit file",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isDark ? Palette.defaultTextDark.withOpacity(0.7) : Palette.defaultTextLight,
-                                  fontWeight: FontWeight.w300
-                                )
+                              SizedBox(height: 2.5),
+                              Expanded(
+                                child: TextWidget(
+                                  "$urlSplit file",
+                                  style: TextStyle(
+                                    overflow: TextOverflow.ellipsis,
+                                    fontSize: 12,
+                                    color: isDark ? Palette.defaultTextDark.withOpacity(0.7) : Palette.defaultTextLight,
+                                    fontWeight: FontWeight.w300
+                                  )
+                                ),
                               )
                             ]
                           )
@@ -182,10 +224,9 @@ class _RenderFileState extends State<RenderFile> {
                     splashColor: Colors.transparent,
                     onPressed: () {
                       final url = att["content_url"];
-                      Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": url, 'name': att["name"],  "key_encrypt": widget.att["key_encrypt"],});
+                      Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": url, 'name': att["name"],  "key_encrypt": widget.att["key_encrypt"], "version": widget.att["version"]});
                     },
                     icon: Icon(CupertinoIcons.cloud_download, size: 15, color: isDark ? Color(0xffA6A6A6) : Color(0xff828282))
-                    // icon: SvgPicture.asset('assets/icons/Pushpin.svg', color: isDark ? Color(0xffA6A6A6) : Color(0xff828282))
                   )
                 )
               ]

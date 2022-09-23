@@ -1,14 +1,15 @@
 import 'dart:io';
 
-// import 'package:dart_vlc/dart_vlc.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_macos_webview/flutter_macos_webview.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/media_conversation/model.dart' as MC;
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class VideoPlayer extends StatefulWidget {
   VideoPlayer({
@@ -24,67 +25,44 @@ class VideoPlayer extends StatefulWidget {
 
 class _VideoPlayerState extends State<VideoPlayer> {
   bool hover = false;
-  bool hoverIcon = false;
 
-  Future<void> openWebview(PresentationStyle presentationStyle) async {
-    final userId = Provider.of<Auth>(context, listen: false).userId;
-    var deviceWidth = MediaQuery.of(context).size.height*.9;
-    var deviceHeight = MediaQuery.of(context).size.height*.6;
-    deviceWidth = deviceWidth < 1280 ? 1280 : deviceWidth;
-    deviceHeight = deviceHeight < 720 ? 720 : deviceHeight;
-    var height;
-    var width;
-
-    try {
-      var imageHeight = Utils.checkedTypeEmpty(widget.att["image_data"]) ? widget.att["image_data"]["height"].toDouble() : 480.toDouble();
-      var imageWidth = Utils.checkedTypeEmpty(widget.att["image_data"]) ? widget.att["image_data"]["width"].toDouble() : 720.toDouble();
-
-      height = imageHeight > 720 ? 720.0 : imageHeight > 480 ? imageHeight + 5.0 : 480.toDouble();
-      width = imageWidth > 1280 ? 1280.0 : imageWidth > 720 ? imageWidth + 5.0 : 720.toDouble();
-    } catch (e) {
-      print("videoplayer error ${e.toString()}");
-    }
-
-    final webview = FlutterMacOSWebView(
-      onWebResourceError: (err) {
-        // print('Error: ${err.errorCode}, ${err.errorType}, ${err.domain}, ${err.description}');
+  Widget buttonDownload() {
+    return ButtonAction(
+      icon: CupertinoIcons.cloud_download,
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (dialogContex)  {
+            return CustomConfirmDialog(
+              title: "Download attachment",
+              subtitle: "Do you want to download ${widget.att["name"]}",
+              onConfirm: () async {
+                Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": widget.att["content_url"], "name": widget.att["name"],  "key_encrypt": widget.att["key_encrypt"], "version": widget.att["version"]});
+              }
+            );
+          }
+        );
       },
     );
-    String? pathInDevice = await MC.ServiceMedia.getDownloadedPath(widget.att["content_url"]);
-    if (Utils.checkedTypeEmpty(widget.att["key_encrypt"])){
-      if (pathInDevice != null)
-        // Process.runSync('open', [pathInDevice]);
-        Process.runSync('open', [ '-a', 'QuickTime\ Player.app', pathInDevice]);
-    } else {
-      if(userId == '0c654807-b6cb-4389-b060-fdcb4372ab83' || userId == '773a8131-86d6-416f-918b-dc680b5c2084' || userId == 'b0df54ac-03f5-4110-b17c-29ef7c34d530')
-        Process.runSync('open', [ '-a', 'QuickTime\ Player.app', widget.att["content_url"]]);
-      else await webview.open(
-        url: widget.att["content_url"],
-        presentationStyle: presentationStyle,
-        modalTitle: "${widget.att["name"]}",
-        size: Size(width ?? deviceWidth, height ?? deviceHeight),
-      );
-    }
+  }
+
+  Widget buttonCopyLink() {
+    return ButtonAction(
+      icon: PhosphorIcons.copyFill,
+      onTap: () => Clipboard.setData(new ClipboardData(text: widget.att["content_url"])),
+    );
   }
 
   Widget thumbnailVideo() {
     final isDark = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
     return MouseRegion(
-      onEnter: (value) {
-        setState(() { hover = true; });
-      },
-      onExit: (value) {
-        setState(() { hover = false; });
-      },
+      onEnter: (value) => setState(() => hover = true),
+      onExit: (value) => setState(() => hover = false),
       child: InkWell(
-        onTap: () {
-          openWebview(PresentationStyle.modal);
-        },
+        onTap: openPlayer,
         child: Container(
-          width: 240,
-          height: 240,
+          width: 240, height: 240,
           margin: EdgeInsets.symmetric(vertical: 6),
-          // padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
           decoration: BoxDecoration(
             color: Colors.black,
             border: Border.all(color: isDark ? Colors.grey[hover ? 300 : 400]! : hover ? Colors.grey[700]! : Colors.grey[600]!, width: 1),
@@ -93,56 +71,25 @@ class _VideoPlayerState extends State<VideoPlayer> {
           child: Stack(
             children: [
               Container(
-                width: 240,
-                height: 240,
-                child: Image.network(widget.att["url_thumbnail"], fit: widget.att["image_data"]["height"] < widget.att["image_data"]["width"] ? BoxFit.fitWidth : BoxFit.fitHeight)),
+                width: 240, height: 240,
+                child: Image.network(widget.att["url_thumbnail"], fit: widget.att["image_data"]["height"] < widget.att["image_data"]["width"] ? BoxFit.fitWidth : BoxFit.fitHeight)
+              ),
               Center(
                 child: Container(
-                  width: 50,
-                  height: 50,
+                  width: 50, height: 50,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(25),
-                    color: Colors.black.withOpacity(0.5),
                   ),
-                  child: Center(child: Icon(CupertinoIcons.play_fill, color: Colors.white, size: 25))
+                  child: Center(child: Icon(CupertinoIcons.play_fill, color: Colors.white, size: 26))
                 ),
               ),
               if (hover) Positioned(
-                right: 2,
-                top: 2,
-                child: MouseRegion(
-                  onEnter: (value) {
-                    setState(() { hoverIcon = true; });
-                  },
-                  onExit: (value) {
-                    setState(() { hoverIcon = false; });
-                  },
-                  child: InkWell(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (dialogContex)  {
-                          return CustomConfirmDialog(
-                            title: "Download attachment",
-                            subtitle: "Do you want to download ${widget.att["name"]}",
-                            onConfirm: () async {
-                              Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": widget.att["content_url"], "name": widget.att["name"], "key_encrypt": widget.att["key_encrypt"],});
-                            }
-                          );
-                        }
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.white,
-                        border: Border.all(color: Colors.grey[500]!, width: 1.2),
-                        borderRadius: BorderRadius.circular(4)
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-                      child: Icon(CupertinoIcons.cloud_download, color: hoverIcon ? Colors.blue : isDark ? Colors.grey[400]! : Colors.grey[600]!, size: 20)
-                    )
-                  )
-                )
+                right: 2, top: 2,
+                child: buttonDownload()
+              ),
+              if (hover) Positioned(
+                right: 2, top: 40,
+                child: buttonCopyLink()
               )
             ]
           )
@@ -151,21 +98,32 @@ class _VideoPlayerState extends State<VideoPlayer> {
     );
   }
 
+  openPlayer() async {
+    try{
+      String? pathInDevice = await MC.ServiceMedia.getDownloadedPath(widget.att["content_url"]);
+      if (Utils.checkedTypeEmpty(widget.att["key_encrypt"]) && widget.att["key_encrypt"].length > 30){
+        if (pathInDevice != null)
+          Utils.isWinOrLinux()
+          ? Process.runSync('start', ['/d', '%ProgramFiles(x86)%\Windows Media Player', 'wmplayer.exe', pathInDevice], runInShell: true)
+          : Process.runSync('open', [ '-a', 'QuickTime\ Player.app', pathInDevice]);
+      } else {
+        Utils.isWinOrLinux()
+        ? Process.runSync('start', ['/d', '%ProgramFiles(x86)%\Windows Media Player', 'wmplayer.exe', widget.att["content_url"]], runInShell: true)
+        : Process.runSync('open', [ '-a', 'QuickTime\ Player.app', widget.att["content_url"]]);
+      }
+    } catch (e) {
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
 
-   return widget.att["url_thumbnail"] != null ? thumbnailVideo() : MouseRegion(
-      onEnter: (value) {
-        setState(() { hover = true; });
-      },
-      onExit: (value) {
-        setState(() { hover = false; });
-      },
+    return widget.att["url_thumbnail"] != null ? thumbnailVideo() : MouseRegion(
+      onEnter: (value) => setState(() => hover = true),
+      onExit: (value) => setState(() => hover = false),
       child: InkWell(
-        onTap: () {
-          openWebview(PresentationStyle.modal);
-        },
+        onTap: openPlayer,
         child: Container(
           margin: EdgeInsets.symmetric(vertical: 6),
           padding: EdgeInsets.symmetric(vertical: 8, horizontal: 8),
@@ -182,14 +140,14 @@ class _VideoPlayerState extends State<VideoPlayer> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("${widget.att["name"]}", style: TextStyle(color: isDark ? Colors.grey[hover ? 300 : 400]! : hover ? Colors.grey[700]! : Colors.grey[600]!, fontSize: 15, fontWeight: FontWeight.w600)),
+                      TextWidget("${widget.att["name"]}", style: TextStyle(color: isDark ? Colors.grey[hover ? 300 : 400]! : hover ? Colors.grey[700]! : Colors.grey[600]!, fontSize: 15, fontWeight: FontWeight.w600)),
                       SizedBox(height: 2),
                       Wrap(
                         children: [
                           Wrap(
                             crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
-                              Text("Tap to play video", style: TextStyle(color: isDark ? Colors.grey[hover ? 300 : 400]! : hover ? Colors.grey[700]! : Colors.grey[600]!, fontSize: 11))
+                              TextWidget("Tap to play video", style: TextStyle(color: isDark ? Colors.grey[hover ? 300 : 400]! : hover ? Colors.grey[700]! : Colors.grey[600]!, fontSize: 11))
                             ]
                           )
                         ]
@@ -199,41 +157,12 @@ class _VideoPlayerState extends State<VideoPlayer> {
                 ]
               ),
               if (hover) Positioned(
-                right: 0,
-                bottom: 2,
-                child: MouseRegion(
-                  onEnter: (value) {
-                    setState(() { hoverIcon = true; });
-                  },
-                  onExit: (value) {
-                    setState(() { hoverIcon = false; });
-                  },
-                  child: InkWell(
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (dialogContex)  {
-                          return CustomConfirmDialog(
-                            title: "Download attachment",
-                            subtitle: "Do you want to download ${widget.att["name"]}",
-                            onConfirm: () async {
-                              Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": widget.att["content_url"], "name": widget.att["name"],  "key_encrypt": widget.att["key_encrypt"],});
-                            }
-                          );
-                        }
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.grey[800] : Colors.white,
-                        border: Border.all(color: Colors.grey[500]!, width: 1.2),
-                        borderRadius: BorderRadius.circular(4)
-                      ),
-                      padding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-                      child: Icon(CupertinoIcons.cloud_download, color: hoverIcon ? Colors.blue : isDark ? Colors.grey[400]! : Colors.grey[600]!, size: 20)
-                    )
-                  )
-                )
+                right: 0, bottom: 2,
+                child: buttonDownload()
+              ),
+              if (hover) Positioned(
+                right: 40, bottom: 2,
+                child: buttonCopyLink()
               )
             ]
           )
@@ -243,61 +172,44 @@ class _VideoPlayerState extends State<VideoPlayer> {
   }
 }
 
-class PlayerContainer extends StatefulWidget {
-  const PlayerContainer({
+class ButtonAction extends StatefulWidget {
+  ButtonAction({
     Key? key,
-    required this.deviceHeight,
-    required this.deviceWidth,
-    required this.att
+    required this.icon,
+    this.onTap
   }) : super(key: key);
 
-  final double deviceHeight;
-  final double deviceWidth;
-  final att;
+  final IconData icon;
+  final Function? onTap;
 
   @override
-  State<PlayerContainer> createState() => _PlayerContainerState();
+  _ButtonActionState createState() => _ButtonActionState();
 }
 
-class _PlayerContainerState extends State<PlayerContainer> {
-  // Player? player;
-  bool init = false;
-
-  @override
-  void initState() { 
-    super.initState();
-    // player = Player(id: 0);
-    // Playlist playlist = new Playlist(medias: [
-    //   Media.network("${widget.att["content_url"]}")
-    // ]);
-    // player!.currentStream.listen((current) {
-    //   if (current.media != null) {
-    //     setState(() {
-    //       init = true;
-    //     });
-    //   }
-    // });
-    // player!.open(playlist, autoStart: true);
-  }
-
-  @override
-  void dispose() {
-    // player!.remove(0); 
-    // player!.stop();
-    // player!.dispose();
-    super.dispose();
-  }
+class _ButtonActionState extends State<ButtonAction> {
+  bool hover = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container();
-    // return !init || player == null ? Container(width: widget.deviceWidth - 40, height: widget.deviceHeight - 60, child: Center(child: SplashScreen())) : Video(
-    //   player: player,
-    //   height: widget.deviceHeight - 60,
-    //   width: widget.deviceWidth - 40,
-    //   volumeThumbColor: Colors.blue,
-    //   volumeActiveColor: Colors.blue,
-    //   // playlistLength: 1,
-    // );
+    final isDark = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
+
+    return InkWell(
+      onTap: () {
+        if(widget.onTap != null) widget.onTap!();
+      },
+      child: MouseRegion(
+        onEnter: (value) => setState(() => hover = true),
+        onExit: (value) => setState(() => hover = false),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[800] : Palette.defaultTextDark,
+            border: Border.all(color: Colors.grey[500]!, width: 1.2),
+            borderRadius: BorderRadius.circular(4)
+          ),
+          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          child: Icon(widget.icon, color: hover ? Colors.blue : isDark ? Colors.grey[400]! : Colors.grey[600]!, size: 20)
+        )
+      ),
+    );
   }
 }

@@ -23,21 +23,34 @@ class Media{
   late int size;
   late String keyEncrypt;
   late String status;
+  late int? version;
 
-  Media(this.localId, this.pathInDevice, this.remoteUrl, this.name, this.type, this.metaData, this.size, this.keyEncrypt, this.status);
+  Media(this.localId, this.pathInDevice, this.remoteUrl, this.name, this.type, this.metaData, this.size, this.keyEncrypt, this.status, this.version);
 
   static Media? parseFromObj(Map obj){
     try {
+
+      String type = obj["type"] ?? obj["mime_type"];
+      switch (type) {
+        case 'mp4':
+        case 'mov':
+        case 'flv':
+        case 'avi':
+          type = 'video';
+          break;
+        default:
+      }
       return Media(
         obj["content_url"].hashCode,
         "", 
         obj["content_url"], 
         obj["name"], 
-        obj["type"] ?? obj["mime_type"],
+        type,
         obj["meta_data"] ?? "",
         obj["size"] ?? 0,
         obj["key_encrypt"] ?? "",
-        obj["status"] ?? "not download"
+        obj["status"] ?? "not download",
+        obj["version"] ?? 1
       );
     } catch (e, trace) {
       print("_________________$e :$trace");
@@ -105,15 +118,17 @@ class Media{
         }
         var nameFile = this.name;
         File file = File("$path/${DateTime.now().microsecondsSinceEpoch.toString() + nameFile.replaceAll(" ", "_")}");
-        if (Utils.checkedTypeEmpty(this.keyEncrypt))
-          await file.writeAsBytes(base64Decode(await Utils.decrypt(base64Encode(response.data), this.keyEncrypt)), mode: FileMode.write);
+        if (Utils.checkedTypeEmpty(this.keyEncrypt)){
+          if (this.version == 2) await file.writeAsBytes(await Utils.decryptBytes(response.data, this.keyEncrypt), mode: FileMode.write);
+          else await file.writeAsBytes(base64Decode(await Utils.decrypt(base64Encode(response.data), this.keyEncrypt)), mode: FileMode.write);
+        }
         else file.writeAsBytes(response.data, mode: FileMode.write);
         this.pathInDevice = file.path;
         this.status = "downloaded";
         this.size = response.data.length;
         return await this.saveToDisk(store, isolateToMainStream);
-      } catch (e) {
-        print("download att $e");
+      } catch (e, t) {
+        print("download att $e $t");
         return null;
       }
     } catch (e, trace) {
@@ -201,6 +216,33 @@ class ServiceMedia {
 
 // dam bao ko co qua nhieu task chajy trong 1 thoi gian
   static Scheduler task = new Scheduler();
+
+  static deleteMediaByDeleteTime(int deleteTime, String conversationId, Store store) async {
+    try {
+      if (deleteTime == 0) return;
+      // delete mediaConversation
+      Box boxMediaConversation = store.box<MediaConversation>();
+      Box boxMedia = store.box<Media>();
+      var mediaConversationQuery = MediaConversation_.conversationId.equals(conversationId)
+      .and(MediaConversation_.currentTime.lessThan(deleteTime));
+
+      List finded = boxMediaConversation.query(mediaConversationQuery).build().find();
+      await Future.wait(
+        finded.map((e) async {
+          String? pathInDevice = e.media.target?.pathInDevice;
+          // delete files on device
+          if (pathInDevice != null && (await File.fromUri(Uri.parse(pathInDevice)).exists())) await (File.fromUri(Uri.parse(pathInDevice))).delete();
+          // delete media
+          if (e.media.target != null)  boxMedia.remove(e.media.target.localId);
+          // delete media conversation
+          boxMediaConversation.remove(e.localId);
+          return null;
+        })
+      );      
+    } catch (e, t) {
+      print("deleteMediaByDeleteTime: $e, $t");
+    }
+  }
   
   static getNumberOfConversation(String conversationId) async {
     Store store =  await ServiceBox.getObjectBox();
@@ -208,13 +250,13 @@ class ServiceMedia {
     var qCountImage  = box.query(
       MediaConversation_.conversationId.equals(conversationId)
     );
-    qCountImage.link(MediaConversation_.media, Media_.type.equals("image"));
+    qCountImage.link(MediaConversation_.media, Media_.type.equals("image").or(Media_.type.equals("video")));
     int count = qCountImage.build().count();
 
     var qCountFile  = box.query(
       MediaConversation_.conversationId.equals(conversationId)
     );
-    qCountFile.link(MediaConversation_.media, Media_.type.notEquals("image"));
+    qCountFile.link(MediaConversation_.media, Media_.type.notEquals("image").and(Media_.type.notEquals("video")));
     int countFile = qCountFile.build().count();
 
     return {
@@ -261,9 +303,9 @@ class ServiceMedia {
         .and(MediaConversation_.currentTime.lessOrEqual(currentTime))  
       ))
       ..order(MediaConversation_.currentTime, flags: Order.descending));
-      if (type == "image")
-        query.link(MediaConversation_.media, Media_.type.equals(type));
-      else query.link(MediaConversation_.media, Media_.type.notEquals("image"));
+      if (type == "image_video")
+        query.link(MediaConversation_.media, Media_.type.equals('image').or(Media_.type.equals('video')));
+      else query.link(MediaConversation_.media, Media_.type.notEquals("image").and(Media_.type.notEquals("video")));
       final fq = query.build();
       fq..limit = limit;
       List result = fq.find();
@@ -298,7 +340,7 @@ class ServiceMedia {
     try {
       await Future.wait((message["attachments"] as List).map((m) async {
         try {
-          if (m["mime_type"] == "share"){
+          if (m["mime_type"] == "share" || m["mime_type"] == "shareforwar"){
             await getAllMediaFromMessageIsolate({
               ...m["data"],
               "conversation_id": message['conversation_id'] ?? message['conversationId'] ?? '',
@@ -308,6 +350,9 @@ class ServiceMedia {
           if (!Utils.checkedTypeEmpty(m["content_url"])) return;
           var media = (await Media.checkFileHasDownloaded((m["content_url"]), store)) ?? Media.parseFromObj({
             ...m,
+            "meta_data": json.encode({
+              "url_thumbnail": m['url_thumbnail'] ?? ''
+            }),
             "inserted_at": message["time_create"] ?? message["inserted_at"] ?? message["timeCreate"] ?? message["insertedAt"]
           });  
           MediaConversation? mediaConv = MediaConversation.parseFromObj({

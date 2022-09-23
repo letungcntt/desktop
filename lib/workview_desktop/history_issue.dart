@@ -1,14 +1,13 @@
-import 'package:better_selection/better_selection.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/markdown/style_sheet.dart';
 import 'package:workcake/markdown/widget.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/workview_desktop/markdown_checkbox.dart';
 
 import '../components/message_item/attachments/images_gallery.dart';
@@ -45,6 +44,7 @@ class _HistoryIssueState extends State<HistoryIssue> {
     final List<String> splitSnippet =  widget.text.trim().split('\n');
     previewText = splitSnippet.length > 8 ? splitSnippet.sublist(0, 8).join('\n').trimRight() : widget.text.trimRight();
     fullText = widget.text;
+    if(previewText == '') previewText = "_No description provided._";
 
     if(splitSnippet.length > 8) {
       canExpanded = true;
@@ -123,7 +123,7 @@ class _HistoryIssueState extends State<HistoryIssue> {
           ),
           Container(
             padding: EdgeInsets.only(left: 48),
-            child: SelectableScope(
+            child: CustomSelectionArea(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

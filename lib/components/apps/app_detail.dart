@@ -4,13 +4,12 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class AppDetail extends StatefulWidget {
   final appId;
@@ -86,10 +85,10 @@ class _AppDetailState extends State<AppDetail>{
               children: [
                 Column(
                   children: [
-                    Text( 
+                    Text(
                       dataApp["app"]["name"] ?? "",
                       style: TextStyle(fontSize: 30,fontWeight: FontWeight.w600, color: isDark ? Colors.grey[400] : Colors.grey[700])),
-                    // 
+                    //
                     Container(
                       margin: EdgeInsets.only(top: 10, bottom: 10),
                       child: Row(
@@ -109,7 +108,7 @@ class _AppDetailState extends State<AppDetail>{
                             child: TextButton(
                               onPressed: () {
                                 setState(() {
-                                  heightCommands  = heightCommands != 0 
+                                  heightCommands  = heightCommands != 0
                                       ? 0
                                       : dataApp["commands"].length.toDouble() * 50 + 20;
                                 });
@@ -223,7 +222,7 @@ class _AppDetailState extends State<AppDetail>{
                         ],
                       ),
                     ),
-            
+
                     // time create
                     AnimatedContainer(
                       duration: Duration(milliseconds: 300),
@@ -255,7 +254,7 @@ class _AppDetailState extends State<AppDetail>{
         ]
       ),
     );
-    
+
   }
 
   onSuccessCreateCommands(app){
@@ -279,7 +278,7 @@ class _AppDetailState extends State<AppDetail>{
       _commandParams.remove(
         _commandParams[index-1]
       );
-    } 
+    }
   }
 
   showCreateApps(context, onSuccessCreateApp){
@@ -453,7 +452,7 @@ class _AppDetailState extends State<AppDetail>{
                                 TextButton(
                                   onPressed: () {
                                     onAddParams();
-                                    setState(() {});  
+                                    setState(() {});
                                   },
                                   child: Icon(Icons.add, color: isDark ? Colors.grey[300] : Colors.black54)
                                 ),
@@ -461,7 +460,7 @@ class _AppDetailState extends State<AppDetail>{
                                 TextButton(
                                   onPressed: () {
                                     onRemoveParams();
-                                    setState(() {});  
+                                    setState(() {});
                                   },
                                   child: Icon(Icons.remove, color: isDark ? Colors.grey[300] : Colors.black54)
                                 ),

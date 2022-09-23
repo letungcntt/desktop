@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ResponseSideBar extends StatefulWidget{
   ResponseSideBar({
     required this.child,
     this.onResize,
     this.minWidth = 250,
-    this.maxWidth = 630, 
+    this.maxWidth = 630,
     required this.dragAtLeft
   });
   final child;
@@ -32,7 +31,7 @@ class _ResponseSideBarState extends State<ResponseSideBar>{
   final double conversationWidth = 610;
   @override
   void initState() {
-    widthFromHive = widget.dragAtLeft 
+    widthFromHive = widget.dragAtLeft
       ? Provider.of<Windows>(context, listen: false).threadWidth
       : Provider.of<Windows>(context, listen: false).channelWidth;
     WidgetsBinding.instance.addPostFrameCallback((_) => findWidgetPosition());
@@ -148,13 +147,13 @@ class _ResponseSideBarState extends State<ResponseSideBar>{
         });
       },
       onPanUpdate: (details) {
-        var newWidth = widget.dragAtLeft 
+        var newWidth = widget.dragAtLeft
           ? MediaQuery.of(context).size.width - details.globalPosition.dx
           : details.globalPosition.dx - (globalPosition.dx - objectSize!.width);
         setState(() {
           wrapperSize = Size((newWidth < widget.minWidth) ? !widget.dragAtLeft && newWidth < 150 ? 70 : widget.minWidth : (newWidth > widget.maxWidth) ? widget.maxWidth : newWidth, wrapperSize.height);
         });
-        
+
         if(widget.onResize != null && wrapperSize != null ) {
           widget.onResize(wrapperSize);
         }
@@ -163,7 +162,7 @@ class _ResponseSideBarState extends State<ResponseSideBar>{
         } else {
           Provider.of<Windows>(context,listen: false).channelWidth = wrapperSize.width;
         }
-        
+
       },
       onPanEnd: (details){
         setState(() {

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/generated/l10n.dart';
 
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ChannelNameDialog extends StatefulWidget {
   final title;
@@ -17,7 +16,7 @@ class ChannelNameDialog extends StatefulWidget {
 
 class _ChannelNameDialogState extends State<ChannelNameDialog> {
   TextEditingController _controller = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +33,7 @@ class _ChannelNameDialogState extends State<ChannelNameDialog> {
   void inputListeners() {
     if (_controller.text.contains(' ')) {
       List _splitCurrentSpace = _controller.text.split(" ");
-      int _currentCaretPosition = _splitCurrentSpace[0].length +1;  
+      int _currentCaretPosition = _splitCurrentSpace[0].length +1;
       final formatName = _controller.text.replaceAll(' ', '-');
       _controller.value = TextEditingValue(
         text: formatName,

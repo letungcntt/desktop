@@ -1,11 +1,10 @@
 import 'package:context_menus/context_menus.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/responsesizebar_widget.dart';
 import 'package:workcake/components/thread_desktop.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'message_item/attachments/attachments.dart';
 

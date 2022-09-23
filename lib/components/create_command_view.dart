@@ -1,12 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class CreateCommandView extends StatefulWidget {
   final createOrUpdateCommand;
@@ -39,7 +38,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
   ];
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     if (widget.command != null) {
       this.setState(() {
@@ -65,7 +64,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
       _commandParams.remove(
         _commandParams[index-1]
       );
-    } 
+    }
   }
 
   onSave(shortcut, requestUrl, description) async {
@@ -104,7 +103,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
   @override
   Widget build(BuildContext context) {
     final isDark  = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    
+
     return Container(
       width: 600,
       height: 628,
@@ -124,7 +123,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
                 topRight: Radius.circular(5.0),
               ),
             ),
-            
+
             child: Text(S.current.createCommands.toUpperCase(), style: TextStyle(color: Colors.white, fontSize: 14, fontFamily: "Roboto", fontWeight: FontWeight.w600)),
           ),
           Container(
@@ -299,7 +298,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
                                               color: isDark ? Color(0xff2E2E2E) : Color(0xffEDEDED),
                                             ),
                                             child: Center(child: Text("0${index + 1}", style: TextStyle(fontSize: 14, fontFamily: "Roboto")))),
-                                        ) 
+                                        )
                                           : Center(child: Text("${index + 1}",  style: TextStyle(fontSize: 14, fontFamily: "Roboto", fontWeight: FontWeight.w600))),
                                         SizedBox(width: 12,),
                                         Container(
@@ -371,7 +370,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
                 ),
                 if (Utils.checkedTypeEmpty(message)) Text(message, style: TextStyle(color: Colors.red)),
                 // Expanded(child: Container()),
-                
+
                 Expanded(
                   child: Container(
                     child: Column(
@@ -385,7 +384,7 @@ class _CreateCommandViewState extends State<CreateCommandView> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             Container(
-                              
+
                               child: TextButton(
                                 onPressed: () {
                                   Navigator.pop(context);

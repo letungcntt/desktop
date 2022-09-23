@@ -1,8 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'CardItem.dart';
 
@@ -147,7 +146,7 @@ class _LabelSelectionState extends State<LabelSelection> {
                       labelTitle = "";
                     });
                   }
-                }, 
+                },
                 child: Text("Create", style: TextStyle(color: Colors.white)))
             )
           )
@@ -185,7 +184,7 @@ class _LabelSelectionState extends State<LabelSelection> {
                 selectedColor = int.parse(Utils.getRandomNumber(1));
                 onCreateLabel = true;
               });
-            }, 
+            },
             child: Text("Create a new label", style: TextStyle(color: Colors.grey[600], fontSize: 16, fontWeight: FontWeight.w400))
           )
         ),

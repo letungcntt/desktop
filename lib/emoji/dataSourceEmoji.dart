@@ -1200,6 +1200,15 @@ final List dataSourceEmojis = [
       "url":""
    },
    {
+      "name":"Pinched Fingers",
+      "id":"pinched_fingers",
+      "value":"🤌",
+      "custome":false,
+      "category":"smileys",
+      "type":"default",
+      "url":""
+   },
+   {
       "name":"Thumbs Down",
       "id":"thumbs_down",
       "value":"👎",

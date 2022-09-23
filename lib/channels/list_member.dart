@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ListMember extends StatefulWidget {
   final members;

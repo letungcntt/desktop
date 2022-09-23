@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/channels/create_channel_desktop.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/http_exception.dart';
@@ -16,7 +15,7 @@ import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart' hide WorkspaceItem;
+import 'package:workcake/providers/providers.dart' hide WorkspaceItem;
 
 import '../../workview_desktop/create_issue.dart';
 
@@ -112,7 +111,7 @@ class _ForwardMessageState extends State<ForwardMessage> {
           "type": "mention",
           "data": result["data"]
         }]) : []) + [{
-          "mime_type": "share",
+          "mime_type": "shareforwar",
           "data": {
             ...widget.message,
             'conversation_id': destination['id'],
@@ -222,18 +221,19 @@ class _ForwardMessageState extends State<ForwardMessage> {
               ],
             )
           ),
-          Container(
-            height: 600,
+          Expanded(
             child: SingleChildScrollView(
               controller: ScrollController(),
               child: Column(
                 children: [
                   SizedBox(height: 10),
-                  PortalEntry(
+                  PortalTarget(
                     visible: isShow,
-                    portalAnchor: Alignment.topCenter,
-                    childAnchor: Alignment.bottomCenter,
-                    portal: Container(
+                    anchor: Aligned(
+                      target: Alignment.bottomCenter,
+                      follower: Alignment.topCenter
+                    ),
+                    portalFollower: Container(
                       margin: EdgeInsets.only(top: destination != null ? 32 : 20),
                       width: 700,
                       decoration: BoxDecoration(
@@ -255,7 +255,7 @@ class _ForwardMessageState extends State<ForwardMessage> {
                               children: [
                                 TextButton(
                                   focusNode: FocusNode()..skipTraversal = true,
-                                  onPressed: () { 
+                                  onPressed: () {
                                     type = SEARCH.DIRERCT;
                                     search(controller.text, auth.token);
                                   },
@@ -270,7 +270,7 @@ class _ForwardMessageState extends State<ForwardMessage> {
                                 SizedBox(width: 12.0),
                                 TextButton(
                                   focusNode: FocusNode()..skipTraversal = true,
-                                  onPressed: () { 
+                                  onPressed: () {
                                     type = SEARCH.CHANNEL;
                                     search(controller.text, auth.token);
                                   },

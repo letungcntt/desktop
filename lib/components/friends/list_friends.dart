@@ -2,22 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/friends/custom_friend_dialog.dart';
 import 'package:workcake/components/friends/friends_desktop.dart';
+import 'package:workcake/components/transitions/modal.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ListMemberFriends extends StatefulWidget {
   const ListMemberFriends({
     Key? key,
-    @required 
-    this.isDark, 
-    this.back, 
-    this.friendList, 
-    this.isRequest, 
+    @required
+    this.isDark,
+    this.back,
+    this.friendList,
+    this.isRequest,
     this.auth,
 
   }) : super(key: key);
@@ -50,12 +50,14 @@ sortTimeList(friendList){
 class _ListMemberFriends extends State<ListMemberFriends> {
   bool hoverSendButton = false;
   TextEditingController controller = TextEditingController();
-  String type  = 'friends';
   bool selectedFriendRequest = false;
+  bool isSendView = false;
   bool selectedSearch = false;
   bool selectedFriends = false;
+  List newFriends = [];
+  bool isEmoji = false;
 
-   @override
+  @override
   initState() {
     super.initState();
     RawKeyboard.instance.addListener(handleEvent);
@@ -83,19 +85,20 @@ class _ListMemberFriends extends State<ListMemberFriends> {
   Widget build(BuildContext context) {
     final isDark  = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     final auth = Provider.of<Auth>(context);
-    final friendList = Provider.of<User>(context, listen: true).friendList;
+    final friendList = Provider.of<User>(context, listen: true).friendList.where((e) => e != null).toList();
     final pendingUsers = Provider.of<User>(context, listen: true).pendingList;
-    // final sendingUsers = Provider.of<User>(context,listen: true).sendingList;
+    final sendingUsers = Provider.of<User>(context, listen: true).sendingList;
 
     sendFriendRequest() async {
       final usernameTag = controller.text;
       final data = await Provider.of<User>(context,listen: false).sendFriendRequestTag(usernameTag,auth.token);
 
-      showDialog(
+      showModal(
         context: context,
         builder: (_) => CustomFriendDialog(
-          title: data["success"] ? "FRIEND REQUEST SUCCESS" : "FRIEND REQUEST FAILED",
+          title: data["success"] ? "Successful" : "Unsuccessful",
           string: data["message"],
+          data: data,
         )
       );
     }
@@ -104,7 +107,6 @@ class _ListMemberFriends extends State<ListMemberFriends> {
         return Stack(
           children: [
             Container(
-
               color: isDark ? Color(0xFF2e2e2e) : Color(0xFFF3F3F3),
               child: Column(
                 children: [
@@ -134,7 +136,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                           child: IconButton(
                             onPressed:(){
                               Provider.of<Channels>(context, listen: false).openFriends(false);
-                            }, 
+                            },
                             icon: SvgPicture.asset('assets/icons/newX.svg', height: 14.13)
                           ),
                         ),
@@ -187,7 +189,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                         SizedBox(width: 16,),
                         Expanded(
                           child: InkWell(
-                            onTap: pendingUsers.length > 0 ? () => setState(() {selectedFriendRequest = !selectedFriendRequest;}) : null,
+                            onTap: () => setState(() => selectedFriendRequest = !selectedFriendRequest),
                             child: Container(
                               decoration: BoxDecoration(
                                 color: isDark ? Color(0xff505050) : Color.fromARGB(255, 211, 207, 207),
@@ -220,6 +222,11 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                       ],
                     ),
                   ),
+                  Container(
+                    height: 1,
+                    margin: EdgeInsets.only(top: 17),
+                    color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                  ),
                   selectedSearch ? Container(
                     margin: EdgeInsets.only(left: 14,right: 14,top: 20,bottom: 6),
                     padding: EdgeInsets.symmetric(horizontal: 4.0),
@@ -238,8 +245,8 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                               onFocusChange: (value) {
                                 Provider.of<Windows>(context, listen: false).isOtherFocus = value;
                               },
-                              child: TextField(
-                                focusNode: FocusNode(),
+                              child: TextFormField(
+                                // focusNode: FocusNode(),
                                 controller: controller,
                                 decoration: InputDecoration(
                                   border: InputBorder.none,
@@ -281,7 +288,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                           ),
                           ListFriends(friendList: sortTimeList(friendList), auth: auth, widget: widget, isRequest: false,),
                         ],
-                      ) 
+                      )
                     ),
                   )
                 ],
@@ -326,7 +333,7 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                             child: IconButton(
                               onPressed:(){
                                 Provider.of<Channels>(context, listen: false).openFriends(false);
-                              }, 
+                              },
                               icon: SvgPicture.asset('assets/icons/newX.svg', height: 14.13)
                             ),
                           ),
@@ -336,34 +343,113 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                       child: Container(
                         child: Column(
                           children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 50,
-                                  child: InkWell(
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 50,
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          selectedFriendRequest = false;
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                        child: Icon(PhosphorIcons.arrowLeft, size: 20,),
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text("Friend Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                                      SizedBox(width: 3,),
+                                      Text(
+                                        " (" + (isSendView ? sendingUsers : pendingUsers).length.toString() + ")",
+                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)
+                                      )
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              height: 1,
+                              margin: EdgeInsets.symmetric(vertical: 10),
+                              color: Palette.borderSideColorDark,
+                            ),
+                            SizedBox(height: 6,),
+                            Container(
+                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75))
+                                ),
+                              ),
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  InkWell(
                                     onTap: () {
                                       setState(() {
-                                        selectedFriendRequest = false;
+                                        isSendView = false;
                                       });
                                     },
                                     child: Container(
-                                      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                                      child: Icon(PhosphorIcons.arrowLeft, size: 20,),
+                                      height: 30, width: 60,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        border:  Border(
+                                          bottom: BorderSide(
+                                            width: 1.75,
+                                            color: !isSendView ? isDark ? Palette.calendulaGold : Palette.dayBlue : Colors.transparent
+                                          )
+                                        ),
+                                      ),
+                                      padding: EdgeInsets.only(bottom: 14),
+                                      child: Text(
+                                        'Receive',
+                                        style: TextStyle(
+                                          color: !isSendView ? (isDark ? Palette.calendulaGold : Palette.dayBlue) : (isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
+                                        )
+                                      )
                                     ),
                                   ),
-                                ),
-                                Row(
-                                  children: [
-                                    Text("Friend Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                                    SizedBox(width: 3,),
-                                    Text("(${pendingUsers.length.toString()})", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
-                                  ],
-                                ),
-                              ],
+                                  SizedBox(width: 10),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        isSendView = true;
+                                      });
+                                    },
+                                    child: Container(
+                                      height: 30, width: 50,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            width: 1.75,
+                                            color: isSendView ? isDark ? Palette.calendulaGold : Palette.dayBlue : Colors.transparent
+                                          )
+                                        ),
+                                      ),
+                                      padding: EdgeInsets.only(bottom: 14),
+                                      child: Text(
+                                        'Send',
+                                        style: TextStyle(
+                                          color: isSendView ? (isDark ? Palette.calendulaGold : Palette.dayBlue) : (isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
+                                        )
+                                      )
+                                    ),
+                                  )
+                                ],
+                              ),
                             ),
-                            pendingUsers.length > 0 ? ListFriends(friendList: pendingUsers, auth: auth, widget: widget, isRequest: true): Container(
+                            SizedBox(height: 4,),
+                            !isSendView ? (pendingUsers.length > 0 ? ListFriends(friendList: pendingUsers, auth: auth, widget: widget, isRequest: true) : Container(
                               height: 60,
-                              margin: EdgeInsets.only(bottom: 12),
+                              margin: EdgeInsets.only(bottom: 12, top: 14),
                               padding: EdgeInsets.symmetric(horizontal: 44, vertical: 22),
                               decoration: BoxDecoration(
                                 color: isDark ? Palette.backgroundRightSiderDark : Palette.topicTile,
@@ -377,49 +463,27 @@ class _ListMemberFriends extends State<ListMemberFriends> {
                                 ),
                                 textAlign: TextAlign.center,
                               ),
-                            ),
+                            )) : (sendingUsers.length > 0 ? ListFriends(friendList: sendingUsers, auth: auth, widget: widget, isRequest: true, isSend: true) : Container(
+                              height: 60,
+                              margin: EdgeInsets.only(bottom: 12, top: 14),
+                              padding: EdgeInsets.symmetric(horizontal: 44, vertical: 22),
+                              decoration: BoxDecoration(
+                                color: isDark ? Palette.backgroundRightSiderDark : Palette.topicTile,
+                                borderRadius: BorderRadius.all(Radius.circular(2))
+                              ),
+                              child: Text(
+                                'No Send Friend Request ....',
+                                style: TextStyle(
+                                  color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                                  fontSize: 13.5
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            )),
                           ],
                         ),
                       ),
                     ),
-
-                    // Expanded(
-                    //   child: Container(
-                    //     child: Column(
-                    //       children: [
-                    //         Row(
-                    //           children: [
-                    //             SizedBox(width: 20,),
-                    //             Icon(PhosphorIcons.userPlus,size: 20,),
-                    //             SizedBox(width: 14,),
-                    //             Text("Outgoing Friend Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-                    //           ],
-                    //         ),
-                    //         SizedBox(height: 10,),
-                    //         sendingUsers.length > 0 ? 
-                    //         ListFriends(friendList: sendingUsers, auth: auth, widget: widget, isRequest: true)
-                    //         :Container(
-                    //           height: 60,
-                    //           margin: EdgeInsets.only(bottom: 12),
-                    //           padding: EdgeInsets.symmetric(horizontal: 44, vertical: 22),
-                    //           decoration: BoxDecoration(
-                    //             color: isDark ? Palette.backgroundRightSiderDark : Palette.topicTile,
-                    //             borderRadius: BorderRadius.all(Radius.circular(2))
-                    //           ),
-                    //           child: Text(
-                    //             'No Outgoing Friend Request ....',
-                    //             style: TextStyle(
-                    //               color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                    //               fontSize: 13.5
-                    //             ),
-                    //             textAlign: TextAlign.center,
-                    //           ),
-                    //         ),
-                    //       ],
-                    //     ),
-                    //   ),
-                    // ),
-
                   ],
                 ),
               ),

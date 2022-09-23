@@ -4,7 +4,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
@@ -12,7 +11,7 @@ import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class CreateChannelDesktop extends StatefulWidget {
   @override
@@ -25,6 +24,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
   var _debounce;
   List resultSearch = [];
   List listUserChannel = [];
+  ScrollController scrollController = ScrollController();
 
   @override
   void initState(){
@@ -36,7 +36,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
       result.removeWhere((element) => element["id"] == auth.userId);
       setState(() {
         resultSearch = result;
-      }); 
+      });
     });
 
     _controller.addListener(inputListeners);
@@ -52,7 +52,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
   void inputListeners() {
     if (_controller.text.contains(' ')) {
       List _splitCurrentSpace = _controller.text.split(" ");
-      int _currentCaretPosition = _splitCurrentSpace[0].length +1;  
+      int _currentCaretPosition = _splitCurrentSpace[0].length +1;
       final formatName = _controller.text.replaceAll(' ', '-');
       _controller.value = TextEditingValue(
         text: formatName,
@@ -101,7 +101,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: EdgeInsets.only(left: 16,right: 13,top:13,bottom: 13 ),
+            padding: EdgeInsets.only(left: 16),
             decoration: BoxDecoration(
               color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
                 borderRadius: BorderRadius.only(
@@ -113,9 +113,18 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(S.of(context).createChannel.toUpperCase(), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: isDark ? Color(0xffFFFFFF): Color(0xff3D3D3D))),
-                InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Icon(PhosphorIcons.xCircle,size: 18))
+                HoverItem(
+                  colorHover: Palette.hoverColorDefault,
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.only(topRight: Radius.circular(6.0))
+                      ),
+                      padding: EdgeInsets.all(10),
+                      child: Icon(PhosphorIcons.xCircle,size: 18))
+                    ),
+                )
               ],
             )
           ),
@@ -223,7 +232,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
                   }
                 },
               ),
-            
+
           ),
           SizedBox(height: 18),
           Container(
@@ -260,12 +269,14 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
           listUserChannel.length == 0 ?SizedBox(height: 10,) : Container(
             margin: EdgeInsets.only(left: 18,right: 18,top: 0),
             width: MediaQuery.of(context).size.width,
-            height: 50,
-            child: ScrollConfiguration(
-              behavior: MyCustomScrollBehavior(),
+            height: 60,
+            child: Scrollbar(
+              controller: scrollController,
+              thumbVisibility: true,
+              thickness: 5.6,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                physics: BouncingScrollPhysics(),
+                controller: scrollController,
                 child: Row(
                   children: listUserChannel.map((u) => Container(
                     margin: EdgeInsets.only(right: 8),
@@ -301,7 +312,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
                       ),
                     ),
                   )).toList(),
-                ) 
+                )
               ),
             )),
           Expanded(
@@ -309,7 +320,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
               margin: EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide( 
+                  top: BorderSide(
                       color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
                       width: 1.0,
                     ),
@@ -330,20 +341,20 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
                         height: 45,
                         padding: EdgeInsets.symmetric(vertical: 10,horizontal: 11),
                         decoration: BoxDecoration(
-                          border: Border( 
-                            left: BorderSide( 
+                          border: Border(
+                            left: BorderSide(
                               width: 1.0,
                               color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
                             ),
-                            right: BorderSide( 
+                            right: BorderSide(
                               color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
                               width: 1.0,
                             ),
-                            bottom: BorderSide( 
+                            bottom: BorderSide(
                               color:isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9),
                               width: 0.5,
                             ),
-                          ), 
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -403,7 +414,7 @@ class _CreateChannelDesktopState extends State<CreateChannelDesktop> {
 class MyCustomScrollBehavior extends MaterialScrollBehavior {
   // Override behavior methods and getters like dragDevices
   @override
-  Set<PointerDeviceKind> get dragDevices => { 
+  Set<PointerDeviceKind> get dragDevices => {
     PointerDeviceKind.touch,
     PointerDeviceKind.mouse,
     // etc.

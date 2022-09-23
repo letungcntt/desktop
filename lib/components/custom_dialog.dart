@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
 
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class CustomDialog extends StatefulWidget {
   final String title;
@@ -25,7 +24,7 @@ class CustomDialog extends StatefulWidget {
 
 class _CustomDialogState extends State<CustomDialog> {
   TextEditingController _controller = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
@@ -50,7 +49,7 @@ class _CustomDialogState extends State<CustomDialog> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5.0)),
         backgroundColor: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),
         content: Container(
-          height: 212,
+          height: widget.title == "Validation" ? 250 : 218.5,
           width: 398,
           child: Column(
             children: [
@@ -63,8 +62,8 @@ class _CustomDialogState extends State<CustomDialog> {
                 )),
                 child: Column(
                   children: [
-                    Container(    
-                      decoration:  BoxDecoration(border: Border(bottom: BorderSide(width: 0.2, color: Colors.grey))), 
+                    Container(
+                      decoration:  BoxDecoration(border: Border(bottom: BorderSide(width: 0.2, color: Colors.grey))),
                       padding: EdgeInsets.only(top: 15, bottom: 15,left: 16),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.start,
@@ -89,6 +88,13 @@ class _CustomDialogState extends State<CustomDialog> {
                   children: [
                     Text(
                       '${widget.titleField}: ',
+                      style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w400,color: isDark ?  Color(0xFFC9C9C9): Color(0Xff828282)
+                      )
+                    ),
+                    SizedBox(height: 8),
+                    if(widget.title == "Validation") Text(
+                      'User name must be more than 2 characters and contains no special characters !!!',
                       style: TextStyle(
                         fontSize: 12, fontWeight: FontWeight.w400,color: isDark ?  Color(0xFFC9C9C9): Color(0Xff828282)
                       )

@@ -2,12 +2,11 @@ import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class AttachmentItem extends StatefulWidget {
   const AttachmentItem({
@@ -93,7 +92,7 @@ class _AttachmentItemState extends State<AttachmentItem> {
                       title: "Download attachment",
                       subtitle: "Do you want to download ${attachment["file_name"]}",
                       onConfirm: () async {
-                        Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": attachment["content_url"], "name": attachment["file_name"]});
+                        Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": attachment["content_url"], "name": attachment["file_name"], "version": attachment["version"]});
                       }
                     );
                   }
@@ -104,7 +103,7 @@ class _AttachmentItemState extends State<AttachmentItem> {
                   borderRadius: BorderRadius.circular(5),
                   color: Colors.grey[400]
                 ),
-                child: attachment["uploading"] == true ? Icon(PhosphorIcons.spinner, color: Colors.grey[600], size: 32) : Icon(Icons.file_download_outlined, color: Colors.grey[600], size: 32)
+                child: attachment["uploading"] == true ? Icon(PhosphorIcons.spinner, color: Colors.grey[600], size: 32) : Icon(PhosphorIcons.folder, color: Colors.grey[600], size: 32)
               )
             )
           ),

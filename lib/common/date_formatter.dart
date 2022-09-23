@@ -38,7 +38,7 @@ class DateFormatter {
     return '${DateFormat('MMMMd', locale).format(dateTime)}';
   }
 
-  String renderTime(DateTime dateTime, {String type = 'jm'}) {
-    return DateFormat(type).format(dateTime.add(Duration(hours: 7)));
+  String renderTime(DateTime dateTime, {String type = 'jm', timeZone = 7}) {
+    return DateFormat(type).format(dateTime.add(Duration(hours: timeZone)));
   }
 }

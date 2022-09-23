@@ -3,10 +3,11 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:workcake/common/utils.dart';
 
 class SubmitButton extends StatefulWidget {
-  const SubmitButton({Key? key, required this.onTap, required this.text, this.isLoading = false}) : super(key: key);
+  const SubmitButton({Key? key, required this.onTap, required this.text, this.isLoading = false, this.isDisable = false}) : super(key: key);
   final onTap;
   final String text;
   final bool isLoading;
+  final bool isDisable;
 
   @override
   State<SubmitButton> createState() => _SubmitButtonState();
@@ -37,7 +38,7 @@ class _SubmitButtonState extends State<SubmitButton> {
               blurRadius: 8,
             )
           ],
-          color: isHover ? const Color(0xff40A9FF) : Utils.getPrimaryColor()
+          color: widget.isDisable ? Colors.grey[500] : isHover ? const Color(0xff40A9FF) : Utils.getPrimaryColor()
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

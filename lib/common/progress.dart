@@ -2,9 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 Container circularProgress() {
   return Container(
@@ -25,7 +24,7 @@ Container circularProgressForChatScreen() {
       ));
 }
 
-Widget spinkit(){ 
+Widget spinkit(){
   return SpinKitCircle(
   color: Colors.white,
   size: 20.0,
@@ -40,7 +39,7 @@ getRandomInt(range) {
 getRandomBool() {
   final randomNumberGenerator = Random();
   final randomBoolean = randomNumberGenerator.nextBool();
-  
+
   return randomBoolean;
 }
 
@@ -70,7 +69,7 @@ Container shimmerEffect(context, {int number = 20}) {
                     color: Colors.white,
                     shape: BoxShape.circle,
                   ),
-                  
+
                 ),
                 Padding(
                   padding:

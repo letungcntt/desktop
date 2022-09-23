@@ -6,18 +6,16 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/call_center/p2p_manager.dart';
 import 'package:workcake/components/splash_screen.dart';
-import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import '../message_item/attachments/text_file.dart';
 
@@ -36,7 +34,7 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
   bool isHoverMessenger = false;
   bool isHoverCall = false;
   bool isHoverVideo = false;
-  
+
   void initState() {
     final auth = Provider.of<Auth>(context, listen: false);
 
@@ -62,11 +60,11 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
       dm = Provider.of<DirectMessage>(context, listen: false).getModelConversation(convId);
     } else {
       dm = DirectModel(
-        "", 
+        "",
         [
-          {"user_id": currentUser["id"],"full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true}, 
+          {"user_id": currentUser["id"],"full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true},
           {"user_id": user["user_id"] ?? user["id"], "avatar_url": user["avatar_url"],  "full_name": user["full_name"] ?? user["name"], "is_online": user["is_online"]}
-        ], 
+        ],
         "", false, 0, {}, false, 0, {}, user["full_name"] ?? user["name"], null
       );
     }
@@ -117,23 +115,19 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                       )
                     ),
                     Container(
-                      padding: EdgeInsets.only(right: 2),
-                      alignment: Alignment.centerRight,
-                      child: HoverItem(
-                        isRound: true,
-                        radius: 5.0,
-                        colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
-                        child: IconButton(
-                          onPressed: (){
-                            Navigator.of(context).pop();
-                          },
-                          icon: Icon(
-                            PhosphorIcons.xCircle,
-                            size: 20.0,
-                          ),
-                        )
+                      width: 20,
+                      height: 20,
+                      margin: EdgeInsets.only(right: 16),
+                      child: TextButton(
+                        style: ButtonStyle(
+                          padding: MaterialStateProperty.all(EdgeInsets.all(0)),
+                          overlayColor: MaterialStateProperty.all(isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15)),
+                          shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+                        ),
+                        child: Icon(CupertinoIcons.xmark, size: 16, color: isDark ? Colors.white70 : Colors.black54),
+                        onPressed: () => Navigator.of(context).pop()
                       )
-                    ),
+                    )
                   ],
                 ),
               ),
@@ -169,10 +163,10 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 10),
                           child: Text(
-                            otherUser["full_name"],
+                            Utils.checkedTypeEmpty(otherUser["username"]) ? otherUser["username"] : otherUser["full_name"],
                             style: TextStyle(
-                              color: isDark ? Color(0xffEDEDED) : Color(0xff3D3D3D), 
-                              fontWeight: FontWeight.w700, 
+                              color: isDark ? Color(0xffEDEDED) : Color(0xff3D3D3D),
+                              fontWeight: FontWeight.w700,
                               fontSize: 16
                             )
                           ),
@@ -180,7 +174,7 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                         Text(
                           Utils.checkedTypeEmpty(otherUser["custom_id"]) ? "#${otherUser["custom_id"]}" : "",
                           style: TextStyle(
-                            color: isDark ? Color(0xff828282) : Color(0xffA6A6A6), 
+                            color: isDark ? Color(0xff828282) : Color(0xffA6A6A6),
                             fontWeight: FontWeight.w500,
                             fontSize: 14
                           )
@@ -281,7 +275,7 @@ class _UserProfileDesktopState extends State<UserProfileDesktop> {
                               curve: isHoverVideo ? Curves.easeOutCubic : Curves.easeInCirc,
                               padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
-                                color: isHoverVideo ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor() 
+                                color: isHoverVideo ? isDark ? Color(0xffFAAD14) : Utils.getPrimaryColor()
                                 : isDark ? Color(0xff4C4C4C) : Color(0xffF8F8F8),
                                 borderRadius: BorderRadius.circular(isHoverVideo  ? 5 : 5 ),
                               ),
@@ -507,7 +501,7 @@ class _FriendStatusState extends State<FriendStatus> {
 
   @override
   Widget build(BuildContext context) {
-    
+
     final otherUser = Provider.of<User>(context, listen: true).otherUser;
     final isSended = otherUser!["is_sended"] == 1 ? true : false;
     final isRequested = otherUser["is_requested"] == 1 ? true : false;

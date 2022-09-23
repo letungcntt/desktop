@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -11,11 +12,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:platform_device_id/platform_device_id.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/E2EE/e2ee.dart';
 
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/common/cached_image.dart';
+import 'package:workcake/common/date_formatter.dart';
+import 'package:workcake/providers/providers.dart';
 
 import '../isar/message_conversation/service.dart';
 class Utils {
@@ -28,6 +30,7 @@ class Utils {
   static String identityKey = "";
   static Map? dataDevice;
   static String? _deviceId;
+  static String panchatSupportId = "9e702ec5-7a22-42ed-a289-3c8c55692523";
 
   static String get deviceId  => _deviceId ?? "";
 
@@ -47,10 +50,10 @@ class Utils {
     return debug;
   }
 
-  static checkDebugMode(String address) {
+  static checkDebugMode() {
     assert(() {
-      // apiUrl = 'https://192.168.3.20:6001/api/';
-      // socketUrl = 'wss://192.168.3.20:6001/socket/websocket';
+      // apiUrl = 'https://3928-27-72-63-124.ngrok.io/api/';
+      // socketUrl = 'wss://3928-27-72-63-124.ngrok.io/socket/websocket';
       apiUrl = 'https://chat.pancake.vn/api/';
       socketUrl = 'wss://chat.pancake.vn/socket/websocket';
       clientId = 'c726228820114ea4a785898f8c4f7b53';
@@ -83,7 +86,7 @@ class Utils {
       } else if (Platform.isIOS) {
         IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
         return iosInfo.name ?? "";
-      } 
+      }
       return "";
     } catch (e) {
       return "";
@@ -226,6 +229,21 @@ class Utils {
     return  encrypter.encrypt(str, iv: iv).base64;
   }
 
+  static encryptBytes(List<int> bytes, String masterKey){
+    final key = En.Key.fromBase64(masterKey);
+    final iv  =  En.IV.fromLength(16);
+    final encrypter = En.Encrypter(En.AES(key, mode: En.AESMode.cbc));
+    return  encrypter.encryptBytes(bytes, iv: iv).bytes;
+  }
+
+  static decryptBytes(List<int> bytes, String masterKey){
+    final key = En.Key.fromBase64(masterKey);
+    final iv  =  En.IV.fromLength(16);
+    final encrypter = En.Encrypter(En.AES(key, mode: En.AESMode.cbc));
+    var encrypted =  En.Encrypted(Uint8List.fromList(bytes));
+    return encrypter.decryptBytes(encrypted, iv: iv);
+  }
+
   static decrypt(String str, String masterKey){
     final key = En.Key.fromBase64(masterKey);
     final iv  =  En.IV.fromLength(16);
@@ -240,15 +258,15 @@ class Utils {
       decryptData = decryptData.substring(0, decryptData.length);
       decryptData = jsonDecode(decryptData);
       var resultData  = Map.from(message);
-      resultData["message"] = decryptData["message"];
-      resultData["attachments"] = decryptData["attachments"];
+      // resultData["message"] = decryptData["message"];
+      // resultData["attachments"] = decryptData["attachments"];
       return {
         "success": true,
         "message": resultData,
         "data": decryptData
         };
-      } catch (e) {
-        print(e);
+      } catch (e, t) {
+        print("$e, $t");
         return {
         "success": false,
         "message": "Error"
@@ -290,7 +308,7 @@ class Utils {
     } catch (e) {
       print("_________$e");
     }
-    
+
   }
 
   static encryptServer(Map data) async{
@@ -305,7 +323,7 @@ class Utils {
     LazyBox box = Hive.lazyBox('pairKey');
     Map idKey = await box.get("identityKey");
     var sharedKey = await X25519().calculateSharedSecret(KeyP.fromBase64(idKey["privKey"], false), KeyP.fromBase64(identityKey, true));
-    return Utils.decryptMessage({"message": dataM}, sharedKey.toBase64());
+    return decryptMessage({"message": dataM}, sharedKey.toBase64());
   }
 
   static genSharedKeyOnGroupByUser() async {
@@ -326,14 +344,15 @@ class Utils {
           var name = Platform.isWindows ? file.path.split("\\").last : e.split("/").last;
           var type = name.split(".").last.toLowerCase();
           if (type == "png" || type == "jpg" || type == "jpeg" || type == "webp") type = "image";
-          if (type == "") type = "text";        
+          if (type == "") type = "text";
           var fileData  = await file.readAsBytes();
           var checkfile = Work.checkTypeFile(fileData);
           if (checkfile  == ".png" || checkfile == ".jpg" || checkfile == ".jpeg" ||checkfile == ".gif") type = "image";
           else type = checkfile != "" ? checkfile : type;
           return {
             "name": name,
-            "mime_type": type,
+            "type": type,
+            "mime_type":  name.split(".").last.toLowerCase(),
             "path": file.path,
             "file": fileData,
             "size": getFileSize(file.path, 1)
@@ -353,7 +372,7 @@ class Utils {
           url,
           options: Options(
             responseType: ResponseType.bytes,
-            followRedirects: false, 
+            followRedirects: false,
             receiveTimeout: 0
             ),
           );
@@ -407,7 +426,7 @@ class Utils {
     return _deviceId;
   }
 
-  // server chi update cho nhung device chua co thong tin device (ip, name, ...) 
+  // server chi update cho nhung device chua co thong tin device (ip, name, ...)
   static uploadDeviceInfo(String token) async {
     var url  = "${Utils.apiUrl}users/update_device_info?token=$token&device_id=${await getDeviceId()}";
     Dio().post(url, data: {
@@ -444,7 +463,7 @@ class Utils {
   }
 
   static convertCharacter(String text){
-    final _vietnamese = 'aâăAÂĂeêEÊoôơOÔƠuưUƯ';
+    final _vietnamese = 'aâăAÂĂeêEÊoôơOÔƠuưUƯyY';
     final _vietnameseRegex = <RegExp>[
       RegExp(r'à|á|ạ|ả|ã'),
       RegExp(r'â|ầ|ấ|ậ|ẩ|ẫ'),
@@ -465,7 +484,9 @@ class Utils {
       RegExp(r'ù|ú|ụ|ủ|ũ'),
       RegExp(r'ư|ừ|ứ|ự|ử|ữ'),
       RegExp(r'Ù|Ú|Ụ|Ủ|Ũ'),
-      RegExp(r'Ư|Ừ|Ứ|Ự|Ử|Ữ')
+      RegExp(r'Ư|Ừ|Ứ|Ự|Ử|Ữ'),
+      RegExp(r'ỳ|ý|ỵ|ỷ|ỹ'),
+      RegExp(r'Ỳ|Ý|Ỵ|Ỷ|Ỹ')
     ];
 
     var result = text;
@@ -557,7 +578,7 @@ class Utils {
     } catch (e, trace) {
       print("line 499 ${e.toString()} $trace");
     }
- 
+
     return count;
   }
 
@@ -581,6 +602,7 @@ class Utils {
     return ((bytes / pow(1024, i)).toStringAsFixed(decimals)) + ' ' + suffixes[i];
   }
 
+  static BuildContext? globalMaterialContext;
   static BuildContext? globalContext;
   static getGlobalContext() { return globalContext; }
   static setGlobalContext(context) { globalContext = context; }
@@ -757,19 +779,532 @@ class Utils {
     return text;
   }
 
-  static String? getUserNickName(String userId) {
+  static String? getUserNickName(String? userId) {
     List members = Provider.of<Workspaces>(Utils.globalContext!, listen: false).members;
     List nickNameMembers = members.where((ele) => Utils.checkedTypeEmpty(ele['nickname'])).toList();
     int indexNickName = nickNameMembers.indexWhere((user) => userId == user["id"]);
 
     return indexNickName == -1 ? null : (nickNameMembers[indexNickName]["nickname"] ?? nickNameMembers[indexNickName]['full_name']);
   }
-  
+
   static Future<String> getDeviceIdentifier() async {
     try {
+      if (Platform.isMacOS) {
+        final deviceInfoPlugin = DeviceInfoPlugin();
+        return (await deviceInfoPlugin.macOsInfo).systemGUID.toString();
+      }
       return (await PlatformDeviceId.getDeviceId).toString();
     } catch (e) {
       return "";
     }
   }
+
+  static Map getMimeTypeFromBytes(List<int> bytes) {
+    String subBytes = bytes.sublist(0, 20).join();
+    var mimeType;
+    var type;
+
+    if (subBytes.startsWith("255216")) {
+      mimeType = 'jpeg';
+      type = 'image';
+    } else if (subBytes.startsWith("137807") || subBytes.startsWith("7777") || subBytes.startsWith("6677")) {
+      mimeType = 'png';
+      type = 'image';
+    } else if (subBytes.startsWith("00024") || subBytes.startsWith("00028") || subBytes.startsWith("00032")) {
+      mimeType = 'mp4';
+      type = 'video';
+    } else if (subBytes.startsWith("00020")) {
+      mimeType = 'mov';
+      type = 'video';
+    } else if (subBytes.startsWith("807534200888048") || subBytes.startsWith("807534200608") 
+      || subBytes.startsWith("8075342008880120") || subBytes.startsWith("8075342008880101") 
+      || subBytes.startsWith("8075341000000174") || subBytes.startsWith("8075342008880377")
+      || subBytes.startsWith("8075342008880549")
+    ) {
+      mimeType = 'xlsx';
+      type = 'file';
+    } else if (subBytes.startsWith("8075342008880143")) {
+      mimeType = 'docx';
+      type = 'file';
+    } else if (subBytes.startsWith("3780687045")) {
+      mimeType = 'pdf';
+      type = 'file';
+    } 
+
+    if (type == null) {
+      return {};
+    } else {
+      return {
+        "mimeType": mimeType,
+        "type": type
+      };
+    }
+  }
+
+  static formatNumber(num) {
+    final number = NumberFormat.compactCurrency(
+      decimalDigits: 0,
+      locale: 'en',
+      symbol: '',
+    ).format(num);
+
+    return number;
+  }
+
+  static compareTime(TimeOfDay time) {
+    TimeOfDay now = TimeOfDay.now();
+    if (now.hour < time.hour) return false;
+    if (now.hour > time.hour) return true;
+    if (now.minute <= time.minute) return false;
+    if (now.minute > time.minute) return true;
+  }
+
+  static Widget renderElementForm(context, ele, isDark) {
+    switch (ele["id"]) {
+      case 1:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 2:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 3:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 4:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${DateFormatter().renderTime(DateTime.parse(ele['value']), type: 'yMMMMd')}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 5:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 6:
+        return Container(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Expanded(child: Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)))
+            ],
+          )
+        );
+      case 7:
+        return Container(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Expanded(
+                child: Wrap(
+                  children: [
+                    ...ele["value"].map((att) {
+                      return Container(
+                        margin: EdgeInsets.only(right: 3),
+                        child: InkWell(
+                          child: CachedImage(att["content_url"], width: 66, height: 84, radius: 2)),
+                      );
+                    }).toList()
+                  ],
+                )
+              )
+            ],
+          )
+        );
+      case 8:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 9:
+        final dateTime = ele["value"].split(" - ");
+        return Container(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text("Từ ngày: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+                  Text("${DateFormatter().renderTime(DateTime.parse(dateTime[0]), type: 'yMMMMd')}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+                ],
+              ),
+              SizedBox(height: 10),
+              Row(
+                children: [
+                  Text("Đến ngày: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+                  Text("${DateFormatter().renderTime(DateTime.parse(dateTime[1]), type: 'yMMMMd')}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+                ],
+              ),
+            ],
+          )
+        );
+      case 10:
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${ele["value"]}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+      case 11:
+        final channels = Provider.of<Channels>(context, listen: false).data;
+        final index = channels.indexWhere((c) => c['id'] == ele['value']);
+        if (index != -1) return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Text("${channels[index]['name']}", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14))
+            ],
+          )
+        );
+        return Container();
+      case 12:
+        final members = Provider.of<Workspaces>(context, listen: false).members;
+        return Container(
+          child: Row(
+            children: [
+              Text("${ele["label"]}: ", style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 14)),
+              Expanded(
+                child: Wrap(
+                  children: [
+                    ...ele['value'].map((e) {
+                      final index = members.indexWhere((m) => m["id"] == e);
+                      if (index != -1) return CachedImage(
+                        members[index]['avatar_url'],
+                        width: 30,
+                        height: 30,
+                        isAvatar: true,
+                        radius: 50,
+                        name: members[index]['full_name']
+                      );
+                      return Container();
+                    }).toList()
+                  ],
+                ),
+              )
+            ],
+          )
+        );
+      default:
+        return Container();
+    }
+  }
 }
+
+final listAllApp = [
+  {
+    "id": 1,
+    "name": "Snappy",
+    "avatar_app": "assets/images/logo_app/snappy.jpg",
+    "description": "Bring Snappy into Pancake Chat."
+  },
+  {
+    "id": 2,
+    "name": "POS",
+    "avatar_app": "assets/images/logo_app/pos_app.png",
+    "description": "Đồng bộ tin nhắn từ những trạng thái cấu hình POS."
+  },
+  {
+    "id": 3,
+    "name": "Zimbra",
+    "avatar_app": "assets/images/logo_app/zimbra.png",
+    "description": "Send emails into Pancake Chat to discuss them with your teammates."
+  },
+  {
+    "id": 4,
+    "name": "Biz Banking",
+    "avatar_app": "assets/images/logo_app/bank_app.png",
+    "description": "Thông báo biến động tài khoản ngân hàng."
+  },
+  {
+    "id": 5,
+    "name": "Github",
+    "avatar_app": "assets/images/logo_app/github.png",
+    "description": "Get updates from the world’s leading development platform on Pancake Chat."
+  },
+  {
+    "id": 6,
+    "name": "Trello",
+    "avatar_app": "assets/images/logo_app/trello.png",
+    "description": "Collaborate on Trello projects without leaving Pancake Chat."
+  },
+  {
+    "id": 7,
+    "name": "Twitter",
+    "avatar_app": "assets/images/logo_app/twitter.png",
+    "description": "Bring tweets into Pancake Chat."
+  },
+  {
+    "id": 8,
+    "name": "Google Calendar",
+    "avatar_app": "assets/images/logo_app/google-calendar.png",
+    "description": "See your schedule, respond to invites, and get event updates."
+  },
+  {
+    "id": 9,
+    "name": "Pancake Chat for Gmail",
+    "avatar_app": "assets/images/logo_app/gmail.png",
+    "description": "Send emails into Pancake Chat to discuss them with your teammates."
+  },
+  {
+    "id": 10,
+    "name": "Zoom",
+    "avatar_app": "assets/images/logo_app/zoom.png",
+    "description": "Easily start a Zoom video meeting directly from Pancake Chat."
+  },
+  {
+    "id": 11,
+    "name": "Google Drive",
+    "avatar_app": "assets/images/logo_app/google-drive.png",
+    "description": "Get notifications about Google Drive files within Pancake Chat."
+  },
+  // {
+  //   "id": 12,
+  //   "name": "VIB",
+  //   "avatar_app": "assets/images/logo_app/logo-vib.png",
+  //   "description": "Log in vib account"
+  // }
+];
+
+final List<Map<String, dynamic>> listForms = [
+  {
+    "id": 1,
+    "key": "title",
+    "label": "Tiêu đề",
+    "type": "input"
+  },
+  {
+    "id": 2,
+    "key": "fullName",
+    "label": "Họ tên",
+    "type": "input"
+  },
+  {
+    "id": 3,
+    "key": "phoneNumber",
+    "label": "Số điện thoại",
+    "type": "input"
+  },
+  {
+    "id": 4,
+    "key": "dateTime",
+    "label": "Ngày tháng",
+    "type": "dateTime"
+  },
+  {
+    "id": 5,
+    "key": "time",
+    "label": "Giờ phút",
+    "type": "time"
+  },
+  {
+    "id": 6,
+    "key": "description",
+    "label": "Lý do/Mô tả",
+    "type": "textArea"
+  },
+  {
+    "id": 7,
+    "key": "attachment",
+    "label": "Tệp đính kèm",
+    "type": "button"
+  },
+  {
+    "id": 8,
+    "key": "amount",
+    "label": "Số tiền",
+    "type": "input"
+  },
+  {
+    "id": 9,
+    "key": "dateRange",
+    "label": "Khoảng thời gian",
+    "type": "dateRange"
+  },
+  {
+    "id": 10,
+    "key": "number",
+    "label": "Số lượng",
+    "type": "input"
+  },
+  {
+    "id": 11,
+    "key": "channel",
+    "label": "Chọn channel",
+    "type": "select"
+  },
+  {
+    "id": 12,
+    "key": "censor",
+    "label": "Người kiểm duyệt",
+    "type": "select"
+  },
+];
+
+
+final List<Map<String, dynamic>> listBanking = [
+  {
+    "id": 6,
+    "name": "Ngân hàng TMCP Kỹ thương Việt Nam",
+    "code": "TCB",
+    "logo": "assets/images/logobank/techcombank.png",
+    "short_name": "Techcombank",
+    "bin": "970407",
+    "swift_code": "VTCBVNVX",
+    "bank_type": "personal",
+    "color_card": 0xffda251c,
+    "is_verified": true
+  },{
+    "id": 10,
+    "name": "Ngân hàng TMCP Quốc tế Việt Nam",
+    "code": "VIB",
+    "logo": "assets/images/logobank/vib.jpg",
+    "short_name": "VIB",
+    "bin": "970441",
+    "swift_code": "VNIBVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff0066b3,
+    "is_verified": true
+  },{
+    "id": 5,
+    "name": "Ngân hàng TMCP Quân đội",
+    "code": "MB",
+    "logo": "assets/images/logobank/mbbank.png",
+    "short_name": "MBBank",
+    "bin": "970422",
+    "swift_code": "MSCBVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff000fd0,
+    "is_verified": true
+  },{
+    "id": 1,
+    "name": "Ngân hàng TMCP Công thương Việt Nam",
+    "code": "ICB",
+    "logo": "assets/images/logobank/viettin.png",
+    "short_name": "VietinBank",
+    "bin": "970415",
+    "swift_code": "ICBVVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff004f7e,
+    "is_verified": false
+  },{
+    "id": 2,
+    "name": "Ngân hàng TMCP Ngoại Thương Việt Nam",
+    "code": "VCB",
+    "logo": "assets/images/logobank/vietcombank.png",
+    "short_name": "Vietcombank",
+    "bin": "970436",
+    "swift_code": "BFTVVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff073c28,
+    "is_verified": false
+  },{
+    "id": 3,
+    "name": "Ngân hàng TMCP Đầu tư và Phát triển Việt Nam",
+    "code": "BIDV",
+    "logo": "assets/images/logobank/bidv.png",
+    "short_name": "BIDV",
+    "bin": "970418",
+    "swift_code": "BIDVVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff213e99,
+    "is_verified": false
+  },{
+    "id": 4,
+    "name": "Ngân hàng Nông nghiệp và Phát triển Nông thôn Việt Nam",
+    "code": "VBA",
+    "logo": "assets/images/logobank/agribank.png",
+    "short_name": "Agribank",
+    "bin": "970405",
+    "swift_code": "VBAAVNVX",
+    "bank_type": "personal",
+    "color_card": 0xffae1c3f,
+    "is_verified": false
+  },{
+    "id": 7,
+    "name": "Ngân hàng TMCP Á Châu",
+    "code": "ACB",
+    "logo": "assets/images/logobank/acb.png",
+    "short_name": "ACB",
+    "bin": "970416",
+    "swift_code": "ASCBVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff002496,
+    "is_verified": false
+  },{
+    "id": 8,
+    "name": "Ngân hàng TMCP Việt Nam Thịnh Vượng",
+    "code": "VPB",
+    "logo": "assets/images/logobank/vpbank.png",
+    "short_name": "VPBank",
+    "bin": "970432",
+    "swift_code": "VPBKVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff008446,
+    "is_verified": false
+  },{
+    "id": 9,
+    "name": "Ngân hàng TMCP Tiên Phong",
+    "code": "TPB",
+    "logo": "assets/images/logobank/tpbank.png",
+    "short_name": "TPBank",
+    "bin": "970423",
+    "swift_code": "TPBVVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff4a1860,
+    "is_verified": false
+  },{
+    "id": 11,
+    "name": "Ngân hàng TMCP Xuất Nhập khẩu Việt Nam",
+    "code": "EIB",
+    "logo": "assets/images/logobank/eximbank.png",
+    "short_name": "Eximbank",
+    "bin": "970431",
+    "swift_code": "EBVIVNVX",
+    "bank_type": "personal",
+    "color_card": 0xff019ddc,
+    "is_verified": false
+  },{
+    "id": 12,
+    "name": "Ngân hàng TMCP Kỹ thương Việt Nam",
+    "code": "TCB",
+    "logo": "assets/images/logobank/techcombank.png",
+    "short_name": "Techcombank",
+    "bin": "970407",
+    "swift_code": "VTCBVNVX",
+    "bank_type": "enterprise",
+    "color_card": 0xffda251c,
+    "is_verified": false
+  },
+];

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:file_selector/file_selector.dart';
@@ -9,7 +10,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/channels/channel_member.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
@@ -22,11 +22,12 @@ import 'package:workcake/components/message_item/attachments/text_file.dart';
 import 'package:workcake/components/modal_invite_desktop.dart';
 import 'package:workcake/components/option_notification_mode.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
+import 'package:workcake/components/transitions/modal.dart';
 import 'package:workcake/direct_message/render_media.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import '../media_conversation/dm_media.dart';
 
 class DirectInfoDesktop extends StatefulWidget {
@@ -109,7 +110,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
   }
 
   openFileSelector() async {
-    List resultList = [];    
+    List resultList = [];
     try {
       var myMultipleFiles =  await Utils.openFilePicker([
         XTypeGroup(
@@ -128,7 +129,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
       if(resultList.length > 0) {
         final image = resultList[0];
         showDialog(
-          context: context, 
+          context: context,
           builder: (BuildContext context){
             return Dialog(
               child: CropImageDialog(
@@ -165,7 +166,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
       height: deviceHeight,
       width: 330,
       decoration: BoxDecoration(
-        color: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
+        color: isDark ? Color(0xFF2e2e2e) : Color(0xFFF3F3F3),
       ),
       child: Stack(
         children: [
@@ -206,7 +207,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                       decoration: BoxDecoration(
                         border: Border(
                           left: BorderSide(
-                            color: isDark ? Colors.transparent : Color(0xffE4E7EB), 
+                            color: isDark ? Colors.transparent : Color(0xffE4E7EB),
                             width: 0.5
                           )
                         )
@@ -322,7 +323,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                   ],
                 ),
               ),
-              SizedBox(height: 24),
+              SizedBox(height: 16),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Divider(height: 0.5)
@@ -346,13 +347,13 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                               showDialog(
                                 context: context,
                                 builder: (BuildContext context) => NotificationDM(
-                                  conversationId: directMessage.id, 
+                                  conversationId: directMessage.id,
                                   onSave: Provider.of<DirectMessage>(context, listen: false).updateSettingConversationMember
                                 )
                               );
                             },
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                               child: Row(
                                 children: [
                                   getIconNotificationByStatusDM(status, isDark),
@@ -372,7 +373,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                           child: InkWell(
                             onTap: () => inviteDirectModel(context, directMessage),
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                               child: Row(
                                 children: [
                                   SvgPicture.asset(
@@ -392,7 +393,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                         id: directMessage.id,
                         onChanged: (String  value) => setState(() {
                           type = value;
-                          selectedFile  = true; 
+                          selectedFile  = true;
                         }),
                       ),
                       SizedBox(height: 12),
@@ -408,7 +409,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
                           child: InkWell(
                             onTap: () => showConfirmDialog(context),
                             child: Container(
-                              padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                              padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                               decoration: BoxDecoration(
                                 color: Palette.hoverColorDefault,
                                 borderRadius: BorderRadius.all(Radius.circular(4.0))
@@ -435,9 +436,7 @@ class _DirectInfoDesktopState extends State<DirectInfoDesktop> {
             curve: Curves.easeOutExpo,
             duration: Duration(milliseconds: 500),
             left: selectedFile  ? 0.0 : 500.0,
-            height:  MediaQuery.of(context).size.height - 60,
-            // top: 0.0, bottom: 0.0,
-            // child: Text("Sdfsdfdsfdsfsdfsdff")
+            height: deviceHeight,
             child: Container(
               child: MediaConversationRender(type: type, id: directMessage.id, back: _setSelectedItem))
           )
@@ -460,7 +459,19 @@ class ListMember extends StatelessWidget {
     final users = directMessage.getUser();
     final isDark = Provider.of<Auth>(context).theme == ThemeType.DARK;
 
-    return Container(
+    return users.length == 0 ? Container(
+      width: 100, height: 100,
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Color((pi * 0.1 * 0xFFFFFF).toInt()).withOpacity(1.0),
+        borderRadius: BorderRadius.circular(50)
+      ),
+      child: Icon(
+        Icons.group,
+        size: 32,
+        color: Colors.white
+      ),
+    ) : Container(
       margin: EdgeInsets.symmetric(vertical: 12),
       width: users.length > 3 ? 280 : 240,
       height: 100,
@@ -487,7 +498,7 @@ class ListMember extends StatelessWidget {
               )
             )
           ),
-          users.length <= 3 ? Container() : 
+          users.length <= 3 ? Container() :
           Positioned(
             right: users.length > 3 ? 70 : 0,
             child: CachedImage(
@@ -499,7 +510,7 @@ class ListMember extends StatelessWidget {
               fontSize: 20
             )
           ),
-          users.length <= 2 ? Container() : 
+          users.length <= 2 ? Container() :
           Positioned(
             right: users.length > 3 ? 100 : 60,
             child: CachedImage(
@@ -511,7 +522,7 @@ class ListMember extends StatelessWidget {
               fontSize: 20
             )
           ),
-          users.length <= 1 ? Container() : 
+          users.length <= 1 ? Container() :
           Positioned(
             right: users.length > 3 ? 140 : 100,
             child: CachedImage(
@@ -745,7 +756,7 @@ class _MembersTileState extends State<MembersTile> {
                   style: ButtonStyle(
                     padding: MaterialStateProperty.all(EdgeInsets.all(0))
                   ),
-                  onPressed: () {
+                  onPressed: (currentUser["id"] == users[index]["user_id"] || currentUser["id"] == users[index]["id"]) ? () {} : () {
                     onShowUserInfo(context, users[index]["user_id"] ?? users[index]["id"]);
                   },
                   child: Container(
@@ -798,7 +809,7 @@ onShowUserInfo(context, id) {
   final auth = Provider.of<Auth>(context, listen: false);
   final isDark = auth.theme == ThemeType.DARK;
 
-  showDialog(
+  showModal(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
@@ -841,7 +852,7 @@ showConfirmDialog(context) {
     Provider.of<DirectMessage>(context, listen: false).leaveConversation(directMessage.id, auth.token, auth.userId);
   }
 
-  showDialog(
+  showModal(
     context: context,
     builder: (BuildContext context) {
 
@@ -883,8 +894,8 @@ showInputDialog(context) {
           directMessage.user,
           value,
           directMessage.seen, directMessage.newMessageCount,
-          directMessage.snippet, 
-          directMessage.archive, 
+          directMessage.snippet,
+          directMessage.archive,
           directMessage.updateByMessageTime,
           directMessage.userRead,
           directMessage.displayName,
@@ -900,7 +911,7 @@ showInputDialog(context) {
     Navigator.pop(context);
   }
 
-  showDialog(
+  showModal(
     context: context,
     builder: (BuildContext context) {
       return CustomDialog(title: title, titleField: S.current.conversationName, displayText: string, onSaveString: onChangeConversationName);
@@ -913,8 +924,8 @@ inviteDirectModel(context, directMessage) {
   final isDark = auth.theme == ThemeType.DARK;
 
   if (directMessage.user.length < 3)
-    return showDialog(
-      context: context, 
+    return showModal(
+      context: context,
       builder: (BuildContext context){
         return AlertDialog(
           contentPadding: EdgeInsets.zero,
@@ -931,7 +942,7 @@ inviteDirectModel(context, directMessage) {
       }
     );
 
-  return showDialog(
+  return showModal(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(

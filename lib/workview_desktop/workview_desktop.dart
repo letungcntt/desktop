@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/kanban_view.dart';
@@ -9,7 +8,7 @@ import 'package:workcake/components/dropdown_overlay.dart';
 import 'package:workcake/components/right_sider.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/workview_desktop/search_bar_issue.dart';
 
 import 'issue_table.dart';
@@ -43,7 +42,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
     final auth = Provider.of<Auth>(context, listen: false);
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
-  
+
     if (currentChannel["kanban_mode"] == false) {
       Provider.of<Channels>(context, listen: false).getMilestoneStatiscal(auth.token, currentWorkspace["id"], currentChannel["id"]);
     }
@@ -99,7 +98,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
     final issueClosedTab = Provider.of<Work>(context, listen: true).issueClosedTab;
     final auth = Provider.of<Auth>(context, listen: true);
     final isDark = auth.theme == ThemeType.DARK;
-    
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -107,7 +106,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
           child: Column(
             children: [
               WorkviewHeader(currentChannel: currentChannel, currentMember: currentMember, auth: auth, currentWorkspace: currentWorkspace, channelMember: channelMember),
-              currentChannel["kanban_mode"] == true ? KanbanView() : Container(
+              currentChannel["kanban_mode"] == true ? KanbanView(channelId: currentChannel["id"]) : Container(
                 padding: EdgeInsets.only(top: 24, right: 24, left: 24, bottom: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -120,8 +119,8 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
                               borderRadius: BorderRadius.circular(2),
                             )),
                             padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 16, horizontal: 24)),
-                            backgroundColor: MaterialStateProperty.all(currentTab == "issue" ? Palette.buttonColor : 
-                              currentTab == "label" && !createLabel ? Utils.getPrimaryColor() : 
+                            backgroundColor: MaterialStateProperty.all(currentTab == "issue" ? Palette.buttonColor :
+                              currentTab == "label" && !createLabel ? Utils.getPrimaryColor() :
                               currentTab == "milestone" && !createMilestone ? Utils.getPrimaryColor() : Color(0xff1E1E1E)),
                             overlayColor: MaterialStateProperty.all(Color(0xff0969DA))
                           ),
@@ -143,17 +142,17 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
                             }
 
                             Provider.of<Channels>(context, listen: false).onChangeOpenIssue({
-                              'type': 'create', 
-                              'description': description, 
-                              'title': title, 
-                              'is_closed': false, 
+                              'type': 'create',
+                              'description': description,
+                              'title': title,
+                              'is_closed': false,
                               'assignees': assignees,
                               'labels': labels,
                               'milestone': milestone
                             });
                           } : currentTab == "label" && !createLabel ? () {this.setState(() {
                             createLabel = true;
-                          });} 
+                          });}
                             : currentTab == "milestone" && !createMilestone ? () {this.setState(() {
                               createMilestone = true;
                             });} : null,
@@ -173,7 +172,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
                           child: HoverItem(
                             colorHover: currentTab == "issue" ? Colors.transparent : Colors.grey.withOpacity(0.2),
                             child: InkWell(
-                              onTap: () {  
+                              onTap: () {
                                 this.setState(() {
                                   currentTab = "issue";
                                   resetFilter++;
@@ -207,7 +206,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
                           child: HoverItem(
                             colorHover: currentTab == "label" ? Colors.transparent : Colors.grey.withOpacity(0.2),
                             child: InkWell(
-                              onTap: () {  
+                              onTap: () {
                                 this.setState(() {
                                   currentTab = "label";
                                   resetFilter++;
@@ -239,7 +238,7 @@ class _WorkviewDesktopState extends State<WorkviewDesktop> {
                           child: HoverItem(
                             colorHover: currentTab == "milestone" ? Colors.transparent : Colors.grey.withOpacity(0.2),
                             child: InkWell(
-                              onTap: () {  
+                              onTap: () {
                                 this.setState(() {
                                   currentTab = "milestone";
                                 });
@@ -311,7 +310,7 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
     Map member = Map.from(widget.currentMember);
     member["subcribe_issue"] = !Utils.checkedTypeEmpty(member["subcribe_issue"]);
 
-    Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member);
+    Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member, "");
   }
 
   Widget _workViewHeader() {
@@ -408,7 +407,7 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
                               Map member = Map.from(widget.currentMember);
                               member["watching_issue"] = false;
 
-                              Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member);
+                              Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member, "");
                             },
                             child: HoverItem(
                               colorHover: Palette.hoverColorDefault,
@@ -467,7 +466,7 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
                               Map member = Map.from(widget.currentMember);
                               member["watching_issue"] = true;
 
-                              Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member);
+                              Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, widget.currentWorkspace["id"], widget.currentChannel["id"], member, "");
                             },
                             child: HoverItem(
                               colorHover: Palette.hoverColorDefault,
@@ -515,7 +514,7 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
                                 )
                               ),
                             )
-                          ), 
+                          ),
                           Divider(),
                           TextButton(
                             style: ButtonStyle(
@@ -581,7 +580,7 @@ class _WorkviewHeaderState extends State<WorkviewHeader> {
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    
+
     return widget.currentChannel["kanban_mode"] != true ? Container(
       height: 56,
       decoration: BoxDecoration(

@@ -1,15 +1,15 @@
 import 'dart:async';
-// import 'package:dart_vlc/dart_vlc.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:lottie/lottie.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/common/window_manager.dart';
 import 'package:workcake/components/call_center/enums_consts.dart';
 import 'package:workcake/components/call_center/p2p_manager.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class P2PCallView extends StatefulWidget {
   P2PCallView({required this.user, required this.type, required this.mediaType, required this.callback, this.collapse, this.screenStateCallback, this.conversationId});
@@ -39,7 +39,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
   double ratioLocalVideoRenderer = 1.0;
   double ratioRemoteVideoRenderer = 1.0;
   String timer = "0:00";
-  // Player? player;
+  AudioPlayer player = AudioPlayer();
   Timer? _timerRinging;
   TimerCounter _timerCounter = new TimerCounter();
 
@@ -50,9 +50,9 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
   bool isFloating = false;
   late final AnimationController _toggleFloatingAnimationController;
   late final AnimationController _dragAnimationController;
-  
-  
-  
+
+
+
   @override
   void initState() {
     super.initState();
@@ -63,9 +63,8 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
         WidgetsBinding.instance.addPostFrameCallback((_) => widget.callback());
       }
     }.call();
-    
+
     user = widget.user;
-    // player = Player(id: 10);
     _ringing();
     _initP2PCallListener();
 
@@ -91,14 +90,13 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
         _stopRingAndStartCounter();
       } else if (state == CallState.CallStateBye) {
         if (widget.type == "offer") await createEndMessage();
-        setState(() => callConnected = false);
       }
     });
 
     p2pManager.onLocalStream = ((stream, listMediaDevices) {
       listCameraDevices = listMediaDevices.where((device) => device.kind == 'videoinput').toList();
       listAudioDevices = listMediaDevices.where((device) => device.kind == 'audioinput').toList();
-      
+
       if (this.mounted) setState(() => _localRenderer.srcObject = stream);
     });
 
@@ -116,26 +114,16 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
       }
     });
 
-    // if (widget.type == "answer") {
-    //   player?.open(Media.asset('assets/musics/incoming_sound.mp3'));
-    //   player?.play();
-    //   player?.playbackStream.listen((playback) {
-    //     if (playback.isCompleted) player?.play();
-    //   });
-    //   windowManager.wakeUp();
-    // } else if (widget.type == "offer") {
-    //   player?.open(Media.asset('assets/musics/waiting_sound.wav'));
-    //   player?.play();
-    //   player?.playbackStream.listen((playback) {
-    //     if (playback.isCompleted) player?.play();
-    //   });
-    // }
+    if (widget.type == "answer") {
+      player.play(UrlSource('https://statics.pancake.vn/panchat-prod/2022/8/12/6b266eeb6f4a1674739b98f2a065109889af32c6.mp3'));
+      windowManager.wakeUp();
+    } else if (widget.type == "offer") {
+      player.play(UrlSource('https://statics.pancake.vn/panchat-prod/2022/9/9/01b491657b18967bb1e6355a3484c4921b17c0b8.wav'));
+    }
   }
 
   void _ringWithReached() {
-    // player?.stop();
-    // player?.open(Media.asset('assets/musics/outcoming_sound.mp3'));
-    // player?.play();
+    player.play(UrlSource('https://statics.pancake.vn/panchat-prod/2022/8/12/4d0f08d1012aca679c4505c90ec5c121bf1b8a8d.mp3'));
   }
 
   void _stopRingAndStartCounter() {
@@ -144,8 +132,8 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
         timer = second;
       });
     };
-    // _timerRinging?.cancel();
-    // player?.stop();
+    _timerRinging?.cancel();
+    player.stop();
   }
   //<------------------------------------------------------->
 
@@ -233,7 +221,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
     final token = Provider.of<Auth>(context, listen: false).token;
     var dataMessage = {
       "message": widget.mediaType == "video" ? "Cuộc gọi video đã kết thúc" : "Cuộc gọi audio đã kết thúc",
-      "attachments": [{"type": "call_terminated", "data": {"timerCounter": timer, "mediaType": widget.mediaType}}], 
+      "attachments": [{"type": "call_terminated", "data": {"timerCounter": timer, "mediaType": widget.mediaType}}],
       "title": "",
       "conversation_id": widget.conversationId,
       "show": true,
@@ -257,9 +245,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
   void dispose() {
     _localRenderer.dispose();
     _remoteRenderer.dispose();
-    // player?.stop();
-    // player?.dispose();
-    // player = null;
+    player.dispose();
     _timerRinging?.cancel();
     _timerRinging = null;
     _timerCounter.destroy();
@@ -415,7 +401,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
         ),
 
         Expanded(
-          child: isVideoEnable && widget.mediaType == "video" 
+          child: isVideoEnable && widget.mediaType == "video"
           ? _buildLocalRenderer()
           : _buildAvatarWithLottieOnRinging(),
         ),
@@ -520,12 +506,15 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
             child: Lottie.network("https://assets8.lottiefiles.com/temp/lf20_PeIV5A.json"),
           ),
         ),
-        Center(
-          child: Container(
-            child: CachedAvatar(
-              user["avatar_url"], 
-              name: user["full_name"], 
-              width: 200, height: 200,
+        Positioned(
+          top: 0,left: 0,right: 0,bottom: 0,
+          child: Center(
+            child: Container(
+              child: CachedAvatar(
+                user["avatar_url"],
+                name: user["full_name"],
+                width: 200, height: 200,
+              ),
             ),
           ),
         ),
@@ -535,8 +524,8 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
   Widget _buildAvatarOnAudioConnected() {
     return Center(
       child: CachedAvatar(
-        user["avatar_url"], 
-        name: user["full_name"], 
+        user["avatar_url"],
+        name: user["full_name"],
         width: 250, height: 250
       ),
     );
@@ -589,7 +578,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height,
                 child: mediaType == "video" ?
-                 callConnected ? 
+                 callConnected ?
                   RTCVideoView(_remoteRenderer) :
                   widget.type == "offer" && isVideoEnable ?
                   RTCVideoView(_localRenderer, mirror: true) :
@@ -603,20 +592,20 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
                       Center(
                         child: Container(
                           child: CachedAvatar(
-                            user["avatar_url"], 
-                            name: user["full_name"], 
+                            user["avatar_url"],
+                            name: user["full_name"],
                             width: 130, height: 130,
                           ),
                         ),
                       ),
                     ],
                   )
-                  : mediaType == "audio" ? 
+                  : mediaType == "audio" ?
                   callConnected ?  Center(
                     child: Container(
                       child: CachedAvatar(
-                        user["avatar_url"], 
-                        name: user["full_name"], 
+                        user["avatar_url"],
+                        name: user["full_name"],
                         width: 130, height: 130,
                       ),
                     ),
@@ -630,8 +619,8 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
                       Center(
                         child: Container(
                           child: CachedAvatar(
-                            user["avatar_url"], 
-                            name: user["full_name"], 
+                            user["avatar_url"],
+                            name: user["full_name"],
                             width: 130, height: 130,
                           ),
                         ),
@@ -692,7 +681,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
               value: cameraDevice.deviceId,
             );
           })
-        ], 
+        ],
         value: listCameraDevices.length > 0 ? listCameraDevices.last.deviceId : "",
         onChanged: onChangeCameraDevice
       ),
@@ -723,7 +712,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
               value: cameraDevice.deviceId,
             );
           })
-        ], 
+        ],
         value: listAudioDevices.length > 0 ? listAudioDevices.last.deviceId : "",
         onChanged: onChangeAudioDevice
       ),
@@ -770,7 +759,7 @@ class _P2PCallViewState extends State<P2PCallView> with TickerProviderStateMixin
               onAction: (_) {
                 setState(() {
                   p2pManager.terminateConnect();
-                  
+
                   callConnected = false;
                   // player?.stop();
                 });

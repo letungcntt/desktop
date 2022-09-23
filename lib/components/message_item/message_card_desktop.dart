@@ -1,14 +1,16 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide SelectableText;
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/validators.dart';
 import 'package:workcake/components/link_preview.dart';
+import 'package:workcake/components/message_item/attachments/sticker_file.dart';
 import 'package:workcake/components/widget_text.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:dart_emoji/dart_emoji.dart';
+import 'package:workcake/workspaces/list_sticker.dart';
 
 List charCodeIcon = [":)", "=)", ":D", "<3", ":*", ";)", ":(", ":(("];
 List replaceIcon = [":slightly_smiling_face:", ":smiley:", ":smile:", ":heart:", ":kissing_heart:", ":wink:", ":disappointed:", ":cry:"];
@@ -102,6 +104,13 @@ class _MessageCardDesktopState extends State<MessageCardDesktop> {
     List list = widget.message.replaceAll("\n", " \n").split(" ");
     var parser = EmojiParser();
 
+    String data = parser.emojify(widget.message).trim();
+    int indexSticker = emojis.indexWhere((ele) => ele['character'] == data);
+
+    if(indexSticker != -1) {
+      return StickerFile(key: Key(widget.id.toString()), data: emojis[indexSticker]);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -139,17 +148,23 @@ class _MessageCardDesktopState extends State<MessageCardDesktop> {
                     if(indexIcon != -1) {
                       e = replaceIcon[indexIcon];
                     }
-                    return TextSpan(text: "${parser.emojify(e)} ", style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: list.length == 1 && EmojiUtil.hasTextOnlyEmojis(e) ? 22 : 14.5, height: EmojiUtil.hasTextOnlyEmojis(e) ? 1.2 : 1.5));
+                    return TextSpan(
+                      text: "${parser.emojify(e)} ",
+                      style: TextStyle(
+                        color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
+                        fontSize: list.length == 1 && EmojiUtil.hasTextOnlyEmojis(e) ? 22 : 14.5,
+                        height: EmojiUtil.hasTextOnlyEmojis(e) ? 1.2 : 1.5
+                      )
+                    );
                   }
                 }).toList()
               ),
               TextSpan(
-                text: widget.lastEditedAt != null ? '(edited)' : '',
+                text: Utils.checkedTypeEmpty(widget.lastEditedAt) ? '(edited)' : '',
                 style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 12, color: Color(0xff6c6f71))
               )
             ]
           ),
-          isDark: isDark,
           key: Key('MessageItem${widget.id}')
         ),
         if (listUrl.isNotEmpty) Container(

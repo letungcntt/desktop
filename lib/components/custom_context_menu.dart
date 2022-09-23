@@ -6,16 +6,21 @@ class ContextMenu extends StatelessWidget {
     Key? key,
     required this.child,
     required this.contextMenu,
-    this.isEnabled = true
+    this.isEnabled = true,
+    this.onTap
   }) : super(key: key);
 
   final Widget child;
   final Widget contextMenu;
   final bool isEnabled;
+  final Function? onTap;
 
   @override
   Widget build(BuildContext context) {
     void showMenu() {
+      if(onTap != null) {
+        onTap!();
+      }
       context.contextMenuOverlay.show(contextMenu);
     }
 

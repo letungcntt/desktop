@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
 
 class ListIcons extends StatefulWidget {
@@ -37,7 +38,7 @@ class _ListIconsState extends State<ListIcons> {
               },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 12.5, vertical: 10),
-                child: Text(
+                child: TextWidget(
                   "H",
                   style: TextStyle(
                     fontSize: 18, fontWeight: FontWeight.w400,

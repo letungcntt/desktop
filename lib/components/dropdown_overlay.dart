@@ -11,6 +11,7 @@ class FunkyOverlayState extends State<FunkyOverlay>
     with SingleTickerProviderStateMixin {
   late AnimationController controller;
   late Animation<double> scaleAnimation;
+  late Animation<double> fadeAnimation;
 
   @override
   void initState() {
@@ -19,7 +20,9 @@ class FunkyOverlayState extends State<FunkyOverlay>
     controller =
         AnimationController(vsync: this, duration: Duration(milliseconds: 140));
     scaleAnimation =
-        CurvedAnimation(parent: controller, curve: Curves.decelerate);
+        Tween(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: controller, curve: decelerateEasing));
+    fadeAnimation = 
+        CurveTween(curve: const Interval(0.0, 0.3)).animate(CurvedAnimation(parent: controller, curve: Curves.decelerate));
 
     controller.addListener(() {
       setState(() {});
@@ -35,17 +38,21 @@ class FunkyOverlayState extends State<FunkyOverlay>
 
   @override
   Widget build(BuildContext context) {  
-    return Material(
-      color: Colors.transparent,
-      child: ScaleTransition(
-        alignment: Alignment.topCenter,
-        scale: scaleAnimation,
-        child: Container(
-          decoration: ShapeDecoration(
-              color: Colors.transparent,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(0.0))),
-          child: widget.child
+    return ScaleTransition(
+      alignment: Alignment.topRight,
+      scale: scaleAnimation,
+      child: FadeTransition(
+        opacity: fadeAnimation,
+        child: Material(
+          elevation: 18,
+          color: Colors.transparent,
+          child: Container(
+            decoration: ShapeDecoration(
+                color: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(0.0))),
+            child: widget.child
+          ),
         ),
       ),
     );

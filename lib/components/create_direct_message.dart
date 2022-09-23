@@ -1,24 +1,23 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/channels/create_channel_desktop.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/icon_online.dart';
+import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class CreateDirectMessage extends StatefulWidget {
   final defaultList;
     CreateDirectMessage({
     Key? key,
-    this.defaultList, 
+    this.defaultList,
   }): super(key: key);
 
   @override
@@ -100,12 +99,12 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
     });
     try {
       Provider.of<DirectMessage>(context, listen: false).setSelectedDM(DirectModel(
-        "", 
-        listUserId, 
-        nameFM, 
-        false, 
-        0, 
-        {}, 
+        "",
+        listUserId,
+        nameFM,
+        false,
+        0,
+        {},
         false,
         0,
         {},
@@ -159,14 +158,25 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
             Container(
               height: 40,
               margin: EdgeInsets.only(right: 24, left: 24, top: 8, bottom: 10),
-              child: CupertinoTextField(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
+              ),
+              child: TextFormField(
                 style: TextStyle(color: isDark ? Colors.grey[300] : Colors.black87),
-                placeholder:  "Enter group name",
-                placeholderStyle: TextStyle(color: Color(0xffBCBCBC),fontSize: 16),
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(5),
-                  color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
+                decoration: InputDecoration(
+                  labelText: "Enter group name",
+                  labelStyle: TextStyle(color: Color(0xffBCBCBC),fontSize: 14),
+                  contentPadding: EdgeInsets.all(8),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                    borderRadius: BorderRadius.all(Radius.circular(4))
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                    borderRadius: BorderRadius.all(Radius.circular(4))
+                  ),
+                  floatingLabelBehavior: FloatingLabelBehavior.never
                 ),
                 onChanged: (value) {
                  if (_debounce?.isActive ?? false) _debounce.cancel();
@@ -231,7 +241,7 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
                           )).toList(),
                         ),
                       ),
-                    ) 
+                    )
                   )
                 ],
               )
@@ -244,19 +254,26 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
             Container(
               height: 40,
               margin: EdgeInsets.only(right: 24, left: 24, top: 8, bottom: 10),
-              child: CupertinoTextField(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
+              ),
+              child: TextFormField(
+                style: TextStyle(color: isDark ? Colors.grey[300] : Colors.black87),
                 autofocus: true,
-                prefix:Container(
-                  child: Icon(Icons.search, color: isDark ? Color(0xffBCBCBC) : Colors.black54,size: 20,),
-                  padding: EdgeInsets.only(left: 15)
-                ),
-                style: TextStyle(color: isDark ? Color(0xffBCBCBC) : Colors.black87),
-                placeholder: "Search",
-                placeholderStyle: TextStyle(color: Color(0xffBCBCBC),fontSize: 16),
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(5),
-                  color: isDark ? Color(0xff1E1F20) : Color(0xffDBDBDB)
+                decoration: InputDecoration(
+                  labelText: "Search",
+                  labelStyle: TextStyle(color: Color(0xffBCBCBC),fontSize: 14),
+                  contentPadding: EdgeInsets.all(8),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                    borderRadius: BorderRadius.all(Radius.circular(4))
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                    borderRadius: BorderRadius.all(Radius.circular(4))
+                  ),
+                  floatingLabelBehavior: FloatingLabelBehavior.never
                 ),
                 onChanged: (value) {
                  if (_debounce?.isActive ?? false) _debounce.cancel();
@@ -274,63 +291,66 @@ class _CreateDirectMessageState extends State<CreateDirectMessage> {
                   var selected = listUserDM.where((e) {
                     return e["id"] == resultSearch[index]["id"];
                   }).length >0;
-                  return Container(
-                    margin: EdgeInsets.fromLTRB(24, 8, 24, 8),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          Row(
-                            children: [
-                              Stack(
-                                children: [
-                                  CachedImage(
-                                    resultSearch[index]["avatar_url"],
-                                    radius: 35,
-                                    isRound: true,
-                                    name: resultSearch[index]["full_name"]
-                                  ),
-                                  Positioned(
-                                    right: 0, bottom: -13,
-                                    child: resultSearch[index]["is_online"] ? IconOnline() : Container()
-                                  )
-                                ],
-                              ),
-                              Container(
-                                width: 10,
-                              ),
-                              Container(
-                                child: Text(resultSearch[index]["full_name"],
-                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500,color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E))),
-                              ),
-                            ],
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              // print(resultSearch[index]["id"]);
-                              handleUserToDM(resultSearch[index], selected);
-                            },
-                            child: Container(
-                                padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
-                                decoration: BoxDecoration(
-                                  borderRadius:
-                                    BorderRadius.all(Radius.circular(4)),
-                                  color: selected
-                                    ? Colors.redAccent
-                                    : theme == ThemeType.DARK ? Color(0xFF1481FF) : Color(0xFF1481FF),
-                                ),
-                                child: Row(
+                  return HoverItem(
+                    colorHover: Palette.hoverColorDefault,
+                    child: Container(
+                      margin: EdgeInsets.fromLTRB(24, 8, 24, 8),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Row(
+                              children: [
+                                Stack(
                                   children: [
-                                    Text(
-                                      selected ? "Remove" : "Add",
-                                      style: TextStyle(
-                                        color: Color(0xFFFFFFFF),
-                                        fontSize: 14
-                                      ),
+                                    CachedImage(
+                                      resultSearch[index]["avatar_url"],
+                                      radius: 35,
+                                      isRound: true,
+                                      name: resultSearch[index]["full_name"]
                                     ),
+                                    Positioned(
+                                      right: 0, bottom: -13,
+                                      child: resultSearch[index]["is_online"] ? IconOnline() : Container()
+                                    )
                                   ],
-                                )),
-                          )
-                        ]),
+                                ),
+                                Container(
+                                  width: 10,
+                                ),
+                                Container(
+                                  child: Text(resultSearch[index]["full_name"],
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500,color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E))),
+                                ),
+                              ],
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                // print(resultSearch[index]["id"]);
+                                handleUserToDM(resultSearch[index], selected);
+                              },
+                              child: Container(
+                                  padding: EdgeInsets.fromLTRB(10, 5, 10, 5),
+                                  decoration: BoxDecoration(
+                                    borderRadius:
+                                      BorderRadius.all(Radius.circular(4)),
+                                    color: selected
+                                      ? Colors.redAccent
+                                      : theme == ThemeType.DARK ? Color(0xFF1481FF) : Color(0xFF1481FF),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        selected ? "Remove" : "Add",
+                                        style: TextStyle(
+                                          color: Color(0xFFFFFFFF),
+                                          fontSize: 14
+                                        ),
+                                      ),
+                                    ],
+                                  )),
+                            )
+                          ]),
+                    ),
                   );
                 },
               ),

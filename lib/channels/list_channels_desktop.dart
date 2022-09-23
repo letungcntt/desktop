@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'channel_item_desktop.dart';
 
 class ListChannelDesktop extends StatefulWidget {
   const ListChannelDesktop({
     Key? key,
-    @required this.channels, 
+    @required this.channels,
     @required this.title,
     this.id,
     this.channelItemKey
@@ -29,7 +28,7 @@ class _ListChannelDesktopState extends State<ListChannelDesktop> {
   List data = [];
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
 
     getStateShowPinned();
@@ -55,8 +54,8 @@ class _ListChannelDesktopState extends State<ListChannelDesktop> {
 
   onChangeStatePinned(value) {
     widget.title == "Channel"
-      ? Provider.of<Workspaces>(context, listen: false).onSaveStatePinned(context, widget.id, value, null)
-      : Provider.of<Workspaces>(context, listen: false).onSaveStatePinned(context, widget.id, null, value);
+      ? Provider.of<Workspaces>(context, listen: false).onSaveStatePinned(context, widget.id, value, null, null)
+      : Provider.of<Workspaces>(context, listen: false).onSaveStatePinned(context, widget.id, null, value, null);
     int index = data.indexWhere((e) => e["id"] == widget.id);
     if (index > -1) {
       widget.title == "Channel"
@@ -87,47 +86,57 @@ class _ListChannelDesktopState extends State<ListChannelDesktop> {
     final currentChannel = Provider.of<Channels>(context, listen: true).currentChannel;
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
-    return Column(
-      children: [
-        Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            key: Key(widget.id.toString()),
-            childrenPadding: EdgeInsets.symmetric(horizontal: 12),
-            onExpansionChanged: (value) {
-              onChangeStatePinned(value);
-            },
-            title: Text(
-              widget.title,
-              style: TextStyle(
-                fontSize: 15.5,
-                fontWeight: FontWeight.w400,
-                color: isDark ? Palette.darkTextListChannel : Palette.lightTextListChannel
-              )
-            ),
-            initiallyExpanded: open,
-            trailing: Icon(
-              open
-                ? Icons.keyboard_arrow_down
-                : Icons.keyboard_arrow_right,
-              color: isDark ? Palette.darkTextListChannel : Palette.lightTextListChannel,
-              size: 22
-            ),
-            children: open ? widget.channels.map<Widget>((e){
-              // bool isMention = e == widget.channels.lastWhere((element) => element["status_notify"] != "OFF" && element["new_message_count"] != null && element["new_message_count"] > 0, orElse: () => null);
-              bool isLast = e == widget.channels.lastWhere((element) =>
-                ((element["status_notify"] == "NORMAL" || element["status_notify"] == "SILENT") && element["seen"] == false) ||
-                (element["status_notify"] == "MENTION" && element["new_message_count"] != null && element["new_message_count"] > 0), orElse: () => null);
-              return ChannelItemDesktop(key: isLast ? widget.channelItemKey : null, channel: e);
-            }).toList() : []
-          ),
-        ) ,
-        if (showCurrentChannel(currentChannel))
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 12),
-            child: ChannelItemDesktop(channel: currentChannel)
-          )
-      ],
+            margin: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                dividerColor: Colors.transparent,
+                hoverColor: Palette.hoverColorDefault, splashColor: Colors.transparent, highlightColor: Colors.transparent,
+              ),
+              child: ExpansionTile(
+                key: Key(widget.id.toString()),
+                childrenPadding: EdgeInsets.symmetric(horizontal: 12),
+                onExpansionChanged: (value) {
+                  onChangeStatePinned(value);
+                },
+                title: Text(
+                  widget.title,
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w400,
+                    color: isDark ? Palette.darkTextListChannel : Palette.lightTextListChannel
+                  )
+                ),
+                initiallyExpanded: open,
+                trailing: Icon(
+                  open
+                    ? Icons.keyboard_arrow_down
+                    : Icons.keyboard_arrow_right,
+                  color: isDark ? Palette.darkTextListChannel : Palette.lightTextListChannel,
+                  size: 22
+                ),
+                children: open ? widget.channels.map<Widget>((e){
+                  // bool isMention = e == widget.channels.lastWhere((element) => element["status_notify"] != "OFF" && element["new_message_count"] != null && element["new_message_count"] > 0, orElse: () => null);
+                  bool isLast = e == widget.channels.lastWhere((element) =>
+                    ((element["status_notify"] == "NORMAL" || element["status_notify"] == "SILENT") && element["seen"] == false) ||
+                    (element["status_notify"] == "MENTION" && element["new_message_count"] != null && element["new_message_count"] > 0), orElse: () => null);
+
+                  return ChannelItemDesktop(key: isLast ? widget.channelItemKey : null, channel: e);
+                }).toList() : []
+              ),
+            ),
+          ) ,
+          if (showCurrentChannel(currentChannel))
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              child: ChannelItemDesktop(channel: currentChannel)
+            )
+        ],
+      ),
     );
   }
 }

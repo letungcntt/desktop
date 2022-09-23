@@ -3,13 +3,12 @@ import 'dart:io';
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/login/input_field.dart';
+import 'package:workcake/components/login/reset_password.dart';
 import 'package:workcake/components/login/submit_button.dart';
-import 'package:workcake/components/login/verify_otp.dart';
 import 'package:workcake/login_macOS.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ForgotPassword extends StatefulWidget {
   ForgotPassword({Key? key}) : super(key: key);
@@ -60,7 +59,8 @@ class _ForgotPasswordState extends State<ForgotPassword> {
         setState(() {
           loading = false;
         });
-        Navigator.push(context, MaterialPageRoute(builder: (context) => VerifyOtp(dataUser: res["data"], isResetPassword: true)));
+
+        Navigator.push(context, MaterialPageRoute(builder: (context) => ResetPassword(dataUser: res["data"])));
       }
     } catch (e) {
       print(e);
@@ -143,7 +143,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                         onTap: () {
                           invalidCredential = false;
                           resetPassword();
-                        }, 
+                        },
                         text: "Send", isLoading: loading,
                       ),
                       SizedBox(height: height * 0.04,),
@@ -156,7 +156,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                           children: [
                             Text(message, style: TextStyle(fontWeight: FontWeight.w400, color: sentSucess != null && sentSucess == true ? Color(0xff5ac45a) : Color(0xffEB5757))),
                           ],
-                        )      
+                        )
                       ) : const SizedBox()
                     ],
                   ),

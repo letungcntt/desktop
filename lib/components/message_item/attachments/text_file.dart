@@ -3,7 +3,6 @@ import 'package:flutter_highlighter/themes/atom-one-dark.dart';
 import 'package:flutter_highlighter/themes/atom-one-light.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/palette.dart';
@@ -11,15 +10,17 @@ import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_highlight_view.dart';
 import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class TextFile extends StatefulWidget {
   TextFile({
     Key? key,
     required this.att,
+    this.isChannel = true,
   }) : super(key: key);
 
   final att;
+  final bool isChannel;
 
   @override
   _TextFileState createState() => _TextFileState();
@@ -40,7 +41,7 @@ class _TextFileState extends State<TextFile> {
 
     final List<String> splitSnippet = att['preview'] != null ? att['preview'].split('\n') : [];
 
-    previewText =  splitSnippet.length > 5 ? splitSnippet.sublist(0, 5).join('\n').trimRight() : att['preview'].trimRight();
+    previewText = splitSnippet.length > 5 ? splitSnippet.sublist(0, 5).join('\n').trimRight() : att['preview'].trimRight();
     renderText = previewText;
 
     Utils.onRenderSnippet(att['content_url'], keyEncrypt: att["key_encrypt"]).then((value) {
@@ -107,7 +108,7 @@ class _TextFileState extends State<TextFile> {
                                   highlightColor: Colors.transparent,
                                   onPressed: () {
                                     final url = att['content_url'];
-                                    Provider.of<Work>(context, listen: false).addTaskDownload({'content_url': url, 'name': att['name'],  "key_encrypt": att["key_encrypt"],});
+                                    Provider.of<Work>(context, listen: false).addTaskDownload({'content_url': url, 'name': att['name'],  "key_encrypt": att["key_encrypt"], "version": att["version"]});
                                     Navigator.pop(context);
                                   },
                                   icon: Icon(
@@ -189,17 +190,16 @@ class _TextFileState extends State<TextFile> {
                   ? atomOneLightTheme
                   : atomOneDarkTheme,
               padding: const EdgeInsets.all(8),
-              textStyle: GoogleFonts.robotoMono(color: isDark ? Colors.white70 : Colors.grey[800]),
+              textStyle: GoogleFonts.robotoMono(color: isDark ? Colors.white70 : Colors.grey[800], height: 1.65),
             ) : RichTextWidget(
             TextSpan(
               text: renderText,
               style: TextStyle(
-                  fontWeight: FontWeight.w400, fontSize: 14,height: 1.57,
+                  fontWeight: FontWeight.w400, fontSize: 14, height: 1.57,
                   fontFamily: 'Menlo',
                   color: isDark ? Color(0xffEAE8E8) : Color(0xff3D3D3D)
                 )
               ),
-              isDark: isDark,
             ),
           ),
           Container(
@@ -230,7 +230,7 @@ class _TextFileState extends State<TextFile> {
                             color: isDark ? Colors.white70 : Colors.grey[800],
                             size: 18,
                           ),
-                          Text(
+                          TextWidget(
                             isExpanded ? ' Collapse' : ' Expand',
                             style: TextStyle(
                               color: isDark ? Colors.white70 : Colors.grey[800],
@@ -243,7 +243,7 @@ class _TextFileState extends State<TextFile> {
                   ),
                   isDark: isDark,
                 ),
-                Container(
+                if(widget.isChannel) Container(
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   child: ListAction(
                     action: 'View whole file',
@@ -267,7 +267,7 @@ class _TextFileState extends State<TextFile> {
                     child: IconButton(
                       onPressed: () {
                         final url = att['content_url'];
-                        Provider.of<Work>(context, listen: false).addTaskDownload({'content_url': url, 'name': att['name'],  "key_encrypt": att["key_encrypt"],});
+                        Provider.of<Work>(context, listen: false).addTaskDownload({'content_url': url, 'name': att['name'],  "key_encrypt": att["key_encrypt"], "version": att['version']});
                       },
                       padding: const EdgeInsets.all(4),
                       icon: Icon(
@@ -313,7 +313,8 @@ class ListAction extends StatefulWidget {
     this.arrowTipDistance,
     this.tooltipDirection,
     this.isRound = false,
-    this.radius = 2.0
+    this.radius = 2.0,
+    this.colorTooltip
   }) : super(key: key);
 
   final Widget child;
@@ -324,6 +325,7 @@ class ListAction extends StatefulWidget {
   final TooltipDirection? tooltipDirection;
   final bool isRound;
   final double radius;
+  final Color? colorTooltip;
 
   @override
   _ListActionState createState() => _ListActionState();
@@ -343,7 +345,7 @@ class _ListActionState extends State<ListAction> {
       borderColor: isDark ? Color(0xFF262626) :Color(0xFFb5b5b5),
       borderWidth: 0.5,
       borderRadius: 5,
-      backgroundColor: isDark ? Palette.backgroundTheardDark  : Palette.backgroundTheardLight,
+      backgroundColor: widget.colorTooltip ?? (isDark ? Palette.backgroundTheardDark  : Palette.backgroundTheardLight),
       arrowLength:  6,
       arrowBaseWidth: 6.0,
       ballonPadding: EdgeInsets.zero,
@@ -355,6 +357,7 @@ class _ListActionState extends State<ListAction> {
         onExit: () => setState(() => isShow = false),
       ),
       content: Material(
+        color: Colors.transparent,
         child: Text(widget.action)
       ),
       show: (widget.action != '') ? isShow : false

@@ -1,9 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 enum RadioOptionApp { Workspace, Channel }
 
@@ -52,7 +51,7 @@ class _CreateAppViewState extends State<CreateAppView> {
   @override
   Widget build(BuildContext context) {
     final isDark  = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    
+
     return Container(
       height: 330,
       width: 500,
@@ -80,7 +79,7 @@ class _CreateAppViewState extends State<CreateAppView> {
             ),
             height: 40,
             width: MediaQuery.of(context).size.width,
-            
+
             child: Center(child: Text(S.current.createCustomApp.toUpperCase(), style: TextStyle(fontFamily: "Roboto", fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white))),
           ),
           Expanded(
@@ -182,7 +181,7 @@ class _CreateAppViewState extends State<CreateAppView> {
                             ],
                           ),
                         ),
-                        
+
                         SizedBox(height: 32),
                         Container(
                           color: isDark ? Color(0xff5E5E5E): Color(0xffDBDBDB),

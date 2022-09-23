@@ -6,15 +6,18 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_highlighter/themes/atom-one-dark.dart';
 import 'package:flutter_highlighter/themes/atom-one-light.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/utils.dart';
+import 'package:workcake/common/video_player.dart';
 import 'package:workcake/components/custom_highlight_view.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
 import 'package:workcake/components/widget_text.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
+import '../components/message_item/attachments/text_file.dart';
 import '_functions_io.dart' if (dart.library.html) '_functions_web.dart';
 import 'style_sheet.dart';
 import 'widget.dart';
@@ -411,32 +414,32 @@ class MarkdownBuilder implements md.NodeVisitor {
           ),
         );
       } else if (tag == 'pre') {
-        var language = 'javascript'; 
-        String lg = element.textContent; 
-        var list = lg.split("\n"); 
-        List languages = ["java", "c", "dart","text"]; 
+        var language = 'javascript';
+        String lg = element.textContent;
+        var list = lg.split("\n");
+        List languages = ["java", "c", "dart","text"];
         final auth = Provider.of<Auth>(context, listen: true);
         final isDark = auth.theme == ThemeType.DARK;
-        bool validateLanguage = false; 
-   
-        if (list.length > 0 && languages.contains(list[0].trim())) { 
-          validateLanguage = true; 
-          language = list[0].trim(); 
-        } 
- 
-        child = SizedBox( 
-          width: MediaQueryData.fromWindow(WidgetsBinding.instance.window).size.width, 
-          child: element.textContent== "" ? SizedBox(): CustomHighlightView( 
-            list.sublist(validateLanguage ? 1 : 0).join("\n"), 
+        bool validateLanguage = false;
+
+        if (list.length > 0 && languages.contains(list[0].trim())) {
+          validateLanguage = true;
+          language = list[0].trim();
+        }
+
+        child = SizedBox(
+          width: MediaQueryData.fromWindow(WidgetsBinding.instance.window).size.width,
+          child: element.textContent== "" ? SizedBox(): CustomHighlightView(
+            list.sublist(validateLanguage ? 1 : 0).join("\n"),
             language: language,
             backgroundColor: Colors.transparent,
-            theme: MediaQueryData.fromWindow(WidgetsBinding.instance.window) 
-              .platformBrightness == Brightness.dark 
-              ? atomOneLightTheme 
-              : atomOneDarkTheme, 
+            theme: MediaQueryData.fromWindow(WidgetsBinding.instance.window)
+              .platformBrightness == Brightness.dark
+              ? atomOneLightTheme
+              : atomOneDarkTheme,
             textStyle: GoogleFonts.robotoMono(color: isDark ? Color(0xffEAE8E8) : Color(0xff3D3D3D)),
             padding: EdgeInsets.symmetric(horizontal: 6)
-          ), 
+          ),
         );
       } else if (tag == 'hr') {
         child = Container(decoration: styleSheet.horizontalRuleDecoration);
@@ -514,7 +517,53 @@ class MarkdownBuilder implements md.NodeVisitor {
 
     Uri uri = Uri.parse(path);
     Widget child;
-    if (imageBuilder != null) {
+
+    List<String> list = src.split('.');
+    String type = Utils.getLanguageFile((list.length > 1 ? list.last : '').toLowerCase());
+    int index = Utils.languages.indexWhere((ele) => ele == type);
+    if(index != -1) {
+      final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
+      child = FutureBuilder<String>(
+        future: Utils.onRenderSnippet(src),
+        builder: (ctx, snapshotString) {
+          String data = snapshotString.data ?? 'On loading data ...';
+
+          return snapshotString.connectionState == ConnectionState.waiting ? Container(
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: isDark ? Color(0xff1E1E1E) : Color(0xffDBDBDB)
+            ),
+            width: 150, height: 150,
+            child: SpinKitFadingCircle(
+              color: isDark ? Colors.white60 : const Color(0xff096DD9),
+              size: 35,
+            ),
+          ) : TextFile(
+            att: {
+              'content_url': src,
+              'mime_type': src.split('.').last,
+              'preview': data.length >= 1000 ? data.substring(0, 1000) + ' ...'  : data,
+              'name': alt
+            },
+            isChannel: true,
+          );
+        }
+      );
+    } else if (['mp4', 'mov', 'flv', 'avi'].contains(type)) {
+      child = VideoPlayer(
+        att: {
+          'content_url': uri.toString(),
+          'name': src.split('/').last,
+          'url_thumbnail': 'https://statics.pancake.vn/panchat-dev/2022/7/13/a09eefc0163c17427affb4b6bf939e337aeb54da.mp4',
+          'image_data': {
+            'width': 720,
+            'height': 480
+          }
+        }
+      );
+    } else if (imageBuilder != null) {
       child = imageBuilder!(uri, title, alt);
     } else {
       child = kDefaultImageBuilder(uri, imageDirectory, width, height);
@@ -813,12 +862,10 @@ class MarkdownBuilder implements md.NodeVisitor {
 
   Widget _buildRichText(TextSpan? text, {TextAlign? textAlign}) {
     TextSpan newText = text == null ? text : (text.text ?? "").contains(RegExp(r'={7}[@|#]')) ? parseMention(text) : text;
-    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     if (selectable) {
       return RichTextWidget(
         newText,
-        isDark: isDark
       );
     } else {
       return RichText(

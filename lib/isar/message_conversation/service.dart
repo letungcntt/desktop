@@ -3,21 +3,25 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
-import 'package:flutter/widgets.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:hive/hive.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/dataSourceEmoji.dart';
+import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/emoji/itemEmoji.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:encrypt/encrypt.dart' as En;
 import 'package:googleapis/drive/v3.dart' as gdrive;
 import 'package:crypto/crypto.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import '../../data_channel_webrtc/device_socket.dart';
+import '../../generated/l10n.dart';
 import '../../media_conversation/drive_api.dart';
 import '../../media_conversation/model.dart';
 import 'message_conversation.dart';
@@ -29,7 +33,7 @@ import 'message_conversation.dart';
 // se dung Hive den khi nao isar ho tro
 
 class MessageConversationServices{
-  
+
   static var isar;
   static bool isBackUping = false;
   static var _statusBackUpController = StreamController<StatusBackUp>.broadcast(sync: false);
@@ -38,6 +42,9 @@ class MessageConversationServices{
   static bool isRestoring = false;
   static var _statusRestoreController = StreamController<StatusRestore>.broadcast(sync: false);
   static Stream<StatusRestore> get statusRestore => _statusRestoreController.stream;
+
+  static var statusSyncController = StreamController<StatusSync>.broadcast(sync: false);
+  static Stream<StatusSync> get statusSync => statusSyncController.stream;
 // ham nay bi bo do cac thiet bi da chay v2
   static moveMessageFromHive(List listConversations)async {
   }
@@ -50,11 +57,11 @@ class MessageConversationServices{
         ..message = data["message"]
         ..messageParse = await parseStringAtt(data)
         ..conversationId = getNewConversationId(data["conversation_id"] ?? "", [])
-        ..success = data["success"] ?? true
+        ..success = true
         ..count = data["count"] ?? 0
         ..fakeId = data["fake_id"]
         ..insertedAt = data["time_create"] ?? ""
-        ..isBlur = data["is_blur"] ?? false
+        ..isBlur = !Utils.checkedTypeEmpty(data["id"])
         ..isSystemMessage = data["is_system_message"] ?? false
         ..parentId = data["parent_id"] ?? ""
         ..publicKeySender = data["public_key_sender"]
@@ -64,7 +71,7 @@ class MessageConversationServices{
         ..id = data["id"] ?? ""
         ..userId = data["user_id"] ?? ""
         ..infoThread = parseListString(data["info_thread"])
-        ..localId = data["local_id"] ?? (data["current_time"] % 100000000000000)   
+        ..localId = data["local_id"] ?? (data["current_time"] % 100000000000000)
         ..lastEditedAt = data["last_edited_at"] ?? ""
         ..action = data["action"] ?? "insert";
     } catch (e) {
@@ -72,8 +79,6 @@ class MessageConversationServices{
       print("e: $e");
       return null;
     }
-
-
   }
 
   static String getNewConversationId(String id, List dataConversationIds){
@@ -145,7 +150,7 @@ class MessageConversationServices{
   }
 
   static getTimeKey(key) {
-    try {        
+    try {
       var tkey = key.toString().split("__")[0];
       return DateTime.parse(tkey).toUtc().millisecondsSinceEpoch;
     } catch (e) {
@@ -199,17 +204,17 @@ class MessageConversationServices{
   }
 
   static Map parseMessageToJson(MessageConversation message){
+    var atts = parseListStringToListMap(message.attachments);
     return {
-      "attachments": parseListStringToListMap(message.attachments),
+      "attachments": atts,
       "local_id": message.localId,
       "message": message.message ?? "",
       "conversation_id": message.conversationId ?? "",
-      "success": message.success ?? true,
+      "success": true,
       "count": message.count ?? 0,
       "fake_id": message.fakeId ?? "",
       "time_create": DateTime.fromMicrosecondsSinceEpoch(message.currentTime ?? 0, isUtc: true).toString(),
-      "is_blur": message.isBlur ?? false,
-      "is_system_message": message.isSystemMessage ?? false,
+      "is_blur": !Utils.checkedTypeEmpty(message.id),
       "parent_id": message.parentId ?? "",
       "public_key_sender": message.publicKeySender ?? "",
       "sending": message.sending ?? false,
@@ -220,10 +225,16 @@ class MessageConversationServices{
       "user_id": message.userId ?? "",
       "last_edited_at": message.lastEditedAt ?? "",
       "action": message.action ?? "insert",
+      "is_system_message": checkIsSystemMessageDM(atts),
     };
   }
 
-  static Future<List> searchMessage(String text, {int limit = 10, int offset = 0, bool parseJson = false}) async {
+  static bool checkIsSystemMessageDM(List atts){
+    return atts.indexWhere((ele) =>  ele["type"] == "update_conversation" || ele["type"] == "leave_direct" || ele["type"] == "invite_direct") >= 0;
+  }
+
+
+  static Future<List> searchMessage(String text, {int limit = 10, userIds, date, int offset = 0, bool parseJson = false}) async {
     if (Platform.isLinux ) return [];
     Isar isar = await getIsar();
     // var m  =  DateTime.now().microsecondsSinceEpoch;
@@ -243,6 +254,8 @@ class MessageConversationServices{
     // print("DateTime.now().microsecondsSinceEpoch : ${DateTime.now().microsecondsSinceEpoch -m}  ${data.length}");
     List uniqIds = dataIsar.map((e) => e.id).toSet().toList();
     List<MessageConversation> data = uniqIds.map((e) => dataIsar.firstWhere((element) => element.id == e)).toList();
+
+    if (userIds != null && userIds.isNotEmpty) data = data.where((element) => userIds.contains(element.userId)).toList();
     if (parseJson){
       return data.map((e) => parseMessageToJson(e)).toList();
     }
@@ -262,6 +275,9 @@ class MessageConversationServices{
         .parentIdConversationIdEqualTo("", conversationId)
         .filter()
         .currentTimeBetween(deleteTime, currentTime)
+        .and()
+        .not()
+        .actionEqualTo("delete_for_me")
         .sortByCurrentTimeDesc()
         .distinctById()
         .optional(offset > -1, (m) => m.offset(offset))
@@ -317,7 +333,7 @@ class MessageConversationServices{
         .limit(limit)
         .findAll();
       if (parseJson)
-        return data.map((e) => parseMessageToJson(e)).toList(); 
+        return data.map((e) => parseMessageToJson(e)).toList();
       return data;
     } catch (e) {
       print("getMessageToTranfer $e");
@@ -366,6 +382,9 @@ class MessageConversationServices{
         .currentTimeGreaterThan(timeGreater)
         .or()
         .currentTimeEqualTo(timeGreater)
+        .and()
+        .not()
+        .actionEqualTo("delete_for_me")
         .sortByCurrentTime()
         .distinctById()
         .optional(offset > -1, (m) => m.offset(offset))
@@ -396,8 +415,8 @@ class MessageConversationServices{
         .sortByCurrentTime()
         .findAll();
 
-      if (parseJson) 
-        return data.map((e) => parseMessageToJson(e)).toList(); 
+      if (parseJson)
+        return data.map((e) => parseMessageToJson(e)).toList();
       return data;
     } catch (e) {
       // print("getListMessageByIds: $e");
@@ -431,7 +450,7 @@ class MessageConversationServices{
         // print("$id $data");
       if (data == null) data = await isar.messageConversations.where().parentIdEqualTo(conversationId).sortByCurrentTimeDesc().findFirst();
       if (data == null) return null;
-      return loadInfoThreadMessage(dm, parseMessageToJson(data));      
+      return loadInfoThreadMessage(dm, parseMessageToJson(data));
     } catch (e){
       // print("getListMessageById $e");
       return null;
@@ -443,7 +462,7 @@ class MessageConversationServices{
     if (message["message"] == "" && message["attachments"].length == 0 && message["action"] == "insert")  return [];
     if (Platform.isLinux ) {
       await insertHiveOnIOS(message);
-      return []; 
+      return [];
     }
     try {
       Isar isar = await getIsar();
@@ -459,10 +478,17 @@ class MessageConversationServices{
         });
       }
       if (dataInsert == null) return [];
-      await isar.writeTxn((isar) async => 
+      await isar.writeTxn((isar) async =>
         await isar.messageConversations.put(dataInsert!)
-      );  
-      return [message["id"]];  
+      );
+      return (await Future.wait([dataInsert].map((e) async {
+        try {
+          return (await isar.messageConversations.get(e.localId!))?.id;
+        } catch (e) {
+          return null;
+        }
+
+      }))).whereType<String>().toList();
     } catch (e) {
       print("insertOrUpdateMessage $e");
       return [];
@@ -473,8 +499,8 @@ class MessageConversationServices{
     try {
       // id la id cua message
       var boxIOS = Hive.lazyBox("messageConversation");
-      await boxIOS.put(message["id"], message);    
-      return true;  
+      await boxIOS.put(message["id"], message);
+      return true;
     } catch (e) {
       return false;
     }
@@ -501,19 +527,22 @@ class MessageConversationServices{
     }
     try {
       Isar isar = await getIsar();
-      List<String> successIds = [];
+      List<MessageConversation?> dataInsert = await Future.wait(messages.map((e) => processJsonMessage(e, moveFromHive: moveFromHive)));
+      List<MessageConversation> many = dataInsert.whereType<MessageConversation>().toList();
       await isar.writeTxn((isar) async {
         try {
-          List<MessageConversation?> dataInsert = await Future.wait(messages.map((e) => processJsonMessage(e, moveFromHive: moveFromHive)));
-          List<MessageConversation> many = dataInsert.whereType<MessageConversation>().toList();
           await isar.messageConversations.putAll(many);
-          successIds = many.map((e) => e.id).toList().whereType<String>().toList();         
         } catch (e) {
           print("+++++++ $e");
         }
-
       });
-      return successIds;
+      return (await Future.wait(many.map((e) async {
+        try {
+          return (await isar.messageConversations.get(e.localId!))?.id;
+        } catch (e) {
+          return null;
+        }
+      }))).whereType<String>().toList();
     } catch (e) {
       print(">>>> insert fail");
       return [];
@@ -527,11 +556,11 @@ class MessageConversationServices{
   }
 
   static Future<Isar> getIsar() async{
-    if (isar != null) return isar; 
+    if (isar != null) return isar;
     var newDir = await getApplicationSupportDirectory();
     var newPath = newDir.path + "/pancake_chat_data_v3";
     isar = await Isar.open(
-      schemas: [MessageConversationSchema], 
+      schemas: [MessageConversationSchema],
       directory: newPath,
       inspector: true,
     );
@@ -556,8 +585,8 @@ class MessageConversationServices{
     }
     if (results.length <= 1) return results;
     results.sort((a,  b) => (b["current_time"] ?? ((DateTime.parse(b["inserted_at"] ?? b["time_create"])).toUtc().microsecondsSinceEpoch) ?? 0)
-    .compareTo((a["current_time"] ?? ((DateTime.parse(a["inserted_at"] ?? a["time_create"])).toUtc().microsecondsSinceEpoch) ?? 0))); 
-    return results;    
+    .compareTo((a["current_time"] ?? ((DateTime.parse(a["inserted_at"] ?? a["time_create"])).toUtc().microsecondsSinceEpoch) ?? 0)));
+    return results;
   }
 
   static List processMessageConversationByDay(List dataMessages, DirectModel dataDirectMessage){
@@ -594,7 +623,7 @@ class MessageConversationServices{
           : true;
         var isLast= index == 0  ? true : messages[index]["user_id"] != messages[index - 1]["user_id"] ;
         if (index >= 1){
-          DateTime prevDateTime = DateTime.parse(messages[index - 1]["inserted_at"] ?? messages[index - 1]["time_create"]);  
+          DateTime prevDateTime = DateTime.parse(messages[index - 1]["inserted_at"] ?? messages[index - 1]["time_create"]);
           // print("${dateTime.day }  / ${dateTime.month }  / ${dateTime.year } -----  ${prevDateTime.day }  / ${prevDateTime.month }  / ${prevDateTime.year }");
           isShowDate = dateTime.day != prevDateTime.day || dateTime.month != prevDateTime.month ||  dateTime.year != prevDateTime.year;
         }
@@ -640,7 +669,7 @@ class MessageConversationServices{
 
   static List processMessageChannelByDay(List dataSource){
     List messages = dataSource.map((mes) => Utils.mergeMaps([
-      mes, 
+      mes,
       {
         "current_time": (DateTime.parse(mes["inserted_at"] ?? mes["time_create"])).toUtc().millisecondsSinceEpoch
       }
@@ -650,7 +679,7 @@ class MessageConversationServices{
 
     if (messages.length  == 0 ) return [];
     if (messages.length > 1){
-      messages.sort((a,  b) => (b["current_time"] ?? 0).compareTo((a["current_time"] ?? 0)));    
+      messages.sort((a,  b) => (b["current_time"] ?? 0).compareTo((a["current_time"] ?? 0)));
     }
 
     int length = messages.length;
@@ -705,7 +734,7 @@ class MessageConversationServices{
   }
 
   static processReaction(List listDataSource){
-    List reactions =listDataSource; 
+    List reactions =listDataSource;
     List resultEmoji = [];
     List totalDataSource = [] + dataSourceEmojis;
     for (int i = 0; i < reactions.length; i++) {
@@ -748,14 +777,14 @@ class MessageConversationServices{
           result = {
             ...result,
             "reactions": processReaction(mes["reactions"])
-          };          
+          };
         } catch (e) { }
 
         List blockCode = mes["attachments"] != null ? mes["attachments"].where((e) => e["mime_type"] == "block_code").toList() : [];
         List newListHtml = mes["attachments"] != null ? mes["attachments"].where((e) => e["mime_type"] == "html").toList() : [];
         if (newListHtml.length > 0)
           result = Utils.mergeMaps([result, {"snippet":  await Utils.handleSnippet(newListHtml[0]["content_url"], false)} ]);
-        if (blockCode.length > 0) 
+        if (blockCode.length > 0)
           result = Utils.mergeMaps([result, {"block_code": await Utils.handleSnippet(blockCode[0]["content_url"], true)} ]);
 
         int index = mes["attachments"] != null ? mes['attachments'].indexWhere((ele) => ele['mime_type'] == 'share') : -1;
@@ -801,7 +830,7 @@ class MessageConversationServices{
       "user_id": "",
       "full_name": "",
       "inserted_at": "",
-      "isBlur": false,
+      "is_blur": false,
       "count_child": 0,
       "avatar_url": "",
       "isFirst": false,
@@ -842,7 +871,7 @@ static Future<List> mergeDataLocal(String conversationId, List apiData, int root
       var lengthLocal = uniqById(dataLocal).length;
       if (lengthLocal == 0) return apiData;
       List result = uniqById([] + dataLocal + apiData, isRemoveDeteforMe: false);
-      return result.sublist(0, lengthLocal );      
+      return result.sublist(0, lengthLocal );
     } catch (e) {
       return [];
     }
@@ -871,7 +900,7 @@ static Future<List> mergeDataLocal(String conversationId, List apiData, int root
       if (data == null) return null;
       if (!isCheckHasDM) return parseMessageToJson(data);
       if (dm == null) return null;
-      return loadInfoThreadMessage(dm, parseMessageToJson(data));      
+      return loadInfoThreadMessage(dm, parseMessageToJson(data));
     } catch (e){
       print("getListMessageById $e");
       return null;
@@ -883,14 +912,14 @@ static Future<List> mergeDataLocal(String conversationId, List apiData, int root
     try {
       if (deleteTime == 0) return;
       Isar isar = await getIsar();
-      await isar.writeTxn((isar) async => 
+      await isar.writeTxn((isar) async =>
         await isar.messageConversations.where()
         .filter()
         .conversationIdEqualTo(conversationId)
         .and()
         .currentTimeLessThan(deleteTime)
         .deleteAll()
-      );  
+      );
     } catch (e) {
     }
   }
@@ -899,23 +928,8 @@ static Future<List> mergeDataLocal(String conversationId, List apiData, int root
   static makeBackUpMessageJsonV1(String userId, {String keyE2E = "4PxSnVX5sa2bu3TtH+o2BE0yBWdtvhOa7APGqT5FTCE="}) async {
     try {
       isBackUping = true;
-      List total = [];
       _statusBackUpController.add(StatusBackUp(100, "Preparing  messages"));
-      int totalMessage  = await getTotalMessage();
-      print("total message");
-      await Future.delayed(Duration(milliseconds: 300));
-      var page = 1000; int totalPage = (totalMessage / page).round() + 1; int size = 1000;
-      List<int> pages = List<int>.generate(totalPage, (int index) => index);
-      List promissLoadMessages = await Future.wait(pages.map((i) => getMessageToTranfer(limit: size, offset: i * size, parseJson: true)));
-      total = promissLoadMessages.reduce((value, element) => value += element);
-      String text = jsonEncode(total);
-      print("totalEncrypting message");
-      await Future.delayed(Duration(milliseconds: 300));
-      _statusBackUpController.add(StatusBackUp(101, "Encrypting data"));
-      final key = En.Key.fromBase64(keyE2E);
-      final iv = En.IV.fromLength(16);
-      final encrypter = En.Encrypter(En.AES(key, mode: En.AESMode.cbc));  
-      List<int> bytes = encrypter.encrypt(text, iv: iv).bytes;
+      List<int> bytes = await getDataMessageToTranfer(keyE2E: keyE2E);
       Directory? appDocDirectory;
       await Future.delayed(Duration(milliseconds: 300));
       _statusBackUpController.add(StatusBackUp(102, "Creating backup file"));
@@ -930,13 +944,31 @@ static Future<List> mergeDataLocal(String conversationId, List apiData, int root
       print("Uploading the backup fil");
       _statusBackUpController.add(StatusBackUp(103, "Uploading the backup file"));
       if (userId != "all")
-       await DriveService.uploadFile(Media(0, "$path/$nameBackUp", "", "backup_message_v1_encrypted_$userId.text", "backup", "", bytes.length, "", "downloaded"));
+       await DriveService.uploadFile(Media(0, "$path/$nameBackUp", "", "backup_message_v1_encrypted_$userId.text", "backup", "", bytes.length, "", "downloaded", 1));
       _statusBackUpController.add(StatusBackUp(200, "Done"));
-      isBackUping = false;      
+      isBackUping = false;
     } catch (e) {
-      isBackUping = false;    
+      isBackUping = false;
       _statusBackUpController.add(StatusBackUp(105, "$e"));
     }
+  }
+
+  static Future<List<int>> getDataMessageToTranfer({String keyE2E = "4PxSnVX5sa2bu3TtH+o2BE0yBWdtvhOa7APGqT5FTCE="}) async {
+    int totalMessage  = await getTotalMessage();
+    print("total message");
+    List total = [];
+    await Future.delayed(Duration(milliseconds: 300));
+    var page = 1000; int totalPage = (totalMessage / page).round() + 1; int size = 1000;
+    List<int> pages = List<int>.generate(totalPage, (int index) => index);
+    List promissLoadMessages = await Future.wait(pages.map((i) => getMessageToTranfer(limit: size, offset: i * size, parseJson: true)));
+    total = promissLoadMessages.reduce((value, element) => value += element);
+    String text = jsonEncode(total);
+    await Future.delayed(Duration(milliseconds: 300));
+    _statusBackUpController.add(StatusBackUp(101, "Encrypting data"));
+    final key = En.Key.fromBase64(keyE2E);
+    final iv = En.IV.fromLength(16);
+    final encrypter = En.Encrypter(En.AES(key, mode: En.AESMode.cbc));
+    return  encrypter.encrypt(text, iv: iv).bytes;
   }
 
 
@@ -1007,7 +1039,7 @@ static Future<List> mergeDataLocal(String conversationId, List apiData, int root
 
       final key = En.Key.fromBase64(keyE2E);
       final iv  =  En.IV.fromLength(16);
-      final encrypter = En.Encrypter(En.AES(key, mode: En.AESMode.cbc));  
+      final encrypter = En.Encrypter(En.AES(key, mode: En.AESMode.cbc));
       var encrypted =  En.Encrypted(dataBackup as Uint8List);
       var dataDecrypt =  encrypter.decrypt(encrypted, iv: iv);
 
@@ -1039,7 +1071,7 @@ static syncData(RTCDataChannel channel, String sharedKey, {bool isSecond = false
       print("sharedKey: $sharedKey");
       await Future.delayed(Duration(milliseconds: 100));
       DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
-        "Preparing messages", 
+        "Preparing messages",
         DeviceSocket.instance.currentDevice ?? "",
         DeviceSocket.instance.targetDevice ?? "",
         sharedKey
@@ -1052,7 +1084,7 @@ static syncData(RTCDataChannel channel, String sharedKey, {bool isSecond = false
       total = promissLoadMessages.reduce((value, element) => value += element);
       String text = await Utils.encrypt(jsonEncode(total), sharedKey);
       int totalSplits = (text.length / maxLength).round() + 1;
-      for(int j = 0; j <= totalSplits; j++){
+      for(int j = 0; j < totalSplits; j++){
         Map i = {
           "index": j,
           "data": text.substring([maxLength * j, text.length ].reduce(min),[text.length, maxLength * (j+ 1)].reduce(min))
@@ -1065,7 +1097,7 @@ static syncData(RTCDataChannel channel, String sharedKey, {bool isSecond = false
           "data": i["data"]
         });
         DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
-          "Sending ${i["index"]}/$totalSplits", 
+          "Sending ${i["index"]}/$totalSplits",
           DeviceSocket.instance.currentDevice ?? "",
           DeviceSocket.instance.targetDevice ?? "",
           sharedKey
@@ -1073,30 +1105,380 @@ static syncData(RTCDataChannel channel, String sharedKey, {bool isSecond = false
         await Future.delayed(Duration(milliseconds: 50));
         channel.send(RTCDataChannelMessage(data));
       }
-      if (isSecond) {
-        DeviceSocket.instance.syncDataWebrtcStreamController.add(
-          DataWebrtcStreamStatus("Done",
-          DeviceSocket.instance.currentDevice ?? "",
-          DeviceSocket.instance.targetDevice ?? "",
-          sharedKey)
-        );
-        DeviceSocket.instance.setPairDeviceId("",  DeviceSocket.instance.currentDevice ?? "", "");
-      }
+      DeviceSocket.instance.syncDataWebrtcStreamController.add(
+        DataWebrtcStreamStatus("Done",
+        DeviceSocket.instance.currentDevice ?? "",
+        DeviceSocket.instance.targetDevice ?? "",
+        sharedKey)
+      );
+      await Future.delayed(Duration(milliseconds: 5000));
+      DeviceSocket.instance.setPairDeviceId("", "", "");
     } catch (e, trace) {
       print("$e , $trace");
     }
   }
+
+  static showDailogConfirmDelete(BuildContext context, Function onDelete, Function onDeleteForMe, bool hasDeleteForAny){
+    bool isDark  = Provider.of<Auth>(Utils.globalContext!, listen: false).theme == ThemeType.DARK;
+    return showDialog(
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: isDark ? Palette.backgroundRightSiderDark :  Palette.backgroundRightSiderLight,
+            ),
+            height: 210, width: 360,
+            child: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10),
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: isDark ? Palette.borderSideColorDark : Palette.defaultTextDark,
+                    borderRadius: BorderRadius.only(topLeft: Radius.circular(4), topRight: Radius.circular(4)),
+                  ),
+                  child: Text(
+                    S.current.deleteMessages,
+                    style: TextStyle(
+                      color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 16
+                    )
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.only( left: 16, right: 16, top: 16),
+                    child: Column(
+                      children: [
+                        Icon(PhosphorIcons.warning ,size: 34,color: Color(0xffEB5757),),
+                        Text(
+                          S.current.deleteThisMessages,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 16 ,height: 1.57 ,fontWeight: FontWeight.w500
+                          )
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)
+                    )
+                  ),
+                  padding: EdgeInsets.symmetric(vertical: 12 ,horizontal: 10 ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 160,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Color(0xff828282)),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: HoverItem(
+                          colorHover: Palette.hoverColorDefault,
+                          child: InkWell(
+                            onTap: () {
+                              onDeleteForMe();
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: EdgeInsets.all(6),
+                              child: Text(S.current.deleteForMe, style: TextStyle(color: isDark ? Color(0xffFFFFFF) : Color(0xff828282), fontSize: 13))
+                            )
+                          )
+                        ),
+                      ),
+                      hasDeleteForAny ? SizedBox(width: 8) : SizedBox(),
+                      hasDeleteForAny ? Container(
+                        width: 160,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: Palette.errorColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: HoverItem(
+                          colorHover: Palette.hoverColorDefault,
+                          child: InkWell(
+                            onTap: () {
+                              onDelete();
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: EdgeInsets.all(6),
+                              child: Text(S.current.deleteForEveryone, style: TextStyle(color: Color(0xffFFFFFF), fontSize: 13))
+                            )
+                          )
+                        ),
+                      ) : Container(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      context: context
+
+    );
+  }
+
+  //  run on an isolate 
+  static Future<void> deleteMessageOnConversationByDeleteTime(int deleteTime, String conversationId) async {
+    try {
+      if (deleteTime == 0) return;
+      Isar? isar = Isar.getInstance();
+      if (isar == null) isar = await Isar.open(
+        schemas: [MessageConversationSchema],
+        directory: ""
+      );
+      await isar.writeTxn(
+        (isar) async  => await isar
+        .messageConversations
+        .where()
+        .conversationIdEqualTo(conversationId)
+        .filter()
+        .currentTimeLessThan(deleteTime)
+        .deleteAll()
+      );
+    } catch (e, t) {
+      print("deleteMessageOnConversationByDeleteTime: $e, $t");
+    }
+  }
+  static Future<void> syncViaFile(String key2e2, String deviceIdTarget) async {
+    try {
+      // get bytes data
+      LazyBox box = Hive.lazyBox('pairkey');
+      var identityKey =  await box.get("identityKey");
+      var publicKeyDecrypt = identityKey["pubKey"];
+      String token = Provider.of<Auth>(Utils.globalContext!, listen: false).token;
+      statusSyncController.add(StatusSync(1, "Getting message"));
+      List<int> bytes = await getDataMessageToTranfer(keyE2E: key2e2);
+      statusSyncController.add(StatusSync(1, "Uploading"));
+      // upload
+      FormData formData = FormData.fromMap({
+        "data": MultipartFile.fromBytes(
+          bytes,
+          filename: "file_sync",
+        ),
+        "content_type": "text",
+        "mime_type": "text",
+        "image_data": {},
+        "filename": "file_sync"
+      });
+
+      final url = Utils.apiUrl + 'workspaces/0/contents/v2?token=$token';
+      final response = await Dio().post(url, data: formData);
+      String urlSyncFile = response.data["content_url"];
+      statusSyncController.add(StatusSync(201, "Done, Synchronization will take place as required by the device"));
+      
+      Provider.of<Auth>(Utils.globalContext!, listen: false).channel.push(
+        event: "send_data_sync", 
+        payload: {
+          "data":  await Utils.encryptServer(
+            {
+              "data": Utils.encrypt(
+                jsonEncode(
+                  {
+                    "url_sync_file": urlSyncFile,
+                    "flow": "file"
+                  }
+                ), 
+                key2e2
+              ),
+              "public_key_decrypt": publicKeyDecrypt,
+              "device_id": deviceIdTarget,
+            }
+          ),
+          "device_id_encrypt": await Utils.getDeviceId()
+        }
+      );
+      await Future.delayed(Duration(milliseconds: 10000));
+      statusSyncController.add(StatusSync(-1, ""));      
+    } catch (e, t) {
+      print("syncViaFile: $e, $t");
+      statusSyncController.add(StatusSync(400, "$e, $t"));   
+    }
+
+  }
+
+  static Future<void> handleSyncViaFile(String key2e2, String url) async {
+    try {
+      // get bytes data
+      statusSyncController.add(StatusSync(4, "Downloading data"));
+      await Future.delayed(Duration(milliseconds: 500));
+      var response = await Dio().get(
+        url,
+        onReceiveProgress: (int i, int t){
+           statusSyncController.add(StatusSync(8, "$i / $t")); 
+        },
+        options: Options(
+          responseType: ResponseType.bytes,
+          followRedirects: false, 
+          receiveTimeout: 0),
+      );
+      statusSyncController.add(StatusSync(5, "Processing"));
+      await Future.delayed(Duration(milliseconds: 500));
+      var de = await Utils.decrypt(base64Encode(response.data), key2e2);
+      statusSyncController.add(StatusSync(6, "Saving")); 
+      await Future.delayed(Duration(milliseconds: 500));
+     
+      List messages = jsonDecode(de);
+      await saveJsonDataMessage(messages);
+      statusSyncController.add(StatusSync(200, "Done")); 
+      await Future.delayed(Duration(milliseconds: 10000));
+      statusSyncController.add(StatusSync(401, ""));
+    } catch (e, t) {
+      print("handleSyncViaFile: $e, $t");
+      statusSyncController.add(StatusSync(-1, "$e $t"));
+    }
+  }
+  
+  static String getTextAtt(int video, int other ,int image , int attachment){
+    if (video == 1 && other == 0 && image == 0) return S.current.sentAVideo;
+    if (video >1 && other == 0 && image == 0) return S.current.sentVideos(video);
+    if (video == 0 && other == 1 && image == 0) return S.current.sentAFile;
+    if (video == 0 && other > 1 && image == 0) return S.current.sentFiles(other);
+    if (video == 0 && other == 0 && image == 1) return S.current.sentAnImage;
+    if (video == 0 && other == 0 && image > 1) return S.current.sentImages(image);
+    if (video == 0 && other == 0 && image == 0 && attachment == 0) return "";
+    if (attachment == 1) return S.current.sentAttachments;
+    return S.current.sentAttachments;
+  }
+
+  static String renderSnippet(List att, dm, bool isNotify) {
+    Map t = getType(att, dm);
+
+    if(isNotify && Utils.checkedTypeEmpty(t['mention'])) {
+      return t['mention'];
+    }
+
+    return getTextAtt(t['video'], t['other'], t['image'], t['attachment'])
+      + t['call_terminated'] + t['invite'] + t['assign'] + t['closeissue']
+      + t["avatar"] + t['invitechannel'] + t['sticker'] + t['share'] + t['e']
+      + t['mention'] + t['leavedirect'];
+  }
+
+  static Map getType(List att, dm )  {
+    Map t = {
+      'video': 0,
+      'other': 0,
+      'image': 0,
+      'call_terminated': '',
+      'attachment': 0,
+      'invite': '',
+      'mention': '',
+      'assign': '',
+      'closeissue': '',
+      "avatar": '',
+      'invitechannel': '',
+      'sticker': '',
+      'share': '',
+      'e': '',
+      'leavedirect': ''
+    };
+
+    if(att.length == 0) {
+      return t ;
+    }
+
+    final data = att[0]['data'];
+    for(int i =0; i < att.length; i++) {
+      String? mime = att[i]['mime_type'] ?? '';
+      try {
+        if (mime == null) continue;
+        if (mime == 'image' || mime =='jpg' || mime == 'png' || mime == 'heic' || mime == 'jpeg' || att[0]['type'] == 'image') {
+          t['image'] += 1;
+        } else if (mime == "mov" || mime == "mp4" || mime == "video") {
+          t['video']+=1;
+        } else if (att[i]['type'] == 'sticker') {
+          if (Utils.checkedTypeEmpty(data["character"])) {
+            t['sticker'] += S.current.sticker(data["character"]);
+          } else {
+            t['sticker'] += S.current.sticker1;
+          }
+        } else if (att[i]['type'] == 'invite') {
+            if(Utils.checkedTypeEmpty(data['is_workspace'])) {
+              t['invitechannel'] += S.current.inviedWorkSpace(data["full_name"], data["workspace_name"]);
+            } else {
+              if (Utils.checkedTypeEmpty(data['isAccepted'])) {
+              t['invitechannel'] += S.current.inviedChannels;
+            } else {
+              t['invitechannel'] += S.current.inviedChannel(data["full_name"], data["channel_name"]);
+            }
+          }
+        } else if (att[i]['type'] == 'assign') {
+          if  (Utils.checkedTypeEmpty(data['assign'])) {
+            t['assign'] += S.current.assignIssue(data["full_name"]) ;
+          } else {
+            t['assign'] += S.current.unassignIssue(data["full_name"]) ;
+          }
+        } else if (att[i]['type'] == 'close_issue') {
+          if (Utils.checkedTypeEmpty(data['user_watching'])) {
+            if  (Utils.checkedTypeEmpty(data['is_closed'])) {
+              t['closeissue'] += S.current.closeIssues(data["assign_user"], data["issue_author"] ?? "", data["channel_name"]);
+            } else {
+              t['closeissue'] += S.current.reopened(data["assign_user"], data["issue_author"] ?? "", data["channel_name"]);
+            }
+          } else {
+            if (Utils.checkedTypeEmpty(data['is_closed'])) {
+              t['closeissue'] += S.current.closeIssues1(data["assign_user"], data["channel_name"]);
+            } else {
+              t['closeissue'] += S.current.reopened1(data["assign_user"], data["channel_name"]);
+            }
+          }
+        } else if (att[i]['mime_type'] == 'share') {
+          t['share'] += S.current.reply;
+        } else if (att[i]['mime_type'] == 'shareforwar') {
+          t['share'] += S.current.share;
+        } else if (att[i]['type']== 'update_conversation') {
+          t['avatar'] += S.current.changeAvatarDm (att[i]["user"]['name']);
+        } else if (att[i]['type'] == 'device_info' || att[i]['type'] == 'action_button') {
+          t['attachment'] += 1;
+        } else if (att[i]['type'] == 'invite_direct') {
+          t['invite'] += S.current.invied(att[i]["user"], att[i]["invited_user"]);
+        } else if (att[i]["type"] == "mention") {
+          t['mention'] += att[i]["data"].map((e) {
+            if (e["type"] == "text") return e["value"];
+            return "${e["trigger"] ?? "@"}${e["name"] ?? ""} ";
+          }).toList().join();
+        }  else if (att[i]['type'] == 'leave_direct') {
+            t['leavedirect'] += S.current.leaveDirect;
+        } else {
+          t['other'] += 1;
+        }
+      } catch (e) {
+        t['e'] += S.current.sentAttachments;
+      }
+    }
+    return t;
+  }
+
 }
 
 class StatusBackUp {
-  late int statusCode; 
-  late String status; 
+  late int statusCode;
+  late String status;
   StatusBackUp(this.statusCode, this.status);
 }
 class StatusRestore {
-  late int statusCode; 
-  late String status; 
+  late int statusCode;
+  late String status;
   StatusRestore(this.statusCode, this.status);
 }
+
+class StatusSync {
+  late int statusCode; 
+  late String status; 
+  StatusSync(this.statusCode, this.status);
+}
+
 
 

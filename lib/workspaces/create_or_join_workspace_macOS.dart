@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/transitions/modal.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'create_or_join_dialog_macOS.dart';
 
@@ -72,22 +72,9 @@ class _CreateOrJoinWorkspaceMacOsState extends State<CreateOrJoinWorkspaceMacOs>
                 });
                 isCreate = true;
                 final act = ShowDialog(theme: theme);
-                await showGeneralDialog(
+                await showModal(
                   context: context,
-                  barrierLabel: '',
-                  barrierColor: Colors.black.withOpacity(0.5),
-                  transitionBuilder: (context, a1, a2, widget) {
-                    final curvedValue = Curves.easeOutBack.transform(a1.value) -   1.0;
-                    return Transform(
-                      transform: Matrix4.translationValues(0.0, curvedValue * 200, 0.0),
-                      child: Opacity(
-                        opacity: a1.value,
-                        child: widget
-                      ),
-                    );
-                  }, 
-                barrierDismissible: true, 
-                pageBuilder: (BuildContext context, ani1, ani2) => act).then((value) => isCreate = false);
+                  builder: (BuildContext context) => act).then((value) => isCreate = false);
               },
               child: AnimatedContainer(
                 margin: isClick ? EdgeInsets.only(top: 2) : EdgeInsets.zero,
@@ -222,9 +209,9 @@ class ShowDialog extends StatelessWidget {
 }
 
 showBottomSheet(context, action) {
-  showDialog(
+  showModal(
     context: context,
     builder: (BuildContext context) {
       return CreateOrJoinDialogMacOs(action: action);
-    });
+  });
 }

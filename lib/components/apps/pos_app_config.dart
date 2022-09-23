@@ -4,12 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/dropdown_overlay.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class PosAppConfig extends StatefulWidget {
   const PosAppConfig({ Key? key, required this.app }) : super(key: key);
@@ -276,7 +275,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                                     border: Border.all(
                                       color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
                                       width: 1,
-                                    ), 
+                                    ),
                                   ),
                                   height: 40,
                                   child: Row(
@@ -351,7 +350,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                                             itemCount: shops.length,
                                             itemBuilder: (BuildContext context, int index) {
                                               var item = shops[index];
-                                
+
                                               return TextButton(
                                                 style: ButtonStyle(
                                                   overlayColor: MaterialStateProperty.all(isDark ? Palette.selectChannelColor : Color(0xffF3F3F3)),
@@ -380,7 +379,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                                                               child: ClipRRect(
                                                                 borderRadius: BorderRadius.circular(100.0),
                                                                 child: !Utils.checkedTypeEmpty(item["avatar_url"]) ? Image.asset(
-                                                                  "assets/images/pos_app.png",
+                                                                  "assets/images/logo_app/pos_app.png",
                                                                   width: 32,
                                                                   height: 32,
                                                                 ) : CachedAvatar(
@@ -571,7 +570,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                                                   ),
                                                   ListView.builder(
                                                     shrinkWrap: true,
-                                                    itemCount: status.length, 
+                                                    itemCount: status.length,
                                                     itemBuilder: (BuildContext context, int index) {
                                                       var item = status[index];
 
@@ -759,7 +758,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(100.0),
                                     child: Image.asset(
-                                      "assets/images/pos_app.png",
+                                      "assets/images/logo_app/pos_app.png",
                                       width: 36,
                                       height: 36,
                                     ),
@@ -849,7 +848,7 @@ class _PosAppConfigState extends State<PosAppConfig> {
                         child: TextButton(
                           style: ButtonStyle(
                             backgroundColor: MaterialStateProperty.all(
-                             Utils.getPrimaryColor() 
+                             Utils.getPrimaryColor()
                             ),
                             shape: MaterialStateProperty.all(
                               RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))

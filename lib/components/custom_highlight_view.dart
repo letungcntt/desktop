@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_highlighter/themes/atom-one-dark.dart';
 import 'package:flutter_highlighter/themes/atom-one-light.dart';
 import 'package:highlighter/highlighter.dart' show highlight, Node;
-import 'package:provider/provider.dart';
-import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/widget_text.dart';
 
-import '../models/models.dart';
+import '../common/palette.dart';
+import '../providers/providers.dart';
 
 class CustomHighlightView extends StatelessWidget {
   final String source;
@@ -84,7 +83,7 @@ class CustomHighlightView extends StatelessWidget {
       fontFamily: _defaultFontFamily,
       color: theme[_rootKey]?.color ?? _defaultFontColor,
     );
-    
+
     if (textStyle != null) {
       _textStyle = _textStyle.merge(textStyle);
     }
@@ -99,7 +98,6 @@ class CustomHighlightView extends StatelessWidget {
           children:
               _convert(highlight.parse(source, language: language).nodes!),
         ),
-        isDark: isDark
       ) : SelectableText.rich(
         TextSpan(
           style: _textStyle,

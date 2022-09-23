@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import '../../common/palette.dart';
 
@@ -22,7 +21,7 @@ class _LoginQrCodeButtonState extends State<LoginQrCodeButton> {
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    
+
     return InkWell(
       onHover: (value) {
         if(isHover != value) {

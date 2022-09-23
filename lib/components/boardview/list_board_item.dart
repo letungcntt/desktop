@@ -1,11 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
+import 'package:popover/popover.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/boardview/card_detail.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'CardItem.dart';
 import 'component/models.dart';
 
@@ -14,12 +15,16 @@ class ListBoardItem extends StatefulWidget {
     Key? key,
     this.workspaceId,
     this.channelId,
-    this.collapseListBoard
+    this.collapseListBoard,
+    this.onShowArchiveBoard,
+    required this.showArchiveBoard
   }) : super(key: key);
 
   final workspaceId;
   final channelId;
   final collapseListBoard;
+  final onShowArchiveBoard;
+  final bool showArchiveBoard;
 
   @override
   State<ListBoardItem> createState() => _ListBoardItemState();
@@ -27,13 +32,18 @@ class ListBoardItem extends StatefulWidget {
 
 class _ListBoardItemState extends State<ListBoardItem> {
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     final token = Provider.of<Auth>(context, listen: false).token;
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
 
-    Provider.of<Boards>(context, listen: false).getListBoards(token, currentWorkspace["id"], currentChannel["id"]);
+    Provider.of<Boards>(context, listen: false).getListBoards(token, currentWorkspace["id"], currentChannel["id"]).then((res) {
+      final data = Provider.of<Boards>(context, listen: false).data;
+      if (data.length == 0) {
+        Provider.of<Boards>(context, listen: false).createDefaultBoard(token, currentWorkspace["id"], currentChannel["id"]);
+      }
+    });
   }
 
   @override
@@ -45,8 +55,8 @@ class _ListBoardItemState extends State<ListBoardItem> {
 
       Provider.of<Boards>(context, listen: false).getListBoards(token, currentWorkspace["id"], currentChannel["id"]).then((e) {
         final data = Provider.of<Boards>(context, listen: false).data;
-        if (data.length > 0) {
-          Provider.of<Boards>(context, listen: false).onChangeBoard(data[0]);
+        if (data.length == 0) {
+          Provider.of<Boards>(context, listen: false).createDefaultBoard(token, currentWorkspace["id"], currentChannel["id"]);
         }
       });
     }
@@ -54,90 +64,12 @@ class _ListBoardItemState extends State<ListBoardItem> {
     super.didUpdateWidget(oldWidget);
   }
 
-  getListArchivedCard() {
-    final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
-    List<CardItem> archivedCards = [];
-
-    for (var index = 0; index < selectedBoard["list_cards"].length; index++) {
-      var listCards = selectedBoard["list_cards"][index];
-
-      for (var i = 0; i < listCards["cards"].length; i++) {
-        var e = i < listCards["cards"].length ? listCards["cards"][i] : {};
-        if (e["is_archived"] == true) {
-          archivedCards.add(CardItem.cardFrom({
-            "id": e["id"],
-            "title": e["title"],
-            "description": e["description"],
-            "listIndex": index, 
-            "itemIndex": i,
-            "workspaceId": listCards["workspace_id"],
-            "channelId": listCards["channel_id"],
-            "boardId": listCards["board_id"],
-            "listCardId": listCards["id"],
-            "members": e["assignees"],
-            "labels": e["labels"],
-            "checklists" : e["checklists"],
-            "attachments" : e["attachments"],
-            "commentsCount" : e["comments_count"],
-            "tasks": e["tasks"],
-            "isArchived": e["is_archived"],
-            "priority": e["priority"],
-            "dueDate": e["due_date"]
-          }));
-        }
-      }
-    }
-
-    return archivedCards;
-  }
-
-  onShowArchivedCard() {
-    List<CardItem> archivedCards = getListArchivedCard();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {        
-        return Dialog(
-          backgroundColor: Colors.grey[300],
-          child: Container(
-            padding: EdgeInsets.only(top: 8, left: 4, right: 4),
-            constraints: BoxConstraints(
-              maxHeight: 800
-            ),
-            height: 420,
-            width: 300,
-            child: Column(
-              children: [
-                Text(
-                  "Archived cards",
-                  style: TextStyle(fontSize: 16, color: Colors.grey[700], fontFamily: 'Roboto', fontWeight: FontWeight.w400),
-                ),
-                SizedBox(height: 4),
-                Container(
-                  height: 380,
-                  child: ListView.builder(
-                    scrollDirection: Axis.vertical,
-                    shrinkWrap: true,
-                    itemCount: archivedCards.length,
-                    itemBuilder: (context, index) { 
-                      return buildCardItem(archivedCards[index]);
-                    }
-                  ),
-                ),
-              ],
-            ),
-          )
-        );
-      }
-    );
-  }
-
   Widget buildCardItem(CardItem cardItem) {
     final channelMember = Provider.of<Channels>(context, listen: true).channelMember;
     final selectedBoard = Provider.of<Boards>(context, listen: true).selectedBoard;
     final auth = Provider.of<Auth>(context, listen: false);
     final isDark = auth.theme == ThemeType.DARK;
-    
+
     List labels = cardItem.labels.map((e) {
       var index = selectedBoard["labels"].indexWhere((ele) => ele["id"] == e);
       if (index == -1) return null;
@@ -246,6 +178,7 @@ class _ListBoardItemState extends State<ListBoardItem> {
   @override
   Widget build(BuildContext context) {
     final data = Provider.of<Boards>(context, listen: true).data;
+    final dataBoard = data.where((e) => e["is_archived"] != true).toList();
     final selectedBoard = Provider.of<Boards>(context, listen: true).selectedBoard;
     final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
@@ -260,66 +193,97 @@ class _ListBoardItemState extends State<ListBoardItem> {
       ),
       height: MediaQuery.of(context).size.height - 38,
       width: widget.collapseListBoard ? 64 : 256,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          widget.collapseListBoard ? Container(height: 56) : Padding(
-            padding: EdgeInsets.only(top: 19, left: 24, bottom: 18),
-            child: Container(
-              child: Text("BOARD:", style: TextStyle(color: isDark ? Color(0xffC9C9C9) : Color(0xff828282), fontSize: 16, fontWeight: FontWeight.w600))
-            )
-          ),
-          Divider(thickness: 1, color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
-          Container(
-            width: 256,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: data.map<Widget>((e) {
-                int index = data.indexOf(e);
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              widget.collapseListBoard ? Container(height: 56) : Padding(
+                padding: EdgeInsets.only(top: 19, left: 24, bottom: 18),
+                child: Container(
+                  child: Text("BOARD:", style: TextStyle(color: isDark ? Color(0xffC9C9C9) : Color(0xff828282), fontSize: 16, fontWeight: FontWeight.w600))
+                )
+              ),
+              Divider(thickness: 1, color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), height: 1),
+              Container(
+                width: 256,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: dataBoard.map<Widget>((e) {
+                    int index = dataBoard.indexOf(e);
 
-                return InkWell(
-                  onTap: () {  
-                    Provider.of<Boards>(context, listen: false).onChangeBoard(e);
-                  },
-                  child: BoardTitle(selectedBoard: selectedBoard, board: e, index: index, collapseListBoard: widget.collapseListBoard)
-                );
-              }).toList()
-            )
-          ),
-          SizedBox(height: 16),
-          widget.collapseListBoard ? InkWell(
-            onTap: () {
-              showDialogCreateBoard(context);
-            },
-            child: Container(
-              margin: EdgeInsets.only(left: 12),
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xff4C4C4C) : Color(0xffDBDBDB),
-                borderRadius: BorderRadius.circular(4)
+                    return InkWell(
+                      onTap: () {
+                        Provider.of<Boards>(context, listen: false).onChangeBoard(e);
+                        widget.onShowArchiveBoard(false);
+                      },
+                      child: BoardTitle(selectedBoard: selectedBoard, board: e, index: index, collapseListBoard: widget.collapseListBoard)
+                    );
+                  }).toList()
+                )
               ),
-              width: 40,
-              height: 40,
-              child: Center(child: Icon(PhosphorIcons.plus)),
-            ),
-          ) : Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              width: 256 - 48,
-              padding: EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: isDark ? Color(0xff4C4C4C) : Colors.white,
-                borderRadius: BorderRadius.circular(4)
-              ),
-              child: TextButton(
-                style: ButtonStyle(overlayColor: MaterialStateProperty.all(Colors.transparent)),
-                onPressed: () {  
+              SizedBox(height: 16),
+              widget.collapseListBoard ? InkWell(
+                onTap: () {
                   showDialogCreateBoard(context);
                 },
-                child: Wrap(
+                child: Container(
+                  margin: EdgeInsets.only(left: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? Color(0xff4C4C4C) : Color(0xffDBDBDB),
+                    borderRadius: BorderRadius.circular(4)
+                  ),
+                  width: 40,
+                  height: 40,
+                  child: Center(child: Icon(PhosphorIcons.plus)),
+                ),
+              ) : Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Container(
+                  width: 256 - 48,
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Color(0xff4C4C4C) : Colors.white,
+                    borderRadius: BorderRadius.circular(4)
+                  ),
+                  child: TextButton(
+                    style: ButtonStyle(overlayColor: MaterialStateProperty.all(Colors.transparent)),
+                    onPressed: () {
+                      showDialogCreateBoard(context);
+                    },
+                    child: Wrap(
+                      children: [
+                        Icon(PhosphorIcons.plus, size: 18, color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                        SizedBox(width: 12),
+                        Text("New Board", style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 16, fontWeight: FontWeight.w400))
+                      ]
+                    )
+                  )
+                )
+              )
+            ]
+          ),
+          Positioned(
+            bottom: 0,
+            child: InkWell(
+              onTap: () {
+                widget.onShowArchiveBoard(!widget.showArchiveBoard);
+              },
+              child: Container(
+                width: 260,
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)
+                    )
+                  )
+                ),
+                padding: EdgeInsets.symmetric(vertical: 16, horizontal: widget.collapseListBoard ? 20 : 24),
+                child: Row(
                   children: [
-                    Icon(PhosphorIcons.plus, size: 18, color: isDark ? Palette.calendulaGold : Palette.dayBlue),
-                    SizedBox(width: 12),
-                    Text("New Board", style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 16, fontWeight: FontWeight.w400))
+                    Icon(PhosphorIcons.archive, size: 20, color: widget.showArchiveBoard ? Color(0xffFAAD14) : null),
+                    SizedBox(width: 10),
+                    if(!widget.collapseListBoard) Text("Archived Board", style: TextStyle(fontSize: 16, color: widget.showArchiveBoard ? Color(0xffFAAD14) : null))
                   ]
                 )
               )
@@ -332,7 +296,7 @@ class _ListBoardItemState extends State<ListBoardItem> {
 
   showDialogCreateBoard(context) {
     final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
- 
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -359,7 +323,7 @@ class _ListBoardItemState extends State<ListBoardItem> {
                   child: TextFormField (
                     autofocus: true,
                     controller: controller,
-                    style: TextStyle(color: isDark ? Colors.white : Color(0xffA6A6A6)),
+                    style: TextStyle(color: isDark ? Colors.white : Color(0xff3D3D3D)),
                     decoration: InputDecoration(
                       hintText: "Name board",
                       hintStyle: TextStyle(fontSize: 14, color: Color(0xffA6A6A6)),
@@ -391,7 +355,7 @@ class _ListBoardItemState extends State<ListBoardItem> {
                         child: InkWell(
                           onTap: () {
                             Navigator.pop(context);
-                          }, 
+                          },
                           child: Container(
                             height: 32,
                             decoration: BoxDecoration(
@@ -410,7 +374,7 @@ class _ListBoardItemState extends State<ListBoardItem> {
                             if (controller.text.trim() == "") return;
                             await Provider.of<Boards>(context, listen: false).createNewBoard(token, currentWorkspace["id"], currentChannel["id"], controller.text);
                             Navigator.pop(context);
-                          }, 
+                          },
                           child: Container(
                             height: 32,
                             decoration: BoxDecoration(
@@ -453,14 +417,36 @@ class BoardTitle extends StatefulWidget {
 
 class _BoardTitleState extends State<BoardTitle> {
   List colors = [
-    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA", 
+    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA",
     "08979C", "237804", "0050B3", "B37FEB", "9E1068", "D48806", "FFA940", "A8071A", "6B7588",
     "13C2C2", "B7EB8F", "096DD9", "722ED1", "C41D7F", "FFD666", "FA8C16", "F5222D", "8F90A6"
   ];
 
+  onRenameBoard(title) {
+    final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
+    final token = Provider.of<Auth>(context, listen: false).token;
+    widget.board["title"] = title;
+    var newBoard = {...widget.board, "title": title};
+    Provider.of<Boards>(context, listen: false).changeBoardInfo(token, selectedBoard["workspace_id"], selectedBoard["channel_id"], newBoard);
+    Navigator.pop(context);
+  }
+
+  onArchiveBoard(value) {
+    final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
+    final token = Provider.of<Auth>(context, listen: false).token;
+    widget.board["is_archived"] = value;
+    var newBoard = {...widget.board, "is_archived": value};
+    Provider.of<Boards>(context, listen: false).changeBoardInfo(token, selectedBoard["workspace_id"], selectedBoard["channel_id"], newBoard);
+    final data = Provider.of<Boards>(context, listen: false).data;
+    final index = data.indexWhere((e) => e["is_archived"] != true);
+    Provider.of<Boards>(context, listen: false).onChangeBoard(index == -1 ? {} : data[index]);
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+    final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
 
     return widget.collapseListBoard ? Container(
       width: 64,
@@ -476,12 +462,12 @@ class _BoardTitleState extends State<BoardTitle> {
         )
       ),
       child: Container(
-        height: 24, width: 24, 
+        height: 24, width: 24,
         decoration: BoxDecoration(
           color: Color(int.parse("0xFF${colors[widget.index]}")),
           borderRadius: BorderRadius.circular(4)
         ),
-        child: Center(child: Text("A", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Palette.darkTextField)))
+        child: Center(child: Text(widget.board["title"][0].toUpperCase(), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Palette.darkTextField)))
       )
     ) : Container(
       width: 256,
@@ -495,19 +481,195 @@ class _BoardTitleState extends State<BoardTitle> {
         )
       ) : null,
       padding: EdgeInsets.symmetric(vertical: 12, horizontal: widget.board["id"] == widget.selectedBoard["id"] ? 22 : 24),
-      child: Wrap(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            height: 16, width: 16, 
-            decoration: BoxDecoration(
-              color: Color(int.parse("0xFF${colors[widget.index]}")),
-              borderRadius: BorderRadius.circular(4)
-            )
+          Wrap(
+            children: [
+              Container(
+                height: 16, width: 16,
+                decoration: BoxDecoration(
+                  color: Color(int.parse("0xFF${colors[widget.index]}")),
+                  borderRadius: BorderRadius.circular(4)
+                )
+              ),
+              SizedBox(width: 12),
+              Container(
+                width: 160,
+                child: Text(widget.board["title"], style: TextStyle(fontSize: 16, overflow: TextOverflow.ellipsis))
+              )
+            ]
           ),
-          SizedBox(width: 12),
-          Text(widget.board["title"], style: TextStyle(fontSize: 16))
+          if (widget.board["id"] == widget.selectedBoard["id"]) InkWell(
+            onTap: () {
+              showPopover(
+                backgroundColor: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
+                context: context,
+                transitionDuration: const Duration(milliseconds: 50),
+                direction: PopoverDirection.right,
+                barrierColor: Colors.transparent,
+                arrowHeight: 0,
+                arrowWidth: 0,
+                radius: 4,
+                height: 88,
+                width: 168,
+                bodyBuilder: (context) => StatefulBuilder(
+                  builder: (context, setState) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)
+                        ),
+                        borderRadius: BorderRadius.circular(4),
+                        color: isDark ? Color(0XFF4C4C4C) : Color(0xffffffff)
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              showDialogCreateBoard(context, widget.board, onRenameBoard);
+                            },
+                            child: Container(
+                              height: 43,
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Icon(PhosphorIcons.pencilSimpleLineThin, size: 20),
+                                  SizedBox(width: 10),
+                                  Text("Rename", style: TextStyle(color: isDark ? null : Color(0xff3D3D3D)))
+                                ]
+                              )
+                            ),
+                          ),
+                          Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), thickness: 1, height: 0),
+                          InkWell(
+                            onTap: () {
+                              onArchiveBoard(selectedBoard["is_archived"] != null ? !selectedBoard["is_archived"] : true);
+                            },
+                            child: Container(
+                              height: 43,
+                              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Icon(PhosphorIcons.archiveThin, size: 20),
+                                  SizedBox(width: 10),
+                                  Text("Archive Board", style: TextStyle(color: isDark ? null : Color(0xff3D3D3D)))
+                                ]
+                              )
+                            )
+                          )
+                        ]
+                      )
+                    );
+                  }
+                )
+              );
+            },
+            child: Icon(CupertinoIcons.ellipsis, size: 20)
+          )
         ]
       )
     );
   }
+}
+
+showDialogCreateBoard(context, board, onRenameBoard) {
+  final bool isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      final controller = TextEditingController();
+
+      return Dialog(
+        child: Container(
+          width: 332,
+          height: 184,
+          child: Column(
+            children: [
+              Container(
+                width: 332,
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                height: 40,
+                color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                child: Text("Rename board", style: TextStyle(fontSize: 14))
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: TextFormField (
+                  autofocus: true,
+                  controller: controller,
+                  style: TextStyle(color: isDark ? Colors.white : Color(0xffA6A6A6)),
+                  decoration: InputDecoration(
+                    hintText: "Name board",
+                    hintStyle: TextStyle(fontSize: 14, color: Color(0xffA6A6A6)),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 14),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                      borderRadius: BorderRadius.all(Radius.circular(4))
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                      borderRadius: BorderRadius.all(Radius.circular(4))
+                    )
+                  ),
+                  onEditingComplete: () async {
+                    if (controller.text.trim() == "") return;
+                    onRenameBoard(controller.text.trim());
+                  }
+                )
+              ),
+              Divider(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB), thickness: 1, height: 1),
+              Container(
+                padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      flex: 1,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          height: 32,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Palette.errorColor),
+                            borderRadius: BorderRadius.circular(4)
+                          ),
+                          child: Center(child: Text(S.current.cancel, style: TextStyle(color: Palette.errorColor)))
+                        )
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    Flexible(
+                      flex: 1,
+                      child: InkWell(
+                        onTap: () async {
+                          if (controller.text.trim() == "") return;
+                          onRenameBoard(controller.text.trim());
+                        },
+                        child: Container(
+                          height: 32,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color: Palette.dayBlue
+                          ),
+                          child: Center(child: Text("Rename", style: TextStyle(fontSize: 14, color: Palette.defaultTextDark)))
+                        )
+                      )
+                    )
+                  ]
+                )
+              )
+            ]
+          )
+        )
+      );
+    }
+  );
 }

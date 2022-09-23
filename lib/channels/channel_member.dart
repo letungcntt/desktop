@@ -3,10 +3,9 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_search_bar.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'channel_member_bottom.dart';
 import 'list_member.dart';
@@ -24,14 +23,14 @@ class _ChannelMemberState extends State<ChannelMember> {
   List members = [];
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     final channelMember = Provider.of<Channels>(context, listen: false).channelMember;
     this.setState(() {
       members = channelMember;
     });
   }
-  
+
   @override
   void dispose() {
     _invitePeopleController.dispose();
@@ -66,7 +65,7 @@ class _ChannelMemberState extends State<ChannelMember> {
     }
   }
 
-   
+
   @override
   Widget build(BuildContext context) {
     var _debounce;

@@ -4,11 +4,11 @@ import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/login/input_field.dart';
 import 'package:workcake/components/login/submit_button.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/components/login/verify_otp.dart';
+import 'package:workcake/providers/providers.dart';
 
 import '../../login_macOS.dart';
 
@@ -35,22 +35,15 @@ class _ResetPasswordState extends State<ResetPassword> {
           invalidCredential = true;
         });
         return;
-      }
-      setState(() {
-        loading = true;
-      });
-      var res = await Provider.of<Auth>(context, listen: false).resetPassword(dataUser);
-
-      if(res["success"]) {
-        await Provider.of<Auth>(context, listen: false).loginUserPassword(dataUser["phone_number"], _passwordController.text, context);
-        Navigator.pushNamed(context, 'main_screen_macOS');
-      } else {
+      } else if(_passwordController.text.length < 6 || _passwordConfirmController.text.length < 6 ) {
         setState(() {
-          loading = false;
-          message = res["message"];
+          message = "Password must contain at least 6 characters";
           invalidCredential = true;
         });
+        return;
       }
+
+      Navigator.push(context, MaterialPageRoute(builder: (context) => VerifyOtp(dataUser: {...widget.dataUser, "new_password": _passwordController.text}, isResetPassword: true)));
     } catch (e) {
       if (kDebugMode) {
         print(e);
@@ -142,7 +135,7 @@ class _ResetPasswordState extends State<ResetPassword> {
                       SubmitButton(
                         onTap: () {
                           resetPassword({...widget.dataUser, "new_password": _passwordController.text });
-                        }, 
+                        },
                         text: "Submit", isLoading: false,
                       ),
                       SizedBox(height: height * 0.03,),

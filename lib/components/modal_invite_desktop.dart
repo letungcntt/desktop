@@ -6,13 +6,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:lottie/lottie.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
+
+import '../generated/l10n.dart';
 
 class InviteModalDesktop extends StatefulWidget {
   InviteModalDesktop({
@@ -80,7 +81,7 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
       handleUser = userSelected["id"];
     });
     try {
-      // ktra xem idDM co 
+      // ktra xem idDM co
       var dataConversation = Provider.of<DirectMessage>(context, listen: false).getCurrentDataDMMessage(idDM);
       if (dataConversation == null) return;
       var status = dataConversation["statusConversation"];
@@ -151,20 +152,23 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(dm.user.length > 2 ? "Invite people" : "Create a group with ", style: TextStyle(color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E) , fontSize: 16 ,fontWeight: FontWeight.w600)),
+              Text(dm.user.length > 2 ? S.current.invitePeople : "Create a group with ", style: TextStyle(color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E) , fontSize: 16 ,fontWeight: FontWeight.w600)),
               Container(
                 padding: EdgeInsets.only(right: 2),
                 alignment: Alignment.centerRight,
                 child: HoverItem(
                   colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
-                  child: IconButton(
-                    onPressed: (){
+                  child: InkWell(
+                    onTap: (){
                       Navigator.of(context).pop();
                     },
-                    icon: Icon(
-                      PhosphorIcons.xCircle,
-                      size: 20.0,
-                      color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)
+                    child: Container(
+                      padding: EdgeInsets.all(12),
+                      child: Icon(
+                        PhosphorIcons.xCircle,
+                        size: 20.0,
+                        color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)
+                      ),
                     ),
                   )
                 )
@@ -186,7 +190,7 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
               child: Icon(Icons.search, color: Colors.grey[500], size: 18),
               padding: EdgeInsets.only(left: 15)
             ),
-            placeholder: "Search user",
+            placeholder: S.current.searchMember,
             style: TextStyle(fontSize: 15, color: isDark ? Colors.white : Color(0xff1E1F20)),
             padding: EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
@@ -203,9 +207,9 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
         ),
         Container(
           padding: EdgeInsets.only(left: 18,top: 4),
-          child: Text("Your Friends",
+          child: Text(S.current.yourFriend,
             style: TextStyle(
-              fontSize: 14, 
+              fontSize: 14,
               fontWeight: FontWeight.w500,
               color: isDark ? Color(0xffB9B9B9) : Color(0xff5E5E5E)
             ),
@@ -213,7 +217,7 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
         ),
         Container(
           height: 464,
-          child: resultSearch.length == 0 
+          child: resultSearch.length == 0
           ? Container(
               alignment: Alignment.center,
               child: Column(
@@ -222,9 +226,9 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
                   SvgPicture.asset('assets/icons/searchIcon.svg', width: 120,),
                   SizedBox(height: 30),
                   Text.rich(TextSpan(children: [
-                    TextSpan(text: "No result found\n", style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic, fontSize: 40)), 
+                    TextSpan(text: "No result found\n", style: TextStyle(color: Colors.grey[700], fontStyle: FontStyle.italic, fontSize: 40)),
                    ]
-                  ), 
+                  ),
                   textAlign: TextAlign.center),
                   SizedBox(height: 120)
                 ],
@@ -233,7 +237,7 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
             padding: EdgeInsets.symmetric(horizontal: 18),
             itemCount: resultSearch.length,
             itemBuilder: (context, index) {
-              var selected = dm.user.where((e) {return e["user_id"] == resultSearch[index]["id"]  && e["user_id"] == "in_conversation"; }).length > 0;
+              var selected = dm.user.where((e) {return e["user_id"] == resultSearch[index]["id"]  && e["status"] == "in_conversation"; }).length > 0;
               return Container(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -258,13 +262,14 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
                     ),
                     GestureDetector(
                       onTap: () {
-                        if(!selected) invite(resultSearch[index], token, dm.id);
+                        if(!selected)  invite(resultSearch[index], token, dm.id);
                       },
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
+                          color: isDark ? selected ? Color(0xff2E2E2E):Color(0xff3D3D3D): selected ? Color(0xffF3F3F3):Color(0xffFFFFFF),
                           borderRadius: BorderRadius.all(Radius.circular(5)),
-                          color: handleUser != null ? Colors.blueAccent : selected ? Color(0xff575757) : Colors.blueAccent,
+                          border: Border.all(color: isDark ? selected ? Color(0xff5E5E5E) : Color(0xffEDEDED) : selected ? Color(0xffB7B7B7) : Color(0xff5E5E5E),),
                         ),
                         child: Row(
                           children: [
@@ -273,8 +278,10 @@ class _InviteModalDesktop extends State<InviteModalDesktop>
                               alignment: Alignment.center,
                               child: Lottie.network("https://assets4.lottiefiles.com/datafiles/riuf5c21sUZ05w6/data.json")
                             ) : Text(
-                              selected ? "Invited" : "Invite",
-                              style: TextStyle(fontSize: 13, color: Color(0xffffffff))
+                              selected ? S.current.invited : S.current.invite,
+                              style: TextStyle(fontSize: 13, 
+                              color: isDark ? selected ? Color(0xff5E5E5E) : Color(0xffEDEDED) : selected ? Color(0xffB7B7B7) : Color(0xff5E5E5E),
+                             )
                             )
                           ]
                         )

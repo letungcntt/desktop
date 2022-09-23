@@ -34,7 +34,7 @@ class DirectModelAdapter extends TypeAdapter<DirectModel> {
   @override
   void write(BinaryWriter writer, DirectModel obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -54,7 +54,9 @@ class DirectModelAdapter extends TypeAdapter<DirectModel> {
       ..writeByte(8)
       ..write(obj.userRead)
       ..writeByte(9)
-      ..write(obj.displayName);
+      ..write(obj.displayName)
+      ..writeByte(10)
+      ..write(obj.avatarUrl);
   }
 
   @override

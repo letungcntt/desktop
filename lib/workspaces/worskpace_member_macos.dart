@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class WorkspaceMemberMacOS extends StatefulWidget {
   final onlineMember;
@@ -10,7 +9,7 @@ class WorkspaceMemberMacOS extends StatefulWidget {
 
   WorkspaceMemberMacOS({
     Key? key,
-    this.onlineMember, 
+    this.onlineMember,
     this.offlineMember
   }) : super(key: key);
 
@@ -30,7 +29,7 @@ class _WorkspaceMemberMacOSState extends State<WorkspaceMemberMacOS> {
       final minutes = difference % 60;
       final day = hour ~/24;
       final hourLeft = hour % 24 + 1;
-      
+
       if (day > 0) {
         return 'Active ${day.toString().padLeft(2, "")} ${day > 1 ? "days" : "day"} and ${hourLeft.toString().padLeft(2, "")} ${hourLeft > 1 ? "hours" : "hour"} hours ago';
       } else if (hour > 0) {

@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/invite_member_macOS.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/components/transitions/modal.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ChannelItemDesktop extends StatefulWidget {
   ChannelItemDesktop({
@@ -54,28 +54,9 @@ class _ChannelItemDesktopState extends State<ChannelItemDesktop> {
   }
 
   onShowInviteChannelDialog(context) {
-    showGeneralDialog(
+    showModal(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
-      barrierDismissible: true,
-      barrierLabel: '',
-      transitionDuration: Duration(milliseconds: 80),
-      transitionBuilder: (context, a1, a2, widget){
-        var begin = 0.5;
-        var end = 1.0;
-        var curve = Curves.decelerate;
-        var curveTween = CurveTween(curve: curve);
-        var tween = Tween(begin: begin, end: end).chain(curveTween);
-        var offsetAnimation = a1.drive(tween);
-        return ScaleTransition(
-          scale: offsetAnimation,
-          child: FadeTransition(
-            opacity: a1,
-            child: widget,
-          ),
-        );
-      },
-      pageBuilder: (BuildContext context, a1, a2) {
+      builder: (BuildContext context) {
         return Container(
           child: AlertDialog(
           backgroundColor: Colors.transparent,
@@ -98,7 +79,7 @@ class _ChannelItemDesktopState extends State<ChannelItemDesktop> {
     final currentChannel = Provider.of<Channels>(context, listen: true).currentChannel;
     final selectedTab = Provider.of<User>(context, listen: true).selectedTab;
     final token = Provider.of<Auth>(context, listen: false).token;
-    
+
     return InkWell(
       onHover: (hover) {
         setState(() {
@@ -136,7 +117,7 @@ class _ChannelItemDesktopState extends State<ChannelItemDesktop> {
                       ? widget.channel['is_private']
                         ? SvgPicture.asset('assets/icons/Locked.svg')
                         : SvgPicture.asset('assets/icons/iconNumber.svg', width: 13, color: Colors.white)
-                      : widget.channel["status_notify"] == "OFF" || (widget.channel["status_notify"] == "MENTION" && (widget.channel["new_message_count"] != null && widget.channel["new_message_count"] == 0)) 
+                      : widget.channel["status_notify"] == "OFF" || (widget.channel["status_notify"] == "MENTION" && (widget.channel["new_message_count"] != null && widget.channel["new_message_count"] == 0))
                         ? widget.channel['is_private']
                           ? SvgPicture.asset('assets/icons/Locked.svg', color: Color(0xff5E5E5E))
                           : SvgPicture.asset('assets/icons/iconNumber.svg', width: 13, color: Color(0xff5E5E5E))

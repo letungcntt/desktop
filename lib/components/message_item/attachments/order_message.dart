@@ -2,13 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class OrderAttachments extends StatefulWidget {
   final att;
@@ -148,7 +147,6 @@ class _OrderAttachmentsState extends State<OrderAttachments> {
                               child: Text('Áp dụng'),
                             ),
                             style: TextButton.styleFrom(
-                              primary: Colors.white,
                               backgroundColor: Color(0xff2A5298),
                               textStyle: TextStyle(
                                   color: Colors.black,
@@ -165,7 +163,6 @@ class _OrderAttachmentsState extends State<OrderAttachments> {
                               child: Text('Bỏ qua'),
                             ),
                             style: TextButton.styleFrom(
-                              primary: Colors.white,
                               backgroundColor: Colors.red[500],
                               textStyle: TextStyle(
                                   color: Colors.black,
@@ -387,7 +384,7 @@ class _ShowInfomationOrderState extends State<ShowInfomationOrder> {
                         final title = order["elements"][idx]["title"];
                         final subtitle = order["elements"][idx]["subtitle"];
                         final price = NumberFormat.simpleCurrency(locale: 'vi').format(order["elements"][idx]["price"]);
-                
+
                         return Row(
                           children: [
                             Expanded(

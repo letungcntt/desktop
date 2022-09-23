@@ -1,8 +1,5 @@
-// import 'package:workcake/common/cached_image.dart';
-// import 'package:workcake/components/main_menu/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
   class RenderEmoji extends StatefulWidget {
     RenderEmoji({
@@ -83,12 +80,12 @@ class _RenderEmojiState extends State<RenderEmoji>{
           //             height: 25, width: 25,
           //             margin: EdgeInsets.only(bottom: 8),
           //             child: indexWorkspaceEmoji != -1 ? CachedImage(workspaceEmojiData[indexWorkspaceEmoji]["url"],width: 25, height: 25, )
-          //             :  Image(image: AssetImage(dataEmoji[indexDefaultEmoji]) ) 
+          //             :  Image(image: AssetImage(dataEmoji[indexDefaultEmoji]) )
           //           ),
           //         Text("${renderOtherReaction(e["users"])} reacted with :${e["emoji_id"]}",style: TextStyle(fontSize: 10,  color: isDark ? Colors.white : Colors.black, decoration: TextDecoration.none, fontWeight: FontWeight.w500), )
           //       ],
           //     ),
-          //   ), 
+          //   ),
           //   colorHover: null,
           //   child: GestureDetector(
           //     onTap: (){
@@ -121,8 +118,8 @@ class _RenderEmojiState extends State<RenderEmoji>{
           //         children: [
           //           Container(
           //             height: 16, width: 16,
-          //             child: indexWorkspaceEmoji != -1 ? 
-          //               CachedImage(workspaceEmojiData[indexWorkspaceEmoji]["url"], fit: BoxFit.cover) : 
+          //             child: indexWorkspaceEmoji != -1 ?
+          //               CachedImage(workspaceEmojiData[indexWorkspaceEmoji]["url"], fit: BoxFit.cover) :
           //               Image(image: AssetImage(dataEmoji[indexDefaultEmoji]))
           //           ),
           //           e["count"] > 0 ? Text("  ${e["count"]}", style: TextStyle(fontSize: 12, color: Color(0xFF19DFCB)) ): Text("")
@@ -131,7 +128,7 @@ class _RenderEmojiState extends State<RenderEmoji>{
           //     ),
           //   ),
           // );
-        
+
         }).toList(),
       ),
     );

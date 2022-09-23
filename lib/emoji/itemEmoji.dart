@@ -67,11 +67,15 @@ class ItemEmoji {
           },
           child: Container(
             padding: EdgeInsets.all(padding),
-            height: size == 22 ? 35 : size *2,
-            width: size == 22 ? 35 : size *2,
+            height: type == "default" ? 48 : size *2,
+            width: type == "default" ? 48 : size *2,
             child: Center(
               child: type == "default"
-                ? Text("$value", style: TextStyle(fontSize: size))
+                ? RichText(
+                  text: TextSpan(
+                    text: value, style: TextStyle(fontSize: size, fontFamilyFallback: ['Roboto', 'Apple Color Emoji'])
+                  ),
+                )
                 : CachedImage(url, height: size* 2, width:  size* 2,)
             )
           ),
@@ -79,7 +83,11 @@ class ItemEmoji {
       );
     }
     return type == "default"
-      ? Text("$value", style: TextStyle(fontSize: size,  height: heightLine))
+      ? RichText(
+        text: TextSpan(
+          text: value, style: TextStyle(fontSize: size,  height: heightLine, fontFamilyFallback: ['Roboto', 'Apple Color Emoji'])
+        ),
+      )
       : CachedImage(url, height: size* 2, width:  size* 2,);
   }
 }

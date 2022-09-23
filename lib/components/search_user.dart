@@ -3,13 +3,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_search_bar.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class SearchUser extends StatefulWidget {
   SearchUser({Key? key}) : super(key: key);

@@ -34,18 +34,18 @@ class Scheduler {
   }
 
 
-  void scheduleOne(Future Function() task) {
+  void scheduleOne(Future Function() task, {int timeDelay = 10}) {
     _queue.add(task);
     if (!_scheduled) {
       _scheduled = true;
-      Timer(Duration(seconds: 10), _executeOne);
+      Timer(Duration(seconds: timeDelay), _executeOne);
     }
   }
 
   Future _executeOne() async {
     _scheduled = false;
-    var first = _queue.removeFirst();
+    var last = _queue.removeLast();
     _queue = Queue<Future Function()>();
-    await first();
+    await last();
   }
 }

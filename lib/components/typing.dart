@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class TypingDesktop extends StatefulWidget {
   final id;
@@ -14,7 +13,7 @@ class TypingDesktop extends StatefulWidget {
   _TypingDesktopState createState() => _TypingDesktopState();
 }
 
-class _TypingDesktopState extends State<TypingDesktop> {  
+class _TypingDesktopState extends State<TypingDesktop> {
   List typing = [];
   var channel;
 
@@ -31,8 +30,8 @@ class _TypingDesktopState extends State<TypingDesktop> {
   @override
   didUpdateWidget(oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
-    if (oldWidget.id != widget.id) { 
+
+    if (oldWidget.id != widget.id) {
       setState(() {
         typing = [];
       });
@@ -49,7 +48,7 @@ class _TypingDesktopState extends State<TypingDesktop> {
     while(true && this.mounted) {
       await Future.delayed(duration);
       await resetTypingCountdown();
-    } 
+    }
   }
 
   resetTypingCountdown() {
@@ -92,7 +91,7 @@ class _TypingDesktopState extends State<TypingDesktop> {
   }
 
   @override
-  void dispose() { 
+  void dispose() {
     channel.off("on_typing");
     super.dispose();
   }
@@ -100,7 +99,7 @@ class _TypingDesktopState extends State<TypingDesktop> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      child: 
+      child:
       (typing.length > 0) ? Container(
         padding: EdgeInsets.only(left: 52, top: 3, bottom: 1),
         child: Row(
@@ -110,6 +109,6 @@ class _TypingDesktopState extends State<TypingDesktop> {
           ],
         ),
       ) : Container(height: 19)
-    ); 
+    );
   }
 }

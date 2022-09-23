@@ -13,6 +13,7 @@ import 'package:workcake/components/call_center/enums_consts.dart';
 class P2PManager {
   static P2PManager get instance => _getInstance();
   static P2PManager? _instance;
+  static BuildContext? _callContext;
 
   static P2PManager _getInstance () {
     if (_instance == null) {
@@ -26,6 +27,10 @@ class P2PManager {
     this.selfId = selfId;
     this.channel = channel;
     this.deviceId = await Utils.getDeviceId();
+  }
+
+  static setCallContext(context) {
+    _callContext = context;
   }
 
   late CallStateCallback onCallStateChange;
@@ -85,7 +90,7 @@ class P2PManager {
           }
           onCallStateChange.call(CallState.CallStateConnected);
         }
-        _addViewOverlay(Utils.globalContext, _ifReadyViewCallback);
+        _addViewOverlay(_callContext, _ifReadyViewCallback);
         
         sendMediaEvent('control_event', {
           "from": selfId,"to": peerId,
@@ -284,6 +289,7 @@ class P2PManager {
     await _peerConnection?.close();
     _peerConnection = null;
     localStream = null;
+    sessionId = "";
     remoteCandidates.clear();
     peerId = null;
   }
@@ -316,6 +322,7 @@ class P2PManager {
     if (_peerConnection != null) return;
     
     final _peerId = peer["user_id"] ?? peer["id"];
+    this.peerId = _peerId;
     sessionId = Uuid().v4();
     _sessionWithMetadata.addEntries([MapEntry(sessionId, new Map())]);
     _peerIdToPeer[_peerId] = peer;
@@ -382,7 +389,6 @@ class P2PManager {
   void setEnableVideo(value) {
     if (localStream != null && localStream!.getVideoTracks().length > 0) {
       localStream!.getVideoTracks()[0].enabled = value;
-      localStream!.getVideoTracks()[0].stop();
     }
   } 
 

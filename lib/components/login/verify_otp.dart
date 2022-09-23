@@ -5,13 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/login/reset_password.dart';
 import 'package:workcake/components/login/submit_button.dart';
 import 'package:workcake/login_macOS.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class VerifyOtp extends StatefulWidget {
   final dataUser;
@@ -39,6 +37,7 @@ class _VerifyOtpState extends State<VerifyOtp> {
   final FocusNode _focusNode3 = FocusNode();
   final FocusNode _focusNode4 = FocusNode();
   var input = [];
+  int timeRequestOtp = 1;
 
   @override
   void initState() {
@@ -86,31 +85,48 @@ class _VerifyOtpState extends State<VerifyOtp> {
 
   handleSubmitConfirm() async {
     loading = true;
-    loading = false;
-    if(widget.isResetPassword) {
-      Navigator.push(context, MaterialPageRoute(builder: (context) => ResetPassword(dataUser: {...widget.dataUser, "otp": code})));
-    } else {
+    invalidCredential = false;
+      var data;
+      if(widget.isResetPassword) {
+        data = {
+          "phone_number": widget.dataUser["phone_number"],
+          "account_id": widget.dataUser["account_id"],
+          "otp": code,
+          "otp_id": widget.dataUser["otp_id"],
+          "new_password": widget.dataUser["new_password"],
+          "verification_type": "phone_number",
+          "user_id": widget.dataUser["id"] ?? widget.dataUser["user_id"],
+        };
+      } else {
+        data = {
+          "email": widget.dataUser["email"],
+          "phone_number": widget.dataUser["phone_number"],
+          "otp_id": widget.dataUser["otp_id"],
+          "otp": code,
+          "user_id": widget.dataUser["id"] ?? widget.dataUser["user_id"],
+          "account_id": widget.dataUser["account_id"]
+        };
+      }
       final url = "${Utils.apiUrl}users/verify_otp";
-    
-      var res = await Dio().post(url, data: {
-        "email": widget.dataUser["email"],
-        "phone_number": widget.dataUser["phone_number"],
-        "otp_id": widget.dataUser["otp_id"], 
-        "otp": code,
-        "user_id": widget.dataUser["id"] ?? widget.dataUser["user_id"],
-        "account_id": widget.dataUser["account_id"]
-      });
+
+      var res = await Dio().post(url, data: data);
 
       if(res.data["success"]) {
-        await Provider.of<Auth>(context, listen: false).loginUserPassword(widget.dataUser["email"], widget.dataUser["password"], context);
+        await Provider.of<Auth>(context, listen: false).loginUserPassword(widget.dataUser["phone_number"] ?? widget.dataUser["email"], widget.isResetPassword ? widget.dataUser["new_password"] : widget.dataUser["password"], context);
+        setState(() {
+          loading = false;
+        });
         Navigator.pushNamed(context, 'main_screen_macOS');
       } else {
         setState(() {
+          timeRequestOtp++;
           invalidCredential = true;
           message = res.data["message"];
+          loading = false;
         });
       }
-    }
+
+    // }
     return;
   }
 
@@ -188,7 +204,7 @@ class _VerifyOtpState extends State<VerifyOtp> {
                               focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: isDark ? const Color(0xff19DFCB) : const Color(0xff2a5298)))
                             ),
                             controller: e["controller"],
-                            focusNode: e["focusNode"],                          
+                            focusNode: e["focusNode"],
                             autofocus: index == 0,
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             onChanged: (str) {
@@ -215,10 +231,11 @@ class _VerifyOtpState extends State<VerifyOtp> {
                       ),
                       SizedBox(height: height * 0.0267,),
                       SubmitButton(
-                        onTap: () {
+                        isDisable: timeRequestOtp <= 3 ? false : true ,
+                        onTap: timeRequestOtp <= 3 ? () {
                           invalidCredential = false;
                           handleSubmitConfirm();
-                        }, 
+                        } : null,
                         text: "Send", isLoading: loading,
                       ),
                       SizedBox(height: height * 0.04,),
@@ -231,7 +248,7 @@ class _VerifyOtpState extends State<VerifyOtp> {
                           children: [
                             Text(message, style: TextStyle(fontWeight: FontWeight.w400, color: sentSucess != null && sentSucess == true ? const Color(0xff5ac45a) : const Color(0xffEB5757))),
                           ],
-                        )      
+                        )
                       ) : const SizedBox(),
                       const SizedBox(height: 24,),
                       Row(
@@ -249,15 +266,16 @@ class _VerifyOtpState extends State<VerifyOtp> {
                           ),
                           GestureDetector(
                             onTap: () async {
-                              final url = "${Utils.apiUrl}users/verify_otp";
+                              final url = "${Utils.apiUrl}users/create_otp";
 
                               await Dio().post(url, data: {
                                 "email": widget.dataUser["email"],
-                                "otp": code,
-                                "user_id": widget.dataUser["id"]
+                                "phone_number": widget.dataUser["phone_number"],
+                                "user_id": widget.dataUser["id"] ?? widget.dataUser["user_id"]
                               });
                               setState(() {
                                 message = '';
+                                timeRequestOtp = 1;
                               });
                             },
                             child: Text(

@@ -1,17 +1,16 @@
-import 'package:better_selection/better_selection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
 import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/message_item/chat_item_macOS.dart';
 import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class SavedMessages extends StatefulWidget {
   const SavedMessages({ Key? key }) : super(key: key);
@@ -66,7 +65,7 @@ class _SavedMessagesState extends State<SavedMessages> {
                       final workspaces = Provider.of<Workspaces>(context, listen: false).data;
                       final idxWs = workspaces.indexWhere((element) => element["id"] == message["workspaceId"]);
                       if (idxWs != -1) wsName = workspaces[idxWs]["name"];
-                      
+
                       final channels = Provider.of<Channels>(context, listen: false).data;
                       final idxC = channels.indexWhere((element) => element["id"] == message["channelId"]);
                       if (idxC != -1) {
@@ -74,7 +73,7 @@ class _SavedMessagesState extends State<SavedMessages> {
                         isPrivate = channels[idxC]["is_private"];
                       }
                     }
-            
+
                     return SavedItem(key: Key(savedItem["id"]), message: message, wsName: wsName, cName: cName, isPrivate: isPrivate);
                   },
                 ),),
@@ -206,7 +205,7 @@ class _SavedItemState extends State<SavedItem> {
                                   } else {
                                     var indexConverastion = Provider.of<DirectMessage>(context, listen: false).data.indexWhere((element) => element.id == message["conversationId"]);
                                     if (indexConverastion != -1){
-                                      // hien tai viec nhay vao hoi thoai co van de => 
+                                      // hien tai viec nhay vao hoi thoai co van de =>
                                       // -> doi voi tin nhan trong luong chinj
                                       // chi mo hoi thoai
                                       // -> doi voi tin nhan trong thread
@@ -225,19 +224,19 @@ class _SavedItemState extends State<SavedItem> {
                                           "insertedAt": message["insertedAt"],
                                         };
                                         var indexMessage = (dataDMMessages["messages"] as List).indexWhere((element) => element["id"] == message["parentId"]);
-                                        
+
                                         if (indexMessage == -1){
                                           var messageOnIsar = await MessageConversationServices.getListMessageById(message["parentId"], "");
                                           if (messageOnIsar != null){
-                                            parentMessage = {...parentMessage, ...messageOnIsar, 
+                                            parentMessage = {...parentMessage, ...messageOnIsar,
                                             "insertedAt": messageOnIsar["time_create"],
                                             };
                                           }
                                         } else {
-                                          parentMessage = {...parentMessage, ...(dataDMMessages["messages"][indexMessage]), 
+                                          parentMessage = {...parentMessage, ...(dataDMMessages["messages"][indexMessage]),
                                           "insertedAt": dataDMMessages["messages"][indexMessage]["time_create"],
                                           };
-                                        }    
+                                        }
                                         if (parentMessage["user_id"] != null ){
                                           String fullName = "";
                                           String avatarUrl = "";
@@ -246,13 +245,13 @@ class _SavedItemState extends State<SavedItem> {
                                             fullName = u[0]["full_name"];
                                             avatarUrl = u[0]["avatar_url"] ?? "";
                                           }
-                                          parentMessage = {...parentMessage, 
+                                          parentMessage = {...parentMessage,
                                             "avatarUrl": avatarUrl,
                                             "fullName": fullName
                                           };
                                         }
                                         Provider.of<DirectMessage>(context, listen: false).setSelectedMention(false);
-                                        Provider.of<DirectMessage>(context, listen: false).setSelectedDM(Provider.of<DirectMessage>(context, listen: false).data[indexConverastion], ""); 
+                                        Provider.of<DirectMessage>(context, listen: false).setSelectedDM(Provider.of<DirectMessage>(context, listen: false).data[indexConverastion], "");
                                         Provider.of<Messages>(context, listen: false).openThreadMessage(true, parentMessage);
                                       } else {
                                         processDataMessageToJump(message, message["conversationId"]);
@@ -358,7 +357,7 @@ class _SavedItemState extends State<SavedItem> {
                     )
                   ),
                   margin: EdgeInsets.only(top: 2), padding: EdgeInsets.symmetric(vertical: 8),
-                  child: SelectableScope(
+                  child: CustomSelectionArea(
                     child: ChatItemMacOS(
                       conversationId: message["conversationId"],
                       id: message["id"],
@@ -385,7 +384,8 @@ class _SavedItemState extends State<SavedItem> {
                       isViewMention: true,
                       channelId: message["channelId"],
                       isDark: isDark,
-                      customColor: message["customColor"]
+                      customColor: message["customColor"],
+                      workspaceId: message['workspaceId'] ?? 0,
                     ),
                   ),
                 )

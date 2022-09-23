@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
@@ -9,7 +8,7 @@ import 'package:workcake/components/apps/add_app_macOS.dart';
 import 'package:workcake/components/apps/app_detail.dart';
 import 'package:workcake/components/apps/pos_app_config.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ChannelAppMacOS extends StatefulWidget {
   final type;

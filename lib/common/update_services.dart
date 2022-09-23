@@ -10,7 +10,7 @@ class UpdateServices {
   static void initUpdater() async {
     if (initialized) return;
     appVersion = await _channelUpdateWithMethod("init_updater");
-    autoCheckForUpdateInStart();
+    // autoCheckForUpdateInStart();
     initialized = true;
   }
   static void autoCheckForUpdateInStart() {

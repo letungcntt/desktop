@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class InputPassword extends StatefulWidget {
   const InputPassword({Key? key, required this.controller, this.hintText, required this.prefix, this.invalidCredential = false, this.setInvalidCredential, this.isLogin = false, this.focusNode}) : super(key: key);

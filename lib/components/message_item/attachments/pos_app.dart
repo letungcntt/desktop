@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
@@ -9,7 +8,7 @@ import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/message_item/message_card_desktop.dart';
 import 'package:workcake/components/widget_text.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class PosAppAttachments extends StatefulWidget {
   final att;
@@ -79,7 +78,6 @@ class _PosAppAttachmentsState extends State<PosAppAttachments> {
                       style: TextStyle(fontStyle: FontStyle.italic),
                       recognizer: TapGestureRecognizer()..onTapUp = (_) => openLink(data)
                     ),
-                    isDark: isDark
                   ),
                   // child: Text(" ${data["order_info"]["display_id"]} ", style: TextStyle(fontStyle: FontStyle.italic)),
                   message: "Xem chi tiết đơn hàng bên POS",
@@ -93,7 +91,6 @@ class _PosAppAttachmentsState extends State<PosAppAttachments> {
               // WidgetSpan(child: Container()),
             ]
           ),
-          isDark: isDark
         ),
         if (Utils.checkedTypeEmpty(data["inserted_at"])) InkWell(
           onTap: () => openLink(data),
@@ -130,10 +127,11 @@ class _PosAppAttachmentsState extends State<PosAppAttachments> {
                           child: Row(
                             children: [
                               CachedAvatar(
-                                data["order_info"]["creator"]["avatar_url"] ?? "https://pages.fm/api/v1/users/avatar/340644fc-314d-450e-a45f-33343678cab6?access_token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOiI4YWM2ZmU4Mi02MzhmLTRiNmUtOTBlMi0zY2VlZjAyYWRkMTUiLCJpYXQiOjE2NDkyMjg2MzIsImZiX25hbWUiOiJMaW1hIDkyIiwiZmJfaWQiOiIxOTU1MTc2Njk0NzE4MjQ2IiwiZXhwIjoxNjU3MDA0NjMyfQ.aYj0riUbm9ZjrbxgxoQwNlHvH7gnu7vnQ70Em-BF-po",
+                                data["order_info"]["creator"]["avatar_url"] ?? "",
+                                height: 26, width: 26,
+                                isRound: true,
                                 name: data["order_info"]["creator"]["name"],
-                                width: 26,
-                                height: 26
+                                isAvatar: true
                               ),
                               SizedBox(width: 5,),
                               Column(

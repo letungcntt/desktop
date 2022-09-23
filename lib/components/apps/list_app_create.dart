@@ -3,12 +3,11 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/apps/create_app_view.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ListAppCreate extends StatefulWidget {
   final Function? onSuccessCreateApp;
@@ -22,12 +21,14 @@ class _ListAppCreateState extends State<ListAppCreate> {
   FocusNode focusNode = FocusNode();
   List shops = [];
   String? message;
+  String? msgBanking;
   bool isActive = true;
   bool isLoading = true;
+  bool loadBanking = false;
   bool highLight = false;
   bool highLightcustomapp = false;
   bool highLightbankapp = false;
-  
+
 
   @override
   void initState() {
@@ -44,16 +45,20 @@ class _ListAppCreateState extends State<ListAppCreate> {
     try {
       final response = await Dio().get(url);
       if (response.data["success"]) {
-        setState(() {
-          shops = response.data["shops"];
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            shops = response.data["shops"];
+            isLoading = false;
+          });
+        }
       } else {
-        setState(() {
-          message = response.data["message"];
-          isLoading = false;
-          isActive = false;
-        });
+        if (mounted) {
+          setState(() {
+            message = response.data["message"];
+            isLoading = false;
+            isActive = false;
+          });
+        }
       }
     } catch (e) {
       print(e);
@@ -80,6 +85,31 @@ class _ListAppCreateState extends State<ListAppCreate> {
           isActive = false;
         });
       }
+    } catch (e) {
+      print(e);
+      // sl.get<Auth>().showErrorDialog(e.toString());
+    }
+  }
+
+  onSaveBiz() async {
+    setState(() => loadBanking = true);
+    final token  =  Provider.of<Auth>(context, listen: false).token;
+    final url = "${Utils.apiUrl}app?token=$token";
+    try {
+      var response  = await Dio().post(url, data: {
+        "name": "BizBanking",
+        "is_workspace": false,
+        "type": "banking"
+      });
+
+      var resData = response.data;
+      if (resData["success"]) {
+        widget.onSuccessCreateApp!(resData["data"]);
+        Navigator.of(context, rootNavigator: true).pop("Discard");
+      } else {
+        setState(() => msgBanking = resData["message"]);
+      }
+      setState(() => loadBanking = false);
     } catch (e) {
       print(e);
       // sl.get<Auth>().showErrorDialog(e.toString());
@@ -159,7 +189,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                                           child: ClipRRect(
                                             borderRadius: BorderRadius.circular(8.0),
                                             child: Image.asset(
-                                              "assets/images/pos_app.png",
+                                              "assets/images/logo_app/pos_app.png",
                                               width: 40,
                                               height: 40,
                                             ),
@@ -175,7 +205,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                                             Row(
                                               children: [
                                                 Image.asset(
-                                                  "assets/images/logoPanchat.png",
+                                                  "assets/images/logo_app/logoPanchat.png",
                                                   width: 16,
                                                   height: 16,
                                                 ),
@@ -234,106 +264,111 @@ class _ListAppCreateState extends State<ListAppCreate> {
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: Container(
-                      width: 224,
-                      height: 226,
-                      margin: EdgeInsets.only(right: 10, left: 10),
-                      child: MouseRegion(
-                        onEnter: (_) => setState(() => highLightbankapp = true),
-                        onExit: (_) => setState(() => highLightbankapp = false),
-                        child: Card(
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            side: BorderSide(
-                              color: highLightbankapp ? isDark ?Color(0xffFAAD14) :Utils.getPrimaryColor() : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
-                              width: 1,
-                            ),
-                          ),
-                          color: isDark ? Color(0xff4C4C4C) : Color(0xffEDEDED),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              Container(
-                                padding: EdgeInsets.only(left: 16, top: 16, right: 16),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8.0),
-                                            child: Image.asset(
-                                              "assets/images/bank_app.png",
-                                              width: 40,
-                                              height: 40,
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(width: 10,),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text("BizBanking", style: TextStyle(fontWeight: FontWeight.w600),),
-                                            SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Image.asset(
-                                                  "assets/images/logoPanchat.png",
-                                                  width: 16,
-                                                  height: 16,
-                                                ),
-                                                SizedBox(width: 5,),
-                                                Text("Panchat", style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),)
-                                              ],
-                                            )
-                                          ],
-                                        )
-                                      ],
-                                    ),
-                                    Container(
-                                      margin: EdgeInsets.only(top: 6),
-                                      height: 1,
-                                      color: isDark ? Color(0xff5E5E5E): Color(0xffDBDBDB),
-                                    ),
-                                    SizedBox(height: 10),
-                                    Text("Thông báo biến động tài khoản ngân hàng")
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                height: 32,
-                                width: 176,
-                                margin: EdgeInsets.only(bottom: 27),
-                                color: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),
-                                child: HoverItem(
-                                  colorHover: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),
-                                  child: TextButton(
-                                    style: ButtonStyle(
-                                      shape: MaterialStateProperty.all(
-                                        RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))
-                                      ),
-                                      padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 20, vertical: 8))
-                                    ),
-                                    child: Text(
-                                      "Cài đặt",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w400,
-                                        color: isDark ? Color(0xffffffff) : Color(0xff3D3D3D),
-                                      )
-                                    ),
-                                    onPressed: () {},
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Expanded(
+                  //   child: Container(
+                  //     width: 224,
+                  //     height: 226,
+                  //     margin: EdgeInsets.only(right: 10, left: 10),
+                  //     child: MouseRegion(
+                  //       onEnter: (_) => setState(() => highLightbankapp = true),
+                  //       onExit: (_) => setState(() => highLightbankapp = false),
+                  //       child: Card(
+                  //         elevation: 0,
+                  //         shape: RoundedRectangleBorder(
+                  //           borderRadius: BorderRadius.circular(8),
+                  //           side: BorderSide(
+                  //             color: highLightbankapp ? isDark ?Color(0xffFAAD14) :Utils.getPrimaryColor() : isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                  //             width: 1,
+                  //           ),
+                  //         ),
+                  //         color: isDark ? Color(0xff4C4C4C) : Color(0xffEDEDED),
+                  //         child: Column(
+                  //           mainAxisSize: MainAxisSize.min,
+                  //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //           children: <Widget>[
+                  //             Container(
+                  //               padding: EdgeInsets.only(left: 16, top: 16, right: 16),
+                  //               child: Column(
+                  //                 children: [
+                  //                   Row(
+                  //                     children: [
+                  //                       Container(
+                  //                         child: ClipRRect(
+                  //                           borderRadius: BorderRadius.circular(8.0),
+                  //                           child: Image.asset(
+                  //                             "assets/images/logo_app/bank_app.png",
+                  //                             width: 40,
+                  //                             height: 40,
+                  //                           ),
+                  //                         ),
+                  //                       ),
+                  //                       SizedBox(width: 10,),
+                  //                       Column(
+                  //                         crossAxisAlignment: CrossAxisAlignment.start,
+                  //                         children: [
+                  //                           Text("BizBanking", style: TextStyle(fontWeight: FontWeight.w600),),
+                  //                           SizedBox(height: 8),
+                  //                           Row(
+                  //                             children: [
+                  //                               Image.asset(
+                  //                                 "assets/images/logo_app/logoPanchat.png",
+                  //                                 width: 16,
+                  //                                 height: 16,
+                  //                               ),
+                  //                               SizedBox(width: 5,),
+                  //                               Text("Panchat", style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Colors.black87),)
+                  //                             ],
+                  //                           )
+                  //                         ],
+                  //                       )
+                  //                     ],
+                  //                   ),
+                  //                   Container(
+                  //                     margin: EdgeInsets.only(top: 6),
+                  //                     height: 1,
+                  //                     color: isDark ? Color(0xff5E5E5E): Color(0xffDBDBDB),
+                  //                   ),
+                  //                   SizedBox(height: 10),
+                  //                   Text("Thông báo biến động tài khoản ngân hàng"),
+                  //                   if (msgBanking != null) Text(msgBanking!, style: TextStyle(color: Colors.red, fontStyle: FontStyle.italic))
+                  //                 ],
+                  //               ),
+                  //             ),
+                  //             Container(
+                  //               height: 32,
+                  //               width: 176,
+                  //               margin: EdgeInsets.only(bottom: 27),
+                  //               color: isDark ? Color(0xff3D3D3D) : Color(0xffF8F8F8),
+                  //               child: HoverItem(
+                  //                 colorHover: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),
+                  //                 child: TextButton(
+                  //                   style: ButtonStyle(
+                  //                     shape: MaterialStateProperty.all(
+                  //                       RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))
+                  //                     ),
+                  //                     padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 20, vertical: 8))
+                  //                   ),
+                  //                   child: loadBanking
+                  //                     ? SpinKitFadingCircle(
+                  //                         color: isDark ? Color(0xffC9C9C9) : Color(0xffA6A6A6),
+                  //                         size: 19)
+                  //                     : Text(
+                  //                         "Cài đặt",
+                  //                         style: TextStyle(
+                  //                           fontWeight: FontWeight.w400,
+                  //                           color: isDark ? Color(0xffffffff) : Color(0xff3D3D3D),
+                  //                         )
+                  //                       ),
+                  //                   onPressed: () => onSaveBiz(),
+                  //                 ),
+                  //               ),
+                  //             ),
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                   Expanded(
                     child: Container(
                       margin: EdgeInsets.only(left: 15),
@@ -366,7 +401,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                                         ClipRRect(
                                           borderRadius: BorderRadius.circular(8.0),
                                           child: Image.asset(
-                                            "assets/images/custom_app.png",
+                                            "assets/images/logo_app/custom_app.png",
                                             width: 40,
                                             height: 40,
                                           ),
@@ -380,7 +415,7 @@ class _ListAppCreateState extends State<ListAppCreate> {
                                             Row(
                                               children: [
                                                 Image.asset(
-                                                  "assets/images/logoPanchat.png",
+                                                  "assets/images/logo_app/logoPanchat.png",
                                                   width: 16,
                                                   height: 16,
                                                 ),

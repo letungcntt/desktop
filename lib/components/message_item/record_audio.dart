@@ -2,13 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:record/record.dart';
-import 'package:just_audio/just_audio.dart' as ap;
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class RecordAudio extends StatefulWidget {
   const RecordAudio({Key? key, required this.onExit, this.isDMs}) : super(key: key);
@@ -26,7 +24,6 @@ class _RecordAudioState extends State<RecordAudio> {
   Timer? _timer;
   final _audioRecorder = Record();
   Path? path;
-  final _audioPlayer = ap.AudioPlayer();
   bool _isPaused = false;
 
   @override
@@ -39,7 +36,6 @@ class _RecordAudioState extends State<RecordAudio> {
   void dispose() {
     _timer?.cancel();
     _audioRecorder.dispose();
-    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -224,7 +220,7 @@ class _RecordAudioState extends State<RecordAudio> {
       ],
     );
   }
-  
+
   _sendRecordToChannel() async {
     final auth = Provider.of<Auth>(context, listen: false);
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
@@ -234,7 +230,7 @@ class _RecordAudioState extends State<RecordAudio> {
     File file = File(path!);
     String fileName = file.path.split('/').last;
     final bytes = await File.fromUri(Uri.parse(file.path)).readAsBytes();
-    
+
     final attachments = {
       "name": fileName,
       "file": bytes,
@@ -308,7 +304,7 @@ class _RecordAudioState extends State<RecordAudio> {
       "full_name": currentUser["full_name"],
     };
 
-    Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage([attachments], dataMessage, token);  
+    Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage([attachments], dataMessage, token);
     widget.onExit(false);
   }
 

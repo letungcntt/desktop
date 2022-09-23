@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
+import 'package:workcake/isar/message_conversation/service.dart';
 import 'package:workcake/media_conversation/model.dart';
 import 'package:workcake/media_conversation/stream_media_downloaded.dart';
 import 'package:workcake/objectbox.g.dart';
@@ -42,6 +43,14 @@ class IsolateMedia {
         Store store = Store.fromReference(getObjectBoxModel(), data["box_reference"]);
         ServiceMedia.getAllMediaFromMessageIsolate(data["data"], store, data["path_save_file"], isolateToMainStream);
       }
+      if (data["type"] == "delete_message_and_media_via_delete_time"){
+        Store store = Store.fromReference(getObjectBoxModel(), data["box_reference"]);
+        List dataConv  = data["data"];
+        for(int i = 0; i < dataConv.length; i++){
+          MessageConversationServices.deleteMessageOnConversationByDeleteTime(dataConv[i]["delete_time"], dataConv[i]["conversation_id"]);
+          ServiceMedia.deleteMediaByDeleteTime(dataConv[i]["delete_time"], dataConv[i]["conversation_id"], store);
+        }
+      }    
     });
   }
 }

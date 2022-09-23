@@ -7,7 +7,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image/image.dart' as Img;
-import 'package:provider/provider.dart';
 import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:sticky_headers/sticky_headers/widget.dart';
 import 'package:workcake/common/utils.dart';
@@ -15,7 +14,7 @@ import 'package:workcake/emoji/dataSourceEmoji.dart';
 import 'package:workcake/emoji/itemEmoji.dart';
 import 'package:workcake/emoji/searchEmoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/service_locator.dart';
 
 class Emoji extends StatefulWidget {
@@ -71,7 +70,7 @@ class _EmojiState extends State<Emoji> {
 
   List searchEmoji(String value){
     return (dataSourceEmojis + customEmoji + recentEmoji).where((element) => element["id"].toString().contains(value))
-      .map((emo) => ItemEmoji(emo["id"] ?? emo["emoji_id"], emo["name"], emo["value"], emo["skin"], emo["custom"], emo["type"], emo["url"], onSelectEmoji, onHoverEmojiItem)).toList();        
+      .map((emo) => ItemEmoji(emo["id"] ?? emo["emoji_id"], emo["name"], emo["value"], emo["skin"], emo["custom"], emo["type"], emo["url"], onSelectEmoji, onHoverEmojiItem)).toList();
   }
 
   getRecent(){
@@ -128,21 +127,21 @@ class _EmojiState extends State<Emoji> {
                   isDark ? Container(
                     decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide( 
+                      bottom: BorderSide(
                         color: select == e["name"] ? const Color(0xffFAAD14): Colors.transparent,
                         width: 3.0,
-                    ), ) 
+                    ), )
                   ),):
                   Container(
                     decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide( 
+                      bottom: BorderSide(
                         color: select == e["name"] ? Utils.getPrimaryColor(): Colors.transparent,
                         width: 3.0,
-                    ), ) 
+                    ), )
                   ),)
                 ],
-              ) 
+              )
             ),
           ),
           colorHover: const Color(0xFFbae7ff)
@@ -156,7 +155,7 @@ class _EmojiState extends State<Emoji> {
     int index  =  listCategories.indexWhere((element) => element["name"] == categoryName);
     double result  = 0;
     for(int i = 0; i < index; i++){
-      result += caculatorHeightItem(listCategories[i]["name"]) * 35 + 30; 
+      result += caculatorHeightItem(listCategories[i]["name"]) * 35 + 30;
     }
     return result;
 
@@ -191,7 +190,7 @@ class _EmojiState extends State<Emoji> {
     if (index == -1){
       var box  = Hive.box('recentEmoji');
       recentEmoji = [] + [emo.toJson()] + recentEmoji;
-      // toi da 30 
+      // toi da 30
       try {
         recentEmoji = recentEmoji.sublist(0, 30);
       } catch (e) {
@@ -218,12 +217,12 @@ class _EmojiState extends State<Emoji> {
         List<ItemEmoji> dataCate = dataSourceEmojis.where((element) => element["category"] == e["id"])
           .map((emo) => ItemEmoji(emo["id"], emo["name"], emo["value"], emo["skin"], emo["custom"], emo["type"], emo["url"], onSelectEmoji, onHoverEmojiItem)).toList();
           if(e["id"] == "custom"){
-            dataCate = customEmoji.map((emo) => 
+            dataCate = customEmoji.map((emo) =>
               ItemEmoji(emo["emoji_id"], emo["name"], emo["value"], emo["skin"], emo["custom"], emo["type"], emo["url"], onSelectEmoji, onHoverEmojiItem)
             ).toList();
           }
         if(e["id"] == "recent"){
-            dataCate = recentEmoji.map((emo) => 
+            dataCate = recentEmoji.map((emo) =>
               ItemEmoji(emo["emoji_id"] ?? emo["id"], emo["name"], emo["value"], emo["skin"], emo["custom"], emo["type"], emo["url"], onSelectEmoji, onHoverEmojiItem)
             ).toList();
           }
@@ -274,20 +273,20 @@ class _EmojiState extends State<Emoji> {
                   height: 41,
                   decoration: BoxDecoration(
                     border: Border(
-                      bottom: BorderSide( 
+                      bottom: BorderSide(
                         color:isDark ? const Color(0xff5E5E5E) : const Color(0xffEAE8E8),
                         width: 1.0,
-                    ), ) 
+                    ), )
                   ),
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     children: [
                       renderListCategory()
                     ],
-                  ) 
+                  )
                 ),
                 Container(height: 40,),
-               
+
                 Container(
                   height: 240,
                   padding: const EdgeInsets.only(left: 10),
@@ -357,7 +356,7 @@ class _EmojiState extends State<Emoji> {
           ),
         ],
       ),
-    
+
     );
   }
 }
@@ -414,8 +413,8 @@ class _CreateEmojiState extends State<CreateEmoji> {
       image["name"] = name;
       String token = Provider.of<Auth>(context, listen: false).token;
       var workspaceId = Provider.of<Workspaces>(context, listen: false).currentWorkspace["id"];
-      var dataUpload = await Provider.of<Messages>(context, listen: false).getUploadData(image);
-      var data = await Provider.of<Messages>(context, listen: false).uploadImage(token, workspaceId, dataUpload, dataUpload["mime_type"], (t) {});
+      var dataUpload = await Provider.of<Work>(context, listen: false).getUploadData(image);
+      var data = await Provider.of<Work>(context, listen: false).uploadImage(token, workspaceId, dataUpload, dataUpload["mime_type"], (t) {});
       String url = "${Utils.apiUrl}workspaces/$workspaceId/create_emoji?token=$token";
       var response = await Dio().post(url, data: {"name": name, "url": data["content_url"]});
       if (response.data["success"]) {
@@ -575,6 +574,7 @@ class HoverItem extends StatefulWidget {
   final onExit;
   final isRound;
   final radius;
+  final bool? isDark;
 
   const HoverItem({
     Key? key,
@@ -584,8 +584,9 @@ class HoverItem extends StatefulWidget {
     this.showTooltip,
     this.onHover,
     this.onExit,
-    this.isRound = false, 
+    this.isRound = false,
     this.radius,
+    this.isDark
   }) : super(key: key);
 
   @override
@@ -594,7 +595,7 @@ class HoverItem extends StatefulWidget {
 
 class _HoverItemState extends State<HoverItem>{
   bool isHover =  false;
-   
+
   @override
   Widget build(BuildContext context){
     var isDark  = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
@@ -620,8 +621,8 @@ class _HoverItemState extends State<HoverItem>{
         duration: const Duration(milliseconds: 100),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(
-            Utils.checkedTypeEmpty(widget.isRound) 
-            ? Utils.checkedTypeEmpty(widget.radius) ? widget.radius : 20 
+            Utils.checkedTypeEmpty(widget.isRound)
+            ? Utils.checkedTypeEmpty(widget.radius) ? widget.radius : 20
             : 2),
           color: isHover ? widget.colorHover : null,
           // border: BoxBorder()
@@ -632,14 +633,15 @@ class _HoverItemState extends State<HoverItem>{
           tooltipDirection: TooltipDirection.up,
           child: widget.child,
           show: isHover && Utils.checkedTypeEmpty(widget.showTooltip),
-          borderColor: isDark ? const Color(0xFF262626) :const Color(0xFFb5b5b5),
+          borderColor: widget.isDark ?? isDark ? const Color(0xFF262626) :const Color(0xFFb5b5b5),
           borderWidth: 0.5,
-          backgroundColor: isDark ? const Color(0xFF1c1c1c): Colors.white,
+          backgroundColor: widget.isDark ?? isDark ? const Color(0xFF1c1c1c): Colors.white,
           arrowLength:  8,
           ballonPadding: const EdgeInsets.symmetric(vertical: 4),
           content: Material(
             child: Container(
               constraints: const BoxConstraints(maxWidth: 200),
+              color: widget.isDark ?? isDark ? Color(0xFF1c1c1c) : Colors.white,
               child: Wrap(
                 children: [
                   widget.tooltip ?? Container()

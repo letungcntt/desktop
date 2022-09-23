@@ -68,4 +68,5 @@ class Palette{
   static Color fillerText = Color(0xffA6A6A6);
   static Color topicTile = Color(0xFFFFFFFF);
   static Color hoverColorDefault = Colors.grey.withOpacity(0.1);
+  static Color hoverColorLight = Colors.grey.withOpacity(0.8);
 }

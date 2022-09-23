@@ -1,11 +1,11 @@
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class TransferIssue extends StatefulWidget {
   const TransferIssue({
@@ -24,7 +24,7 @@ class _TransferIssueState extends State<TransferIssue> {
 
   onTransferIssue(selectedItem) async {
     final issueClosedTab = Provider.of<Work>(context, listen: false).issueClosedTab;
-    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace; 
+    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
     final token = Provider.of<Auth>(context, listen: false).token;
     final workspaceId = currentWorkspace["id"];
@@ -50,14 +50,14 @@ class _TransferIssueState extends State<TransferIssue> {
       } else {
         throw HttpException(resData["message"]);
       }
-      
+
     } on HttpException catch (error) {
       print("This is http exception on transfer issue $error");
     } catch (e) {
       print(e.toString());
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context);
@@ -102,8 +102,8 @@ class _TransferIssueState extends State<TransferIssue> {
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    "Transfer this issue", 
+                                  TextWidget(
+                                    "Transfer this issue",
                                     style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: isDark ? Colors.white.withOpacity(0.85) : Color(0xff3D3D3D))
                                   ),
                                   HoverItem(
@@ -138,7 +138,7 @@ class _TransferIssueState extends State<TransferIssue> {
                                   ),
                                   width: 225,
                                   child: DropdownButton<String>(
-                                    hint: Text("Choose a channel"),
+                                    hint: TextWidget("Choose a channel"),
                                     dropdownColor: isDark ? Color(0xff3D3D3D) : Color(0xffF5F7FA),
                                     borderRadius: BorderRadius.circular(5),
                                     isDense: true,
@@ -184,7 +184,7 @@ class _TransferIssueState extends State<TransferIssue> {
                                   await onTransferIssue(selectedItem);
                                   Provider.of<Channels>(context, listen: false).onChangeOpenIssue(null);
                                 } : null,
-                                child: Text(
+                                child: TextWidget(
                                   "Transfer issue",
                                   style: TextStyle(fontSize: 15, color: selectedItem == null ? Color(0xff9AA5B1) : Colors.white),
                                 ),
@@ -213,7 +213,7 @@ class _TransferIssueState extends State<TransferIssue> {
                 SizedBox(width: 3),
                 Icon(Icons.arrow_forward, size: 18),
                 SizedBox(width: 5),
-                Text("Transfer issue")
+                TextWidget("Transfer issue")
               ],
             )
           ),

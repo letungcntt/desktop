@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image/image.dart' as imgLib;
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:crypto/crypto.dart';
 import 'package:workcake/common/palette.dart';
+import 'package:workcake/common/utils.dart';
+import 'package:workcake/providers/providers.dart';
 
 typedef void HighlightBoxCallback(value);
 class StreamDropzone extends ValueNotifier<bool>{
@@ -126,7 +127,8 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
 
   void _subscribe(){
     if(widget.stream != null){
-      _subscription = widget.stream.listen((data) {
+      _subscription = widget.stream.listen((data) async{
+
         if(data.length != 0 && ModalRoute.of(context) != null && ModalRoute.of(context)!.isCurrent && !widget.shouldBlock) {
           final curStr = data[0].toString();
           if(curStr == "paste_bytes"){
@@ -135,34 +137,73 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
               _dataStream.removeAt(0);
               Future.wait(
                 (_dataStream).map((bytes) async{
+                  Map typeData = {};
+                  try {
+                    typeData = Utils.getMimeTypeFromBytes(Platform.isMacOS ? bytes : base64.decode(bytes));
+                  } catch (e, t) {
+                    print("getMimeTypeFromBytes ${e.toString()} $t");
+                  }
+
                   DateTime now = DateTime.now();
                   String formatted = DateFormat('yyyy-MM-dd kk-mm-ss').format(now);
-                  var name = "Image $formatted";
+                  var name = "File $formatted";
 
                   if (Platform.isWindows){
                     var base64encoded = bytes;
                     Uint8List file = base64.decode(base64encoded);
                     try{
-                      return {
-                        "name": name,
-                        "mime_type": "image",
-                        "path": sha256.convert(bytes.codeUnits).toString(),
-                        "file": file
-                      };
+                      if (typeData.isNotEmpty) {
+                        return {
+                          "name": "${typeData["type"]} $formatted.${typeData["mimeType"]}",
+                          "type": typeData["type"],
+                          "mime_type": typeData["mimeType"],
+                          "path": sha256.convert(bytes.codeUnits).toString(),
+                          "file": file
+                        };
+                      } else {
+                        return {
+                          "name": "$name",
+                          "type": "file",
+                          "mime_type": "file",
+                          "path": sha256.convert(bytes.codeUnits).toString(),
+                          "file": file
+                        };
+                      }
+                      
                     } catch(e){
                       return null;
                     }
-                  } else if(Platform.isMacOS){
-                    try{
-                      imgLib.Decoder? dec = imgLib.findDecoderForData(bytes);
-                      var decode = dec!.decodeImage(bytes);
+                  } else if(Platform.isMacOS) {
+                    ClipboardData? dataText = await Clipboard.getData('text/plain');
+                    if(
+                      dataText != null && dataText.text != ''
+                      && bytes[0] == 77 && bytes[1] == 77 && bytes[2] == 0
+                      && bytes[bytes.length - 1] == 255 && bytes[bytes.length - 2] == 255
+                    ) {
                       return {
-                        "name": name,
-                        "mime_type": "image",
-                        "path": sha256.convert(bytes).toString(),
-                        "file": imgLib.encodePng(decode!)
+                        "type": "text",
+                        "text": dataText.text
                       };
-                    } catch(e){
+                    } else try {
+                      if (typeData.isNotEmpty) {
+                        return {
+                          "name": "${typeData["type"]} $formatted.${typeData["mimeType"]}",
+                          "type": typeData["type"],
+                          "mime_type": typeData["mimeType"],
+                          "path": sha256.convert(bytes).toString(),
+                          "file": bytes
+                        };
+                      } else {
+                        return {
+                          "name": "$name",
+                          "type": "file",
+                          "mime_type": "file",
+                          "path": sha256.convert(bytes).toString(),
+                          "file": bytes
+                        };
+                      }
+                    } catch(e, t){
+                      print("paste bytes error: $e $t");
                       return null;
                     }
                   }
@@ -183,16 +224,26 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
                     var uri = uro.replaceAll("%2520", "%20");
                     File file = File(uri);
                     var name  = file.path.split("\\").last;
-                    var type =  name.split(".").last.toLowerCase();
-                    if (type  == "png" || type == "jpg" || type == "jpeg" || type == "webp") type = "image";
-                    if (type == "") type = "text";
+                    var bytes = await file.readAsBytes();
+                    Map typeData = Utils.getMimeTypeFromBytes(bytes);
 
-                    return {
-                      "name": name,
-                      "mime_type": "image",
-                      "path": file.path,
-                      "file": await file.readAsBytes()
-                    };
+                    if (typeData.isNotEmpty) {
+                      return {
+                        "name": name,
+                        "type": typeData["type"],
+                        "mime_type": typeData["mimeType"],
+                        "path": sha256.convert(bytes).toString(),
+                        "file": bytes
+                      };
+                    } else {
+                      return {
+                        "name": name,
+                        "type": "file",
+                        "mime_type": "file",
+                        "path": file.path,
+                        "file": bytes
+                      };  
+                    }                   
                   } catch(e){
                     return null;
                   }
@@ -206,7 +257,7 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
           } else{
             final d = curStr.split(":");
             findWidgetPosition();
-            
+
             final cursor = Offset(double.parse(d[0]), double.parse(d[1]));
             bool checkDropCompleted = data.length >= 2;
             if(!renderBox.contains(cursor)) {
@@ -236,15 +287,17 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
                     var uri = uro.replaceAll("%2520", "%20");
                     File file = Platform.isWindows ? File(uri) : File.fromUri(Uri.parse(uri));
                     var name  = Platform.isWindows ? file.path.split("\\").last :  file.path.split("/").last;
-                    var type =  name.split(".").last.toLowerCase();
-                    if (type  == "png" || type == "jpg" || type == "jpeg" || type == "webp") type = "image";
-                    if (type == "") type = "text";
-
+                    var mimeType =  name.split(".").last.toLowerCase();
+                    var bytes = await file.readAsBytes();
+                    if (mimeType == "") mimeType = Utils.checkedTypeEmpty(Work.checkTypeFile(bytes));
+                    var type = mimeType == "" ? "text" : mimeType;
+                    if (mimeType  == "png" || mimeType == "jpg" || mimeType == "jpeg" || mimeType == "webp") type = "image";
                     return {
                       "name": name,
-                      "mime_type": type,
+                      "type": type,
+                      "mime_type": mimeType,
                       "path": file.path,
-                      "file": await file.readAsBytes()
+                      "file": bytes
                     };
                   } catch(e){
                     return null;
@@ -272,7 +325,7 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
       _summary = _summary.inState(ConnectionState.waiting);
     }
   }
-  
+
   void _unsubscribe(){
     if (_subscription != null){
       _subscription.cancel();
@@ -301,8 +354,8 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
     color: Palette.defaultBackgroundDark.withOpacity(0.8),
     child: Center(
       child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0), 
-        duration: Duration(milliseconds: 160), 
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: Duration(milliseconds: 160),
         builder: (context, value, child) {
           return Transform.scale(
             scale: value,
@@ -310,8 +363,8 @@ class _DropZoneState<T, S> extends State<DropZone<T, S>>{
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text("DROP HERE", style: TextStyle(fontSize: 30, color: Colors.grey, decorationStyle: TextDecorationStyle.dashed)),
-                  Icon(Icons.arrow_circle_down_sharp, color: Colors.grey,)
+                  Text("DROP HERE", style: TextStyle(fontSize: 20, color: Colors.grey, decorationStyle: TextDecorationStyle.dashed)),
+                  Icon(Icons.arrow_circle_down_sharp, color: Colors.grey, size: 20)
                 ],
               ),
             ),

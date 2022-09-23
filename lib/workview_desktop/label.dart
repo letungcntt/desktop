@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:workcake/components/widget_text.dart';
 
 class LabelDesktop extends StatefulWidget {
   final labelName;
@@ -24,7 +25,7 @@ class _LabelDesktopState extends State<LabelDesktop> {
         color: Color(widget.color),
         borderRadius: BorderRadius.circular(20)
       ),
-      child: Text("${widget.labelName}", style: TextStyle(color: Colors.white, fontSize: 12.5)),
+      child: TextWidget("${widget.labelName}", style: TextStyle(color: Colors.white, fontSize: 12.5)),
     );
   }
 }

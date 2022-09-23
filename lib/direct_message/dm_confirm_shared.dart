@@ -6,12 +6,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/E2EE/e2ee.dart';
 import 'package:workcake/common/http_exception.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class DMConfirmShared extends StatefulWidget {
   final deviceId;
@@ -35,12 +34,16 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
   var timer;
   int t =0;
   var channel;
+  // flow dong bo tin nhan
+  //  mac dinh qua socket
+  String flow = "";
 
-  
+
 
   @override
   void initState() {
     super.initState();
+    flow = widget.data["flow"] ?? "";
     channel  =  Provider.of<Auth>(context, listen: false).channel;
 
     channel.on("handle_confirm_conversation_sync", (data, _r, _j)async {
@@ -94,9 +97,10 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
         var listConversations =  direct.values.toList();
         int totalMessage =  await MessageConversationServices.getTotalMessage();
         Map jsonDataResult  =  {
-          "data": dataDe, 
+          "data": dataDe,
           "dataConv": dataConv,
-          "success": true, 
+          "success": true,
+          "flow": flow,
           "totalConversation": listConversations.length,
           "totalMessages": totalMessage,
           "public_key_decrypt": identityKey["pubKey"],
@@ -113,6 +117,10 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
             status = "tran";
             timer.cancel();
           });
+        if (flow == "file"){
+          MessageConversationServices.syncViaFile(masterKey.toBase64(), widget.deviceId );
+          return ;
+        }
         var size  = 100;
         // truyen tin nhan, 100 tin moi lan chuyen
         int totalPage = (totalMessage / size).round() + 1;
@@ -130,8 +138,8 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
       }
       else {
           Map jsonDataResult  =  {
-          "data": "", 
-          "success": false, 
+          "data": "",
+          "success": false,
           "totalConversation": 0,
           "public_key_decrypt": identityKey["pubKey"],
           "device_id": resultRecived["device_id"],
@@ -148,7 +156,7 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
             code  = Utils.getRandomNumber(4);
           });
       }
-      
+
 
     });
   }
@@ -199,7 +207,7 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
 
   @override
   didChangeDependencies(){
-    super.didChangeDependencies();    
+    super.didChangeDependencies();
   }
 
   handleGenCode(){
@@ -207,8 +215,8 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
       setState(() {
         code  = Utils.getRandomNumber(4);
       });
-      timer = Timer.periodic(new Duration(seconds: 1), (timer) { 
-        if (this.mounted) 
+      timer = Timer.periodic(new Duration(seconds: 1), (timer) {
+        if (this.mounted)
         setState(() {
           t= t+1;
           if (t % 30 == 0) {
@@ -254,7 +262,19 @@ class _DMConfirmShared extends State<DMConfirmShared>  {
               size: 20
             )
           ),
-          Text(
+          flow == "file" ? StreamBuilder(
+            stream: MessageConversationServices.statusSync,
+            initialData: StatusSync(1, "Processing message"),
+            builder: (BuildContext c, AsyncSnapshot s){
+              StatusSync d = s.data ?? StatusSync(1, "Processing message");
+              return Text(d.status,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: status == "done" ? Color(0xff27AE60) : status == "fail" ? Colors.red : isDark ? Colors.white70 : Colors.grey[700]
+                )
+              );
+            }) : Text(
               status == "waitting"
               ? "Waiting for verification..."
               :  status == "handle"

@@ -6,12 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
-import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/call_center/room.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 
 final noImageAvailable = "https://statics.pancake.vn/web-media/3e/24/0b/bb/09a144a577cf6867d00ac47a751a0064598cd8f13e38d0d569a85e0a.png";
@@ -74,7 +72,7 @@ class _WorkspaceButtonState extends State<WorkSpaceButton>{
     if (widget.item.toString() != oldWidget.item.toString() ||
       widget.avtUrl != oldWidget.avtUrl ||
       widget.currentTab != oldWidget.currentTab ||
-      widget.index != oldWidget.index || 
+      widget.index != oldWidget.index ||
       widget.newBadgeCount != oldWidget.newBadgeCount ||
       widget.newMessage != oldWidget.newMessage
     ) {
@@ -96,7 +94,7 @@ class _WorkspaceButtonState extends State<WorkSpaceButton>{
         workspaceButton = Container(child: Text("${e.toString()}"));
       }
     }
-   
+
     return workspaceButton;
   }
 
@@ -193,8 +191,8 @@ class _WorkspaceButtonState extends State<WorkSpaceButton>{
                           });
                           widget.onTap();
                         },
-                        child: widget.item["avatar_url"] == null || widget.item["avatar_url"].isEmpty  ? 
-                        avatarName() : 
+                        child: widget.item["avatar_url"] == null || widget.item["avatar_url"].isEmpty  ?
+                        avatarName() :
                         AnimatedContainer(
                           duration: Duration(milliseconds: isHover ? 250 : 100),
                           curve: isHover ? Curves.easeOutCubic : Curves.easeInCirc,
@@ -250,6 +248,7 @@ class _WorkspaceButtonState extends State<WorkSpaceButton>{
             ),
           ),
           SizedBox(
+            width: 4,
             height: 48
           )
         ]
@@ -290,30 +289,29 @@ class _DirectMessageButtonState extends State<DirectMessageButton> {
             color: isHover || widget.currentTab == 0 ? Color(0xffFAFAFA) : Color(0xff1F2933)
           ),
         ),
-        SimpleTooltip(
-          animationDuration: Duration(milliseconds: 100),
-          tooltipDirection: TooltipDirection.right,
-          borderColor: isDark ? Color(0xFF262626) :Color(0xFFb5b5b5),
-          borderWidth: 0.5,
-          borderRadius: 5,
+        JustTheTooltip(
+          triggerMode: TooltipTriggerMode.tap,
+          preferredDirection: AxisDirection.right,
           backgroundColor: isDark ? Color(0xFF1c1c1c): Colors.white,
-          arrowLength:  14,
-          arrowBaseWidth: 10.0,
-          ballonPadding: EdgeInsets.zero,
-          minimumOutSidePadding: 0.0,
-          content: Material(child: Container(color: isDark ? Color(0xFF1c1c1c): Colors.white,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text("Direct Message"),
-                SizedBox(width: 8.0),
-                Container(child: Text(Platform.isMacOS ? "⌘" : "Ctrl", style: TextStyle(fontSize: Platform.isMacOS ? 10.5 : 14.0),), padding: EdgeInsets.symmetric(horizontal: 3.0), decoration: BoxDecoration(color: isDark ? Colors.grey[850] : Colors.grey[200], borderRadius: BorderRadius.circular(2.0))),
-                SizedBox(width: 2.0),
-                Container(child: Text("1"), padding: EdgeInsets.symmetric(horizontal: 3.0), decoration: BoxDecoration(color: isDark ? Colors.grey[850] : Colors.grey[200], borderRadius: BorderRadius.circular(2.0)))
-              ],
-            ),
-          )),
-          show: isHover,
+          offset: 12,
+          tailLength: 10,
+          tailBaseWidth: 10,
+          fadeOutDuration: Duration(milliseconds: 10),
+          content: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Material(child: Container(color: isDark ? Color(0xFF1c1c1c): Colors.white,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Direct Message"),
+                  SizedBox(width: 8.0),
+                  Container(child: Text(Platform.isMacOS ? "⌘" : "Ctrl", style: TextStyle(fontSize: Platform.isMacOS ? 10.5 : 14.0),), padding: EdgeInsets.symmetric(horizontal: 3.0), decoration: BoxDecoration(color: isDark ? Colors.grey[850] : Colors.grey[200], borderRadius: BorderRadius.circular(2.0))),
+                  SizedBox(width: 2.0),
+                  Container(child: Text("1"), padding: EdgeInsets.symmetric(horizontal: 3.0), decoration: BoxDecoration(color: isDark ? Colors.grey[850] : Colors.grey[200], borderRadius: BorderRadius.circular(2.0)))
+                ],
+              ),
+            )),
+          ),
           child: Container(
             height: 50,
             width: 50,

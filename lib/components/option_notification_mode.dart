@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class OptionNotificationMode extends StatefulWidget {
   const OptionNotificationMode({ Key? key }) : super(key: key);
@@ -72,7 +71,7 @@ class _OptionNotificationModeState extends State<OptionNotificationMode> {
                               ? S.current.silentMode
                               : S.current.offMode,
                         style: TextStyle(
-                          color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark, 
+                          color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark,
                           fontSize: 14
                         )
                       ),
@@ -86,7 +85,7 @@ class _OptionNotificationModeState extends State<OptionNotificationMode> {
                               ? S.current.desSilentMode
                               : S.current.desOffMode,
                         style: TextStyle(
-                          color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), 
+                          color: isDark ? Color(0xffA6A6A6) : Color(0xff828282),
                           fontSize: 14,
                           overflow: TextOverflow.ellipsis
                         )
@@ -97,12 +96,12 @@ class _OptionNotificationModeState extends State<OptionNotificationMode> {
               ),
               Container(
                 child: type == 1
-                  ? SvgPicture.asset('assets/icons/noti_bell.svg', color: isDark ? Palette.topicTile : null)
+                  ? SvgPicture.asset('assets/icons/noti_bell.svg', color: isDark ? Palette.topicTile : Color.fromARGB(255, 130, 130, 132))
                   : type == 2
-                    ? SvgPicture.asset('assets/icons/noti_mentions.svg', color: isDark ? Palette.topicTile : null)
+                    ? SvgPicture.asset('assets/icons/noti_mentions.svg', color: isDark ? Palette.topicTile : Color.fromARGB(255, 130, 130, 132))
                     : type == 3
-                      ? SvgPicture.asset('assets/icons/noti_silent.svg', color: isDark ? Palette.topicTile : null)
-                      : SvgPicture.asset('assets/icons/noti_belloff.svg', color: isDark ? Palette.topicTile : null),
+                      ? SvgPicture.asset('assets/icons/noti_silent.svg', color: isDark ? Palette.topicTile : Color.fromARGB(255, 130, 130, 132))
+                      : SvgPicture.asset('assets/icons/noti_belloff.svg', color: isDark ? Palette.topicTile : Color.fromARGB(255, 130, 130, 132)),
               ),
             ],
           ),
@@ -177,7 +176,7 @@ class _OptionNotificationModeState extends State<OptionNotificationMode> {
                         style: TextButton.styleFrom(
                           side: BorderSide(color: Color(0xffFF7875))
                         ),
-                        onPressed: () { 
+                        onPressed: () {
                           Navigator.of(context, rootNavigator: true).pop("Discard");
                         },
                         child: Text(S.current.cancel, style: TextStyle(color: Color(0xffFF7875)))
@@ -191,14 +190,14 @@ class _OptionNotificationModeState extends State<OptionNotificationMode> {
                       // color: Color(0xff1890FF),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(3),
-                        color: Utils.getPrimaryColor()  
+                        color: Utils.getPrimaryColor()
                       ),
                       child: TextButton(
                         onPressed: () {
                           Map member = Map.from(currentMember);
                           member["status_notify"] = _option;
 
-                          Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, currentWorkspace["id"], currentChannel["id"], member);
+                          Provider.of<Channels>(context, listen: false).changeChannelMemberInfo(auth.token, currentWorkspace["id"], currentChannel["id"], member, "changStatusNotify");
                           Navigator.of(context, rootNavigator: true).pop("Discard");
                         },
                         child: Text(S.current.save, style: TextStyle(color: Colors.white, fontSize: 13))
@@ -240,7 +239,7 @@ String getShortLabelNotificationStatusDM(String value){
 class NotificationDM extends StatefulWidget {
   final String conversationId;
   final Function onSave;
-  
+
   const NotificationDM({ Key? key, required this.conversationId, required this.onSave }) : super(key: key);
 
   @override
@@ -249,7 +248,7 @@ class NotificationDM extends StatefulWidget {
 
 class _NotificationDMState extends State<NotificationDM> {
   String? notificationStatus;
-   
+
   @override
   initState(){
     super.initState();
@@ -258,7 +257,6 @@ class _NotificationDMState extends State<NotificationDM> {
     if (dm != null){
       var indexUser = dm.user.indexWhere((element) => element["user_id"] == userId);
       if (indexUser != -1) {
-        print(dm.user[indexUser]);
         notificationStatus = dm.user[indexUser]["status_notify"] ?? "NORMAL";
       }
     }
@@ -296,7 +294,7 @@ class _NotificationDMState extends State<NotificationDM> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10)
           ),
-          height: 240,
+          height: 274,
           child: notificationStatus == null ? Container(
             child: Text("You can't change settings"),
           ) : Column(
@@ -314,7 +312,7 @@ class _NotificationDMState extends State<NotificationDM> {
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: Container(
-                          padding: EdgeInsets.symmetric(vertical: 1, horizontal: 16),
+                          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 10),
                           margin: EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(5),
@@ -324,33 +322,43 @@ class _NotificationDMState extends State<NotificationDM> {
                             ),
                           ),
                           child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: <Widget>[
-                              Radio<String>(
-                                activeColor: Color(0xff096DD9),
-                                value: option["value"],
-                                groupValue: notificationStatus,
-                                onChanged: (value) {
-                                  setState(() => notificationStatus = value );
-                                },
+                              Row(
+                                children: [
+                                  Radio<String>(
+                                    activeColor: Color(0xff096DD9),
+                                    value: option["value"],
+                                    groupValue: notificationStatus,
+                                    onChanged: (value) {
+                                      setState(() => notificationStatus = value );
+                                    },
+                                  ),
+                                  SizedBox(width: 5),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(option["label"],
+                                        style: TextStyle(
+                                          color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark,
+                                          fontSize: 14
+                                        )
+                                      ),
+                                      SizedBox(height: 5),
+                                      Text(option["description"],
+                                        style: TextStyle(
+                                          color: isDark ? Color(0xffA6A6A6) : Color(0xff828282),
+                                          fontSize: 14,
+                                          overflow: TextOverflow.ellipsis
+                                        )
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               Container(
                                 child: getIconNotificationByStatusDM(option["value"], isDark),
                               ),
-                              SizedBox(width: 5),
-                              Text(option["label"],
-                                style: TextStyle(
-                                  color: isDark ? Palette.topicTile : Palette.backgroundRightSiderDark, 
-                                  fontSize: 14
-                                )
-                              ),
-                              SizedBox(width: 10),
-                              Text(option["description"],
-                                style: TextStyle(
-                                  color: isDark ? Color(0xffA6A6A6) : Color(0xff828282), 
-                                  fontSize: 14,
-                                  overflow: TextOverflow.ellipsis
-                                )
-                              )
                             ]
                           ),
                         ),
@@ -373,7 +381,7 @@ class _NotificationDMState extends State<NotificationDM> {
                         style: TextButton.styleFrom(
                           side: BorderSide(color: Color(0xffFF7875))
                         ),
-                        onPressed: () { 
+                        onPressed: () {
                           Navigator.of(context, rootNavigator: true).pop("Discard");
                         },
                         child: Text(S.current.cancel, style: TextStyle(color: Color(0xffFF7875)))
@@ -387,7 +395,7 @@ class _NotificationDMState extends State<NotificationDM> {
                       // color: Color(0xff1890FF),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(3),
-                        color: Utils.getPrimaryColor() 
+                        color: Utils.getPrimaryColor()
                       ),
                       child: TextButton(
                         onPressed: (){

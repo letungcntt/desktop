@@ -4,7 +4,6 @@ class OptionList extends StatelessWidget {
   OptionList({
     required this.data,
     required this.onTap,
-    required this.suggestionListHeight,
     required this.selectMention,
     this.suggestionListDecoration,
     this.isDark,
@@ -23,7 +22,6 @@ class OptionList extends StatelessWidget {
 
   final Function(Map<String, dynamic>) onTap;
 
-  final double suggestionListHeight;
 
   final BoxDecoration? suggestionListDecoration;
 
@@ -37,6 +35,12 @@ class OptionList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    double heightOptionList = 200.0;
+    if(data.length < 5) {
+      if(data.length == 1) heightOptionList = 47.5;
+      else heightOptionList = (data.length * 45).toDouble();
+    }
+
     return data.isNotEmpty && isShow!
       ? Container(
         margin: EdgeInsets.only(bottom: 4),
@@ -46,13 +50,12 @@ class OptionList extends StatelessWidget {
             color: isDark ? Color(0xff2f3136) : Color(0xFFf0f0f0),
           ),
         constraints: BoxConstraints(
-          maxHeight: suggestionListHeight is int ? suggestionListHeight : 200,
+          maxHeight: heightOptionList,
           minHeight: 0,
         ),
-        child: ListView.builder(
-          controller: scrollController,
+        child: ScrollablePositionedList.builder(
+          itemScrollController: scrollController,
           itemCount: data.length,
-          shrinkWrap: true,
           itemBuilder: (context, index) {
             return GestureDetector(
               onTap: () {

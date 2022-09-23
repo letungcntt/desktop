@@ -1,12 +1,15 @@
 import 'dart:async';
 
+import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/common/cached_image.dart';
-import 'package:workcake/components/dropdown_overlay.dart';
+import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/media_conversation/model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
+
+import '../../../common/utils.dart';
+import 'images_gallery.dart';
+
 
 class ImageDetail extends StatefulWidget {
   final url;
@@ -14,6 +17,7 @@ class ImageDetail extends StatefulWidget {
   final full;
   final tag;
   final String? keyEncrypt;
+  final version;
 
   ImageDetail({
     Key? key,
@@ -21,7 +25,8 @@ class ImageDetail extends StatefulWidget {
     @required this.url,
     @required this.tag,
     this.full = false,
-    this.keyEncrypt
+    this.keyEncrypt,
+    this.version,  
   }) : super(key: key);
   @override
   _ImageDetailState createState() => _ImageDetailState();
@@ -36,6 +41,13 @@ class _ImageDetailState extends State<ImageDetail> with TickerProviderStateMixin
   Animation<double>? animation;
   int rotateTime = 0;
   double x = 0;
+  int lastTime = 0;
+  bool showActionButton = false;
+  bool hoveredActionButton = false;
+  bool hideCopied = true;
+  String id  = "";
+  bool hideDowload = true;
+  int page = 0;
 
   @override
   void initState() {
@@ -59,6 +71,26 @@ class _ImageDetailState extends State<ImageDetail> with TickerProviderStateMixin
     transformationController.dispose();
     _controller!.dispose();
     super.dispose();
+  }
+
+  onPointerHover() {
+    if(!showActionButton && this.mounted) {
+      setState(() {
+        showActionButton = true;
+      });
+      lastTime = DateTime.now().microsecondsSinceEpoch;
+      if(!hoveredActionButton) {
+        Future.delayed(Duration(seconds: 4), () {
+          if(DateTime.now().microsecondsSinceEpoch > (lastTime + 4000000)) {
+            if(this.mounted) {
+              setState(() {
+                showActionButton = false;
+              });
+            }
+          }
+        });
+      }
+    }
   }
 
   onRotateImage(String action) {
@@ -87,37 +119,54 @@ class _ImageDetailState extends State<ImageDetail> with TickerProviderStateMixin
       isZoom = !isZoom;
     });
   }
-
+@override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      child: Stack(
+    return Scaffold(
+      body: Stack(
         children: [
-          RotationTransition(
-            turns: animation!,
-            child: Hero(
-              tag: widget.tag,
-              child: Center(
-                child: GestureDetector(
-                  onTapDown: onTapDown,
-                  child: InteractiveViewer(
-                    transformationController: transformationController,
-                    boundaryMargin: EdgeInsets.all(50),
-                    minScale: 0.5,
-                    maxScale: 4,
-                    child: CachedImage(widget.url, radius: 10, fit: BoxFit.cover, full: widget.full),
-                  )
-                )
-              )
+          Listener(
+            onPointerHover: (event) {
+              onPointerHover();
+            },
+            child: RotationTransition(
+              turns: animation!,
+              child: ExtendedImageGesturePageView.builder(
+                itemBuilder: (BuildContext context, int index) {
+                  GestureConfig initGestureConfigHandler(state) {
+                      return GestureConfig(
+                        minScale: 0.9,
+                        animationMinScale: 0.7,
+                        maxScale: 3.0,
+                        animationMaxScale: 3.5,
+                        speed: 1.0,
+                        inertialSpeed: 100.0,
+                        initialScale: 1.0,
+                        inPageView: true,
+                        initialAlignment: InitialAlignment.center,
+                      );
+                  }
+                  return Hero(
+                    tag: widget.tag,
+                    child: ExtendedImage.network(
+                      widget.url,
+                      fit: BoxFit.contain,
+                      cache: true,
+                      initGestureConfigHandler: initGestureConfigHandler,
+                      clearMemoryCacheWhenDispose: true,
+                      mode: ExtendedImageMode.gesture,
+                    ),
+                  );
+                }
+              ),
             ),
           ),
-          AnimatedPositioned(
+          if(showActionButton) AnimatedPositioned(
             duration: Duration(milliseconds: 300),
             top: show ? 0 : -100,
             child: Container(
               color: Color(0xFF000000).withOpacity(0.25),
               height: 50,
-              padding: EdgeInsets.only(top: 8, left: 6, right: 6),
+              padding: EdgeInsets.only(left: 6, right: 6),
               alignment: Alignment.centerLeft,
               width: MediaQuery.of(context).size.width,
               child: Row(
@@ -127,34 +176,74 @@ class _ImageDetailState extends State<ImageDetail> with TickerProviderStateMixin
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                        if(hideCopied == false) Text("Image has been copied", style: TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.w700, color: Color(0xff27AE60))),
+                        if(hideDowload == false) Text("Image has been downloaded", style: TextStyle(fontStyle: FontStyle.italic, fontWeight: FontWeight.w700, color: Color(0xff27AE60))),
+                        SizedBox(width: 8),
                         Container(
                           height: 50,
                           width: 50,
-                          child: DropdownOverlay(
-                            width: 60,
-                            dropdownWindow: Container(height: 20, color: Colors.black ,child: Center(child: Text("copied", style: TextStyle(color: Colors.white)))),
-                            child: Icon(Icons.copy, size: 20, color: Colors.white),
-                            onTap: () async {
-                              MethodChannel channel = MethodChannel("copy");
-                              String urlImage = await ServiceMedia.getDownloadedPath(widget.url) ?? widget.url;
-                              channel.invokeMethod("copy_image", urlImage);
-                            }
+                          child: HoverItem(
+                            onHover: () {
+                              setState(() {
+                                hoveredActionButton = true;
+                              });
+                            },
+                            onExit: () {
+                              setState(() {
+                                hoveredActionButton = false;
+                              });
+                            },
+                            colorHover: Colors.grey.withOpacity(0.4),
+                            child: InkWell(
+                              focusNode: FocusNode(skipTraversal: true),
+                              highlightColor: Color(0xff27AE60),
+                              onTap: () async {
+                                setState(() {
+                                  hideCopied = false;
+                                });
+                                MethodChannel channel = MethodChannel("copy");
+                                String urlImage = await ServiceMedia.getDownloadedPath(widget.url) ?? widget.url;
+                                channel.invokeMethod("copy_image", urlImage);
+                                Future.delayed(Duration(milliseconds: 2500), () {
+                                  if (!mounted) return;
+                                  setState(() {
+                                    hideCopied = true;
+                                  });
+                                });
+
+                              },
+                              child: Icon(Icons.copy, size: 20, color: Colors.white,)
+                            ),
                           )
                         ),
                         Container(
                           height: 50,
                           width: 50,
-                          child: TextButton(
-                            onPressed: () => Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": widget.url,  "key_encrypt": widget.keyEncrypt,}),
-                            child: Icon(Icons.file_download, size: 20, color: Color(0xFFFFFFFF))
+                          child: HoverItem(
+                            colorHover: Colors.grey.withOpacity(0.4),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() => id = Utils.getRandomString(10));
+                                hideDowload = false;
+                                Provider.of<Work>(context, listen: false).addTaskDownload({"content_url": widget.url,"id": id,  "key_encrypt": widget.keyEncrypt, "version": widget.version});
+                                Future.delayed(Duration(milliseconds: 2500), () {
+                                if (!mounted) return;
+                                  setState(() => hideDowload = true);
+                                });
+                              }, 
+                              child: Icon(Icons.file_download, size: 20, color: Color(0xFFFFFFFF))
+                            ),
                           ),
                         ),
                         Container(
                           height: 50,
                           width: 50,
-                          child: TextButton(
-                            onPressed: () { },
-                            child: Icon(Icons.share, size: 20,  color: Color(0xFFFFFFFF))
+                          child: HoverItem(
+                            colorHover: Colors.grey.withOpacity(0.4),
+                            child: TextButton(
+                              onPressed: () { },
+                              child: Icon(Icons.share, size: 20,  color: Color(0xFFFFFFFF))
+                            ),
                           ),
                         ),
                         Container(
@@ -170,9 +259,12 @@ class _ImageDetailState extends State<ImageDetail> with TickerProviderStateMixin
                         Container(
                           height: 50,
                           width: 50,
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: Icon(Icons.close_rounded, size: 24, color: Colors.white)
+                          child: HoverItem(
+                            colorHover: Colors.grey.withOpacity(0.4),
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: Icon(Icons.close_rounded, size: 24, color: Colors.white)
+                            ),
                           )
                         )
                       ]
@@ -182,47 +274,65 @@ class _ImageDetailState extends State<ImageDetail> with TickerProviderStateMixin
               )
             ),
           ),
-          AnimatedPositioned(
+          if(showActionButton) AnimatedPositioned(
             duration: Duration(milliseconds: 300),
             bottom: 0,
-            child: Container(
-              color: Color(0xFF000000).withOpacity(0.25),
-              height: 50,
-              alignment: Alignment.centerLeft,
-              width: MediaQuery.of(context).size.width,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Container(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Container(
-                          height: 50,
-                          width: 50,
-                          child: TextButton(
-                            onPressed: () => onRotateImage('left'),
-                            child: Icon(Icons.rotate_left, color: Color(0xFFFFFFFF)),
+            child: HoverItem(
+              onHover: () {
+                setState(() {
+                  hoveredActionButton = true;
+                });
+              },
+              onExit: () {
+                setState(() {
+                  hoveredActionButton = false;
+                });
+              },
+              child: Container(
+                color: Color(0xFF000000).withOpacity(0.25),
+                height: 50,
+                alignment: Alignment.centerLeft,
+                width: MediaQuery.of(context).size.width,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    Container(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Container(
+                            height: 50,
+                            width: 50,
+                            child: TextButton(
+                              onPressed: () => onRotateImage('left'),
+                              child: Icon(Icons.rotate_left, color: Color(0xFFFFFFFF)),
+                            ),
                           ),
-                        ),
-                        Container(width: 50),
-                        Container(
-                          height: 50,
-                          width: 50,
-                          child: TextButton(
-                            onPressed: () => onRotateImage('right'),
-                            child: Icon(Icons.rotate_right, color: Color(0xFFFFFFFF)),
+                          Container(width: 50),
+                          Container(
+                            height: 50,
+                            width: 50,
+                            child: TextButton(
+                              onPressed: () => onRotateImage('right'),
+                              child: Icon(Icons.rotate_right, color: Color(0xFFFFFFFF)),
+                            )
                           )
-                        )
-                      ]
+                        ]
+                      )
                     )
-                  )
-                ]
-              )
+                  ]
+                )
+              ),
             )
-          )
+          ),
+          Positioned(
+            bottom: 8, right: 8,
+            child: Container(
+              height: 90,
+              child: TaskDownloadImage(idShow: id,)), 
+          ),
         ]
-      )
+      ),
     );
   }
 }

@@ -7,11 +7,11 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/E2EE/e2ee.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/isar/message_conversation/service.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/services/sync_data.dart';
 
 class DMInputShared extends StatefulWidget {
@@ -46,7 +46,7 @@ class _DMInputShared extends State<DMInputShared> {
   var _focusNode2;
   var _focusNode3;
   var _focusNode4;
-
+  String flow = "";
   List input = [];
 
   @override
@@ -79,6 +79,7 @@ class _DMInputShared extends State<DMInputShared> {
         if (dataServer["success"]){
           var dataEn =  dataServer["data"];
           if (dataEn["success"]){
+            flow = dataEn["flow"];
             LazyBox box = Hive.lazyBox('pairKey');
             Box direct =  Hive.box("direct");
             var identityKey =  await box.get("identityKey");
@@ -90,7 +91,7 @@ class _DMInputShared extends State<DMInputShared> {
             if(dataEn["dataConv"] != null) {
               var messageDeStrConv =  Utils.decrypt(dataEn["dataConv"], masterKey.toBase64());
               var dataToSaveConv  = jsonDecode(messageDeStrConv);
-              var dataConv = dataToSaveConv["conv"]; 
+              var dataConv = dataToSaveConv["conv"];
               List dConv = [];
               for(int i =0; i< dataConv.length; i++){
                 DirectModel dm  = DirectModel(
@@ -111,7 +112,8 @@ class _DMInputShared extends State<DMInputShared> {
               await direct.clear();
               await direct.addAll(dConv);
             }
-            StreamSyncData.instance.setTotalMessage(dataEn["totalMessages"]);
+            if (flow != "file") StreamSyncData.instance.setTotalMessage(dataEn["totalMessages"]);
+            else MessageConversationServices.statusSyncController.add(StatusSync(0, "Waitting data"));
             final token = Provider.of<Auth>(context, listen: false).token;
             final userId = Provider.of<Auth>(context, listen: false).userId;
             await Provider.of<DirectMessage>(context, listen: false).getDataDirectMessage(token, userId);
@@ -126,7 +128,7 @@ class _DMInputShared extends State<DMInputShared> {
                 status = "error";
                 code = "";
               });
-          } 
+          }
         } else {
           if (this.mounted)
             setState(() {
@@ -178,7 +180,7 @@ class _DMInputShared extends State<DMInputShared> {
       }
     }
   }
-   
+
   handleGenCode(){
     setState(() {
       code  = Utils.getRandomString(6);
@@ -191,7 +193,7 @@ class _DMInputShared extends State<DMInputShared> {
 
   handleSubmitConfirm()async {
     final channel = Provider.of<Auth>(context, listen: false).channel;
-    
+
     LazyBox box  = Hive.lazyBox('pairKey');
     Map payload  = {"code": code, "deviceId": await box.get("deviceId")};
 
@@ -203,7 +205,7 @@ class _DMInputShared extends State<DMInputShared> {
 
   getBackgroundColor(){
     if (status == "success") return Color(0xFF73d13d);
-    if (status == "error") return Color(0xFFff4d4f); 
+    if (status == "error") return Color(0xFFff4d4f);
     return Color(0xFFffffff);
   }
 
@@ -221,17 +223,6 @@ class _DMInputShared extends State<DMInputShared> {
     _input3.dispose();
     _input4.dispose();
     super.dispose();
-  }
-
-  get3CharPhoneNumber(){
-    try {
-      final user = Provider.of<User>(context);
-      String phoneNumber = user.currentUser["phone_number"] ?? "";
-      return phoneNumber.substring(phoneNumber.length - 3, phoneNumber.length);
-    } catch (e) {
-      return "";
-    }
-
   }
 
   sendOTPResetDeviceKey() async {
@@ -264,6 +255,21 @@ class _DMInputShared extends State<DMInputShared> {
       print("____$e");
 
     }
+  }
+
+  String get3CharPhoneNumber(){
+    try {
+      final user = Provider.of<User>(context);
+      String email = user.currentUser["email"] ?? "";
+      if (user.currentUser["is_verified_email"]) return email.replaceFirstMapped(RegExp(r'[^@]{1,}@'), (map){
+        return (map.group(0) ?? "").split("").map((e) => "*").join();
+      });
+      String phoneNumber = user.currentUser["phone_number"] ?? "";
+      return "*******" + phoneNumber.substring(phoneNumber.length - 3, phoneNumber.length);
+    } catch (e) {
+      return "";
+    }
+
   }
 
   @override
@@ -337,7 +343,7 @@ class _DMInputShared extends State<DMInputShared> {
                       color: isDark ? Color(0xffA6A6A6) : Color(0xff5e5e5e),
                       height: 1.57,
                     )),
-                    Text("*******" + get3CharPhoneNumber(), style: TextStyle(
+                    Text(get3CharPhoneNumber(), style: TextStyle(
                       color: isDark ? Color(0xffEDEDED) : Color(0xff2e2e2e),
                       height: 1.57,
                     )),
@@ -372,7 +378,7 @@ class _DMInputShared extends State<DMInputShared> {
                       ),
                       child: TextField(
                         controller: e["controller"],
-                        focusNode: e["focusNode"],                          
+                        focusNode: e["focusNode"],
                         autofocus: index == 0,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         onChanged: (str) {
@@ -471,7 +477,7 @@ class _DMInputShared extends State<DMInputShared> {
           status == "error" ? Container(
             alignment: Alignment.center,
             margin: EdgeInsets.only(top: 28),
-            child: Text("Wrong code, please try again", style: TextStyle(color: Color(0xffED5757),)) 
+            child: Text("Wrong code, please try again", style: TextStyle(color: Color(0xffED5757),))
           ) : SizedBox(),
         ],
       ),

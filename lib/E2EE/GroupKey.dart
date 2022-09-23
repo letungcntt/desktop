@@ -55,12 +55,12 @@ class GroupKey {
     try {
        return GroupKey(
         (data["member_keys"] as List).map(
-          (e) => MemberKey(e["user_id"], e["conversation_id"], e["shared_key"], "", e["public_key"], e["message_shared_key"])
+          (e) => MemberKey(e["user_id"], e["conversation_id"], e["shared_key"], "", e["public_key"] ?? "", e["message_shared_key"])
         ).toList(),
         data["conversation_id"]
       );
-    } catch (e) {
-      // print("parseFromJson $data $e");
+    } catch (e, t) {
+      print("parseFromJson $t $e ");
       return GroupKey([], "");
     }
   }
@@ -85,6 +85,7 @@ class MemberKey {
       "shared_key": this.sharedkey,
       "conversation_id": this.conversationId,
       "message_shared_key": this.messageSharedKey,
+      "public_key" : this.publicKey
     };
   }
 

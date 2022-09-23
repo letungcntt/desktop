@@ -2,23 +2,23 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
-import 'package:better_selection/better_selection.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:provider/provider.dart';
-import 'package:simple_tooltip/simple_tooltip.dart';
+import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/file_items.dart';
+import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/flutter_mention/action_input.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'message_item/chat_item_macOS.dart';
 
@@ -194,7 +194,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
       };
       if (auth.userId != channelMembers[i]["id"]) suggestionMentions += [item];
     }
-    
+
     return suggestionMentions;
   }
 
@@ -233,6 +233,14 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
   }
 
   processFiles(files) async{
+    if(files[0]['type'] == 'text') {
+      Timer.run(() {
+        if (key.currentState != null) key.currentState!.focusNode.requestFocus();
+        key.currentState!.setMarkUpText(files[0]['text']);
+      });
+      return;
+    }
+
     try {
       List result  = [];
       for(var i = 0; i < files.length; i++) {
@@ -265,7 +273,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
       print(e.toString());
     }
   }
-  
+
   openFileSelector() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
 
@@ -388,7 +396,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
     final auth = Provider.of<Auth>(context, listen: false);
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final channelId = parentMessage["channel_id"];
-    
+
     if (!threadFetching && parentMessage["unread"]) {
       threadFetching = true;
       await Provider.of<Threads>(context, listen: false).updateThreadUnread(currentWorkspace["id"], channelId, parentMessage, auth.token);
@@ -524,19 +532,18 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                               ),
                               Container(
                                 margin: const EdgeInsets.only(right: 8),
-                                child: SimpleTooltip(
-                                  arrowTipDistance: 0.0,
-                                  tooltipDirection: TooltipDirection.left,
-                                  animationDuration: const Duration(milliseconds: 100),
-                                  borderColor: isDark ? const Color(0xFF262626) :const Color(0xFFb5b5b5),
-                                  borderWidth: 0.5,
-                                  borderRadius: 5,
-                                  backgroundColor: isDark ? const Color(0xFF1c1c1c): Colors.white,
-                                  arrowLength:  6,
-                                  arrowBaseWidth: 6.0,
-                                  ballonPadding: EdgeInsets.zero,
-                                  show: tooltipNotify,
-                                  content: Material(child: Text(parentMessage["notify"] == null || parentMessage["notify"] ? "Turn off this thread" : "Turn on this thread"), color: Colors.transparent),
+                                child: JustTheTooltip(
+                                  triggerMode: TooltipTriggerMode.tap,
+                                  preferredDirection: AxisDirection.right,
+                                  backgroundColor: isDark ? Color(0xFF1c1c1c): Colors.white,
+                                  offset: 5,
+                                  tailLength: 10,
+                                  tailBaseWidth: 10,
+                                  fadeOutDuration: Duration(milliseconds: 10),
+                                  content: Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Material(child: Text(parentMessage["notify"] == null || parentMessage["notify"] ? "Turn off this thread" : "Turn on this thread"), color: Colors.transparent),
+                                  ),
                                   child: InkWell(
                                     onHover: (hover) => setState(() {
                                       tooltipNotify = hover;
@@ -553,7 +560,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                             ]
                           )
                         ),
-                        SelectableScope(
+                        CustomSelectionArea(
                           child: Column(
                             children: [
                               Container(
@@ -575,7 +582,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                         left: BorderSide(color: parentMessage["unread"] ? (isDark ? Palette.calendulaGold : Palette.dayBlue) : Colors.transparent, width: 4)
                                       )
                                     ),
-                                
+
                                     child: ChatItemMacOS(
                                       id: parentMessage["id"],
                                       message: parentMessage["message"],
@@ -601,6 +608,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                       isDark: isDark,
                                       updateMessage: updateMessage,
                                       customColor: customColor,
+                                      workspaceId: parentMessage['workspace_id'],
                                     )
                                   )
                                 )
@@ -637,19 +645,19 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                   ] + children.map<Widget>((item) {
                                     final message = item;
                                     final i = childrenReverse.indexWhere((e) => e["id"] == item["id"]);
-                                
+
                                     DateTime dateTime = DateTime.parse(childrenReverse[i]["inserted_at"] ?? childrenReverse[i]["time_create"]);
                                     var timeStamp = dateTime.toUtc().millisecondsSinceEpoch;
                                     bool showHeader = true;
                                     bool showNewUser = true;
-                                
+
                                     if ((i + 1) < (childrenReverse.length)) {
                                       DateTime nextTime = DateTime.parse(childrenReverse[i + 1]["inserted_at"] ?? childrenReverse[i + 1]["time_create"]);
                                       var nextTimeStamp = nextTime.toUtc().millisecondsSinceEpoch;
                                       showHeader = (dateTime.day != nextTime.day || dateTime.month != nextTime.month || dateTime.year != nextTime.year);
                                       showNewUser = timeStamp - nextTimeStamp > 600000;
                                     }
-                                
+
                                     List newList = childrenReverse[i]["attachments"].where((e) => e["mime_type"] == "html").toList();
                                     if (newList.isNotEmpty) {
                                       Utils.handleSnippet(newList[0]["content_url"], false).then((value) {
@@ -680,7 +688,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                     }
                                     final newSnippet = snippetList.where((e) => e["id"] == childrenReverse[i]["id"]).toList();
                                     final newListBlockCode = listBlockCode.where((e) => e["id"] == childrenReverse[i]["id"]).toList();
-                                
+
                                     return ChatItemMacOS(
                                       key: Key(message["id"].toString()),
                                       id: message["id"],
@@ -708,6 +716,7 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                       isDark: isDark,
                                       updateMessage: updateMessage,
                                       customColor: customColor,
+                                      workspaceId: message['workspace_id'],
                                     );
                                   }).toList()
                                 )
@@ -793,7 +802,6 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                               onEdittingText: onEdittingText,
                               onChanged: (str) async {
                                 onChangeInput(parentMessage, str);
-                                saveChangesToHive(key.currentState!.controller!.markupText);
                                 if(!isSend && str.isNotEmpty) {
                                   setState(() => isSend = true);
                                 } else if (isSend && str.isEmpty) {
@@ -809,7 +817,6 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                   });
                                 }
                               },
-                              suggestionListHeight: 200,
                               suggestionListDecoration: const BoxDecoration(
                                 borderRadius: BorderRadius.all(Radius.circular(8)),
                               ),
@@ -841,16 +848,25 @@ class _ThreadItemMacosState extends State<ThreadItemMacos> {
                                 !isUpdate
                                   ? ActionInput(openFileSelector: openFileSelector, selectEmoji: selectEmoji, isThreadTab: true, selectSticker: selectSticker,)
                                   : Container(),
-                                IconButton(
-                                  padding: const EdgeInsets.all(5),
-                                  icon: Icon(isUpdate ? Icons.check : Icons.send,
-                                    size: 18,
-                                    color: (isSend || (fileItems.isNotEmpty))
-                                    ? const Color(0xffFAAD14)
-                                    : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
-                                    // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
+                                Container(
+                                  margin: EdgeInsets.only(bottom: 4, right: 4),
+                                  child: HoverItem(
+                                    colorHover: Palette.hoverColorDefault,
+                                    radius: 4.0, isRound: true,
+                                    child: InkWell(
+                                      child: Container(
+                                        padding: EdgeInsets.all(6),
+                                        child: Icon(
+                                          (isSend || (fileItems.isNotEmpty)) ? Icons.check : Icons.send,
+                                          color: ((key.currentState?.controller!.markupText != "" ) || (fileItems.isNotEmpty))
+                                            ? const Color(0xffFAAD14)
+                                            : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                                          size: 18
+                                        ),
+                                      ),
+                                      onTap: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
+                                    ),
                                   ),
-                                  onPressed: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
                                 ),
                               ],
                             )

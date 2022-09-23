@@ -7,13 +7,11 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:phoenix_wings/phoenix_wings.dart';
-import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sdp_transform/sdp_transform.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/device_provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import '../E2EE/key.dart';
 import '../E2EE/x25519.dart';
 import '../common/utils.dart';
@@ -41,9 +39,9 @@ class DataWebrtcStreamStatus{
 class DeviceSocket {
   static DeviceSocket instance = DeviceSocket();
 
-  DataWebrtcStreamStatus? dataWebrtcStreamStatus; 
+  DataWebrtcStreamStatus? dataWebrtcStreamStatus;
 
-  
+
   // local se dc su dung khi device nay gui yeu cau den device khac
   RTCPeerConnection? localPeerConnection;
   RTCDataChannel? localChannel;
@@ -95,7 +93,7 @@ class DeviceSocket {
   Future<void> initPanchatDeviceSocket() async {
     try {
       socket = new PhoenixSocket(
-        Utils.socketUrl, 
+        Utils.socketUrl,
         socketOptions: PhoenixSocketOptions(
           heartbeatIntervalMs: 10000
         )
@@ -105,13 +103,6 @@ class DeviceSocket {
       var identityKey  = await boxKey.get("identityKey");
       // device_public_key laf signedKey
       currentDevice = await Utils.getDeviceId();
-print("identityKey....=====: $identityKey");
-      print("is correntc $currentDevice ${MessageConversationServices.shaString([
-         identityKey["pubKey"],
-          await Utils.getDeviceIdentifier(),
-          // key nay se ko dc truyen di theo bat ky api nao, ko dc thay doi
-          "fhl9gBRZa8jLmT2wwTmMdS2M6YHiqLsHNpb85oEStNM="
-      ])}");
       channel = socket!.channel("device_id:$currentDevice", {
         "device_public_key": identityKey["pubKey"],
         "device_identifier": await Utils.getDeviceIdentifier()
@@ -178,7 +169,7 @@ print("identityKey....=====: $identityKey");
             await Utils.decrypt(
               payload["data"],
               (await X25519().calculateSharedSecret(
-                KeyP.fromBase64(identityKey["privKey"], false), 
+                KeyP.fromBase64(identityKey["privKey"], false),
                 KeyP.fromBase64(oneTimePublicKey, true)
               )).toBase64()
             )
@@ -232,7 +223,7 @@ print("identityKey....=====: $identityKey");
         return;
       });
       initLocalPeerConnection();
-    
+
     } catch (e, trace) {
       print("initPanchatDeviceSocket: $e  $trace");
     }
@@ -272,7 +263,7 @@ print("identityKey....=====: $identityKey");
         "ice_candidates": [candidate.toMap()],
         "device_id_target": targetDevice,
         "device_id": currentDevice,
-      });  
+      });
     };
 
     localPeerConnection!.onIceConnectionState= (RTCIceConnectionState c){
@@ -307,13 +298,36 @@ print("identityKey....=====: $identityKey");
             if (data["total"] == chunkedFile.length && data["type_transfer"] == "first") {
               chunkedFile.sort((a, b) => int.parse("${a["page"]}").compareTo(int.parse("${b["page"]}")));
               String encrypted = chunkedFile.map((e) => e["data"]).join("");
-              print("start dectuyor answer");
+              DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
+                "Processing data",
+                currentDevice!,
+                targetDevice!,
+                sharedKeyCurrentVSTarget ?? ""
+              ));
+              await Future.delayed(Duration(milliseconds: 500));
               String total = await Utils.decrypt(encrypted, sharedKeyCurrentVSTarget ?? "");
+               await Future.delayed(Duration(milliseconds: 500));
+              DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
+                "Saving",
+                currentDevice!,
+                targetDevice!,
+                sharedKeyCurrentVSTarget ?? ""
+              ));
               await MessageConversationServices.saveJsonDataMessage(json.decode(total));
-              MessageConversationServices.syncData(dataChannel, sharedKeyCurrentVSTarget ?? "", isSecond: true);
+
+              await Future.delayed(Duration(milliseconds: 500));
+              DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
+                "Done",
+                currentDevice!,
+                targetDevice!,
+                sharedKeyCurrentVSTarget ?? ""
+              ));
+
+              await Future.delayed(Duration(milliseconds: 500));
+              DeviceSocket.instance.setPairDeviceId("", "", "");
             }
-            DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
-              "Recieving ${data["page"]}/${data["total"]}",
+            else DeviceSocket.instance.syncDataWebrtcStreamController.add(DataWebrtcStreamStatus(
+              "Recieving ${chunkedFile.length }/${data["total"]}",
               currentDevice!,
               targetDevice!,
               sharedKeyCurrentVSTarget ?? ""
@@ -342,7 +356,7 @@ print("identityKey....=====: $identityKey");
 
    void createOffer(Function call) async {
     try {
-      chunkedFile = []; 
+      chunkedFile = [];
       if (localChannel != null) await localChannel!.close();
       await localPeerConnection!.close();
       await initLocalPeerConnection();
@@ -383,7 +397,7 @@ print("identityKey....=====: $identityKey");
         }
       });
 
-      
+
       localOfferSessionDescription = await localPeerConnection!.createOffer();
       localPeerConnection!.setLocalDescription(localOfferSessionDescription!);
       channel!.push(event: "offer", payload: {
@@ -434,4 +448,3 @@ print("identityKey....=====: $identityKey");
     );
   }
 }
-  

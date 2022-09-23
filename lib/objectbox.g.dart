@@ -21,7 +21,7 @@ final _entities = <ModelEntity>[
   ModelEntity(
       id: const IdUid(1, 6861805016079206464),
       name: 'Media',
-      lastPropertyId: const IdUid(9, 2329653410046300580),
+      lastPropertyId: const IdUid(10, 3413264603912303315),
       flags: 0,
       properties: <ModelProperty>[
         ModelProperty(
@@ -70,6 +70,11 @@ final _entities = <ModelEntity>[
             id: const IdUid(9, 2329653410046300580),
             name: 'status',
             type: 9,
+            flags: 0),
+        ModelProperty(
+            id: const IdUid(10, 3413264603912303315),
+            name: 'version',
+            type: 6,
             flags: 0)
       ],
       relations: <ModelRelation>[],
@@ -179,7 +184,7 @@ ModelDefinition getObjectBoxModel() {
           final metaDataOffset = fbb.writeString(object.metaData);
           final keyEncryptOffset = fbb.writeString(object.keyEncrypt);
           final statusOffset = fbb.writeString(object.status);
-          fbb.startTable(10);
+          fbb.startTable(11);
           fbb.addInt64(0, object.localId);
           fbb.addOffset(1, pathInDeviceOffset);
           fbb.addOffset(2, remoteUrlOffset);
@@ -189,6 +194,7 @@ ModelDefinition getObjectBoxModel() {
           fbb.addInt64(6, object.size);
           fbb.addOffset(7, keyEncryptOffset);
           fbb.addOffset(8, statusOffset);
+          fbb.addInt64(9, object.version);
           fbb.finish(fbb.endTable());
           return object.localId;
         },
@@ -212,7 +218,8 @@ ModelDefinition getObjectBoxModel() {
               const fb.StringReader(asciiOptimization: true)
                   .vTableGet(buffer, rootOffset, 18, ''),
               const fb.StringReader(asciiOptimization: true)
-                  .vTableGet(buffer, rootOffset, 20, ''));
+                  .vTableGet(buffer, rootOffset, 20, ''),
+              const fb.Int64Reader().vTableGetNullable(buffer, rootOffset, 22));
 
           return object;
         }),
@@ -302,6 +309,10 @@ class Media_ {
 
   /// see [Media.status]
   static final status = QueryStringProperty<Media>(_entities[0].properties[8]);
+
+  /// see [Media.version]
+  static final version =
+      QueryIntegerProperty<Media>(_entities[0].properties[9]);
 }
 
 /// [MediaConversation] entity fields to define ObjectBox queries.

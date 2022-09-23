@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_phoenix/flutter_phoenix.dart';
 import 'package:flutter_portal/flutter_portal.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:stacked_services/stacked_services.dart';
 import 'package:workcake/common/themes.dart';
 import 'package:workcake/common/update_services.dart';
@@ -18,11 +19,11 @@ import 'package:workcake/media_conversation/isolate_media.dart';
 import 'package:workcake/objectbox.g.dart';
 import 'package:workcake/route.dart';
 import 'package:workcake/service_locator.dart';
+import 'package:workcake/workspaces/apps/zimbra/config.dart';
 import 'common/drop_zone.dart';
 import 'components/responsesizebar_widget.dart';
 import 'data_channel_webrtc/device_socket.dart';
 import 'generated/l10n.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/splash_screen.dart';
 import 'package:hive/hive.dart';
@@ -30,31 +31,20 @@ import 'package:hive/hive.dart';
 import 'login_macOS.dart';
 import 'main_screen_macOS.dart';
 import 'media_conversation/service_box.dart';
-import 'models/device_provider.dart';
-import 'models/models.dart';
-// import 'package:dart_vlc/dart_vlc.dart';
+import 'providers/providers.dart';
 
 class MyHttpOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) {
     return super.createHttpClient(context)
-      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+        ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
   }
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = new MyHttpOverrides();
-  // DartVLC.initialize();
-
-  NetworkInterface.list(includeLoopback: false, type: InternetAddressType.any)
-  .then((List<NetworkInterface> interfaces) {
-    interfaces.forEach((interface) {
-      interface.addresses.forEach((address) {
-        Utils.checkDebugMode(address.address);
-      });
-    });
-  });
+  Utils.checkDebugMode();
 
   AppRoutes.setupRouter();
   UpdateServices.initUpdater();
@@ -64,7 +54,7 @@ void main() async {
   var newPath = newDir.path + "/pancake_chat_data";
   Hive.init(newPath);
   Hive.registerAdapter(DirectModelAdapter());
-  try {
+  // try {
     await Hive.openBox('direct');
     await Hive.openLazyBox("pairKey");
     await Hive.openLazyBox("messageConversation");
@@ -77,21 +67,27 @@ void main() async {
     DeviceSocket.instance.initPanchatDeviceSocket();
     await Utils.initPairKeyBox();
     await MessageConversationServices.getIsar();
-    
+
+    ConfigZimbra.instance.currentAccountZimbra = null;
+    ConfigZimbra.instance.accounts = [];
+
     MessageConversationServices.restoreBackUp();
     Utils.getDeviceInfo();
-
-    var newDir = await getApplicationSupportDirectory();
-    var newPath = newDir.path + "/pancake_chat_data";
     IsolateMedia.storeObjectBox = Store(getObjectBoxModel(), directory: newPath);
     ServiceBox.box =  IsolateMedia.storeObjectBox;
     IsolateMedia.mainSendPort = await IsolateMedia.createIsolate();
-  } catch (e) {
-    print(")___$e");
-    // await Hive.deleteFromDisk();
-  }
+  // } catch (e, t) {
+  //   print(")___$e ___$t");
+  //   // await Hive.deleteFromDisk();
+  // }
 
-  runApp(PancakeChat());
+  await SentryFlutter.init(
+    (options){
+      options.dsn = 'https://d12559e125c4483b9f6929770ad442ee@o1326481.ingest.sentry.io/6586980';
+      options.tracesSampleRate = 1.0;
+    },
+    appRunner: () => runApp(PancakeChat()),
+  );
 }
 
 class PancakeChat extends StatelessWidget {
@@ -130,6 +126,7 @@ class PancakeChat extends StatelessWidget {
                     Utils.loginContext = context;
                     return ResponseSidebarBox(
                       child: MaterialApp(
+                        scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                         debugShowCheckedModeBanner: false,
                         navigatorKey: StackedService.navigatorKey,
                         localizationsDelegates: [
@@ -140,9 +137,14 @@ class PancakeChat extends StatelessWidget {
                         ],
                         supportedLocales: S.delegate.supportedLocales,
                         locale: Locale(locale),
-                        theme: auth.theme == ThemeType.DARK
+                        theme: (auth.theme == ThemeType.DARK
                             ? Themes.darkTheme
-                            : Themes.lightTheme,
+                            : Themes.lightTheme).copyWith(
+                              pageTransitionsTheme: const PageTransitionsTheme(
+                                builders: <TargetPlatform, PageTransitionsBuilder>{
+                                  TargetPlatform.android: ZoomPageTransitionsBuilder(),
+                                },
+                              )),
                         home: ContextMenuOverlay(
                           cardBuilder: (_, children) => Container(
                             decoration: BoxDecoration(
@@ -186,7 +188,7 @@ class PancakeChat extends StatelessWidget {
                             ),
                           ),
                           child: auth.isAuth
-                            ? MainScreenMacOS() 
+                            ? MainScreenMacOS()
                             : FutureBuilder(
                                 future: auth.tryAutoLogin(),
                                 builder: (ctx, authResultSnapshot) =>

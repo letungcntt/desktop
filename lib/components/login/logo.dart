@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class Logo extends StatelessWidget {
   const Logo({Key? key}) : super(key: key);
@@ -8,12 +7,12 @@ class Logo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    
+
     return Row(
       children: [
         Container(
           child: Image.asset(
-            "assets/images/logoPanchat.png",
+            "assets/images/logo_app/logoPanchat.png",
             width: 48,
             height: 48,
           ),

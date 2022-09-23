@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'CardItem.dart';
 
@@ -74,10 +73,10 @@ class _ChecklistSelectionState extends State<ChecklistSelection> {
               if (controller.text.trim() != "") {
                 addChecklistToCard();
               }
-            }, 
+            },
             child: Text("Add", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w400))
           )
-        ) 
+        )
       ]
     );
   }

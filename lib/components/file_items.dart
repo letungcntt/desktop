@@ -1,11 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_highlighter/themes/atom-one-dark.dart';
 import 'package:flutter_highlighter/themes/atom-one-light.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:workcake/common/cache_avatar.dart';
@@ -17,14 +17,15 @@ import 'package:workcake/components/message_item/attachments/text_file.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 
-import '../models/models.dart';
+import '../providers/providers.dart';
 
 class FileItems extends StatefulWidget{
   final removeFile;
   final onChangedTypeFile;
   final files;
-  
-  const FileItems({Key? key, @required files, this.removeFile, this.onChangedTypeFile})
+  final Function? setShareMessage;
+
+  const FileItems({Key? key, @required files, this.removeFile, this.onChangedTypeFile, this.setShareMessage})
   : files = files,
   super(key: key);
 
@@ -33,6 +34,29 @@ class FileItems extends StatefulWidget{
 }
 
 class _FileItemsState extends State<FileItems> {
+  bool isPreview = false;
+
+@override
+  initState() {
+    super.initState();
+    RawKeyboard.instance.addListener(handleEvent);
+  }
+
+  KeyEventResult handleEvent(RawKeyEvent event) {
+    if(event is RawKeyDownEvent && event.isKeyPressed(LogicalKeyboardKey.escape)) {
+      if (widget.setShareMessage != null && !isPreview) {
+        widget.setShareMessage!(false);
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  void dispose() {
+    RawKeyboard.instance.removeListener(handleEvent);
+    super.dispose();
+  }
+
   parseTime(dynamic time) {
     var messageLastTime = "";
     if (time != null) {
@@ -92,7 +116,10 @@ class _FileItemsState extends State<FileItems> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           IconButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () {
+                              isPreview = false;
+                              Navigator.pop(context);
+                            },
                             icon: Icon(
                               PhosphorIcons.xCircle, size: 20,
                               color: isDark ? Colors.white70 : Colors.grey[800],
@@ -115,7 +142,7 @@ class _FileItemsState extends State<FileItems> {
           ),
         );
       }
-    );
+    ).then((e) => isPreview = false);
   }
 
   onEditFile(file, index, isDark) {
@@ -151,7 +178,10 @@ class _FileItemsState extends State<FileItems> {
                             ),
                           ),
                           IconButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () {
+                              isPreview = false;
+                              Navigator.pop(context);
+                            },
                             icon: Icon(
                               PhosphorIcons.xCircle,
                               size: 20,
@@ -312,7 +342,7 @@ class _FileItemsState extends State<FileItems> {
           }
         );
       }
-    );
+    ).then((e) => isPreview = false);
   }
 
   @override
@@ -448,10 +478,11 @@ class _FileItemsState extends State<FileItems> {
             itemBuilder: (context, index) {
               Map file =  filesMessage[index];
               var tag = Utils.getRandomString(10);
-              switch (file["mime_type"]) {
+              switch (file["type"]) {
                 case "image":
                   return  InkWell(
-                    onTap: (){
+                    onTap: () {
+                      isPreview = true;
                       Navigator.push(context, PageRouteBuilder(
                         barrierDismissible: true,
                         barrierColor: Colors.black.withOpacity(0.7),
@@ -463,8 +494,8 @@ class _FileItemsState extends State<FileItems> {
                             child: Hero(
                               tag: tag,
                               child: Container(
-                                child: file["file"] == null 
-                                  ? Image.network(file["content_url"], fit: BoxFit.cover,) 
+                                child: file["file"] == null
+                                  ? Image.network(file["content_url"], fit: BoxFit.cover,)
                                   : Image.memory(
                                       file["file"],
                                       fit: BoxFit.cover,
@@ -473,7 +504,7 @@ class _FileItemsState extends State<FileItems> {
                             ),
                           ),
                         );
-                      }));
+                      })).then((value) => isPreview = false);
                     },
                     child: Container(
                       margin: EdgeInsets.only(right: 10),
@@ -483,8 +514,8 @@ class _FileItemsState extends State<FileItems> {
                             child: Hero(
                               tag: tag,
                               child: Container(
-                                child: file["file"] == null 
-                                  ? Image.network(file["content_url"], height: 100, width: 100,) 
+                                child: file["file"] == null
+                                  ? Image.network(file["content_url"], height: 100, width: 100,)
                                   : Image.memory(
                                       file["file"],
                                       height: 100,
@@ -538,9 +569,14 @@ class _FileItemsState extends State<FileItems> {
                         arrowTipDistance: 2.5,
                         tooltipDirection: TooltipDirection.up,
                         child: InkWell(
-                          onTap:  isEdit
-                            ? (() => onEditFile(file, index, isDark))
-                            : (file['mime_type'] == 'pdf' ? () => onShowFile(file, isDark) : null),
+                          onTap:  () {
+                            isPreview = true;
+                            if(isEdit) {
+                              onEditFile(file, index, isDark);
+                            } else if(file['mime_type'] == 'pdf') {
+                               onShowFile(file, isDark);
+                            }
+                          },
                           mouseCursor: isEdit || file['mime_type'] == 'pdf' ? SystemMouseCursors.click : SystemMouseCursors.basic,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -573,6 +609,7 @@ class _FileItemsState extends State<FileItems> {
                               shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0)))
                             ),
                             onPressed: () {
+                              isPreview = false;
                               widget.removeFile(shareMessage.length > 0 ? index + 1 : index);
                             },
                             child: Icon(Icons.close, size: 10, color: Colors.grey[200])

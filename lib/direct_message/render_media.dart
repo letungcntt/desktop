@@ -1,15 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:extended_image/extended_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/media_conversation/dm_media.dart';
 import 'package:workcake/media_conversation/model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class RenderMedia extends StatefulWidget {
   final String id;
@@ -30,7 +31,7 @@ class _RenderMediaState extends State<RenderMedia> {
   int totalImages = 0;
   int totalFiles = 0;
   Map<String, List<MediaConversation>> dataMedia = {
-    "image": [],
+    "image_video": [],
     "file": []
   };
 
@@ -40,7 +41,7 @@ class _RenderMediaState extends State<RenderMedia> {
     if (oldWidget.id != widget.id){
       resetData();
       getDataType('file');
-      getDataType('image');
+      getDataType('image_video');
     }
   }
 
@@ -56,14 +57,14 @@ class _RenderMediaState extends State<RenderMedia> {
   resetData() async {
       var id  =  widget.id;
       dataMedia = {
-        "image": [],
+        "image_video": [],
         "file": []
       };
       totalImages =  0;
       totalFiles = 0;
       Map d = await ServiceMedia.getNumberOfConversation(widget.id);
       getDataType('file');
-      getDataType('image');
+      getDataType('image_video');
       if (widget.id != id) return;
       setState(() {
         totalImages = d["images"];
@@ -76,7 +77,7 @@ class _RenderMediaState extends State<RenderMedia> {
     var id  =  widget.id;
     List<MediaConversation> t = (await ServiceMedia.loadConversationMedia(widget.id, 8, getLastCurrentTimeOfType(type), type))["data"];
     if (widget.id != id) return;
-    
+
     setState(() {
       dataMedia[type] = t;
     });
@@ -181,7 +182,7 @@ class _RenderMediaState extends State<RenderMedia> {
                     isVideo = true;
                     icon = PhosphorIcons.fileVideo;
                     break;
-                  case 'js': 
+                  case 'js':
                   case 'ts':
                   case 'dart':
                   case 'ex':
@@ -197,9 +198,13 @@ class _RenderMediaState extends State<RenderMedia> {
 
                 return e.media.target!.status == 'downloaded' ? HoverItem(
                   colorHover: isDark ? Palette.calendulaGold : Palette.dayBlue,
-                  isRound: type != 'image', radius: 4.0,
-                  child: (type == 'image' ? InkWell(
+                  isRound: type != 'image' || type == 'video', radius: 4.0,
+                  child: (type == 'image' || type == 'video' ? InkWell(
                       onTap: () {
+                        if(type == 'video') {
+                          Process.runSync('open', [ '-a', 'QuickTime\ Player.app', e.media.target!.pathInDevice]);
+                          return;
+                        }
                         Navigator.push(
                           context,
                           PageRouteBuilder(
@@ -209,14 +214,38 @@ class _RenderMediaState extends State<RenderMedia> {
                             barrierColor: Colors.black.withOpacity(1.0),
                             pageBuilder: (context, _, __) => Scaffold(
                               backgroundColor: Colors.transparent,
-                              body: ImageViewer(listImage: dataMedia['image'] ?? [], index: index),
+                              body: ImageViewer(listImage: dataMedia['image_video'] ?? [], index: index),
                             )
                           )
                         );
                       },
                       child: Container(
                         margin: EdgeInsets.all(1.75),
-                        child: ExtendedImage.file(
+                        child: type == 'video' ? Stack(
+                          children: [
+                            Container(
+                              width: 84,
+                              height: 84,
+                              child: ExtendedImage.network(
+                                json.decode(e.media.target!.metaData)['url_thumbnail'] ?? 'https://statics.pancake.vn/panchat-dev/2022/7/13/a09eefc0163c17427affb4b6bf939e337aeb54da.mp4',
+                                fit: BoxFit.cover,
+                                borderRadius: const BorderRadius.all(Radius.circular(4)),
+                                shape: BoxShape.rectangle
+                              ),
+                            ),
+                            Center(
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: Colors.black.withOpacity(0.5),
+                                ),
+                                child: Center(child: Icon(CupertinoIcons.play_fill, color: Colors.white, size: 22))
+                              ),
+                            ),
+                          ],
+                        ) : ExtendedImage.file(
                           File(e.media.target!.pathInDevice ?? ""),
                           fit: BoxFit.cover,
                           clearMemoryCacheWhenDispose: true,
@@ -286,16 +315,16 @@ class _RenderMediaState extends State<RenderMedia> {
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context);
     final isDark = auth.theme == ThemeType.DARK;
-    List dataImages = (dataMedia['image'] ?? []).asMap().entries.toList();
+    List dataImages = (dataMedia['image_video'] ?? []).asMap().entries.toList();
     List dataFiles = (dataMedia['file'] ?? []).asMap().entries.toList();
 
     return Column(
       children: [
+        SizedBox(height: 8),
+        renderListItem('image_video', dataImages, isDark),
         SizedBox(height: 10),
-        renderListItem('image', dataImages, isDark),
-        SizedBox(height: 20),
         renderListItem('file', dataFiles, isDark),
-        SizedBox(height: 10),
+        SizedBox(height: 8),
       ],
     );
   }

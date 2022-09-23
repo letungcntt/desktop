@@ -2,29 +2,23 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:better_selection/better_selection.dart';
-import 'package:context_menus/context_menus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/expanded_viewport.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/custom_context_menu.dart';
 import 'package:workcake/components/file_items.dart';
-import 'package:workcake/components/message_item/attachments/sticker_file.dart';
+import 'package:workcake/components/sticker_emojis.dart';
 import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/models.dart';
-import 'package:workcake/workspaces/list_sticker.dart';
+import 'package:workcake/providers/providers.dart';
 
 import '../hive/direct/direct.model.dart';
 import 'message_item/chat_item_macOS.dart';
@@ -124,7 +118,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
             };
           }).toList();
         });
-        
+
       }
     });
 
@@ -134,7 +128,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       if (conversationId == widget.parentMessage["conversationId"] && mounted){
         var messageDeleted = dataSocket["message_ids"];
         messageDeleted.map((mid) {
-        Provider.of<DirectMessage>(context, listen: false).updateDeleteMessage(token, conversationId, mid, type: "delete_for_me");      
+        Provider.of<DirectMessage>(context, listen: false).updateDeleteMessage(token, conversationId, mid, type: "delete_for_me");
         }).toList();
 
         setState(() {
@@ -147,7 +141,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
             };
           }).toList();
         });
-      } 
+      }
     });
 
     super.initState();
@@ -160,11 +154,20 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
   }
 
   updateReactionChannelMessage(dataReaction){
+    if (!mounted) return;
     Map dataM  = dataReaction["reactions"];
+    var parentMessage = Provider.of<Messages>(context, listen: false).parentMessage;
+    var reaction = MessageConversationServices.processReaction(dataM["reactions"]);
+
+    if(parentMessage["id"] == dataM["message_id"]) {
+      Provider.of<Messages>(context, listen: false).updateReactionParentMessage(reaction);
+    }
+
     var indexMessage =  data.indexWhere((element) => element["id"] == dataM["message_id"]);
-    if (indexMessage != -1 && mounted){
+
+    if (indexMessage != -1){
       setState(() {
-        data[indexMessage]["reactions"] = MessageConversationServices.processReaction(dataM["reactions"]);    
+        data[indexMessage]["reactions"] = reaction;
       });
 
     }
@@ -190,7 +193,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       }
     }
     handleCodeBlock(false);
-      
+
     Timer(const Duration(microseconds: 100), () => {
       key.currentState!.controller!.clear()
     });
@@ -203,7 +206,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       if (index != -1) {
         setState(() {
           data[index]["message"] = payload["message"];
-          data[index]["attachments"] = payload["attachments"];  
+          data[index]["attachments"] = payload["attachments"];
         });
       }
     }
@@ -239,7 +242,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
     if (mounted) {
       final messageId = payload["message_id"];
       final index = data.indexWhere((e) => e["id"] == messageId);
-      
+
       if (index != -1) {
         List newData = List.from(data);
         newData.removeAt(index);
@@ -256,6 +259,9 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
       final parentMessage = !widget.isMessageImage
                             ? Provider.of<Messages>(context, listen: false).parentMessage
                             : Provider.of<Messages>(context, listen: false).messageImage;
+      final bool isFocusApp = Provider.of<Auth>(context, listen: false).onFocusApp;
+      final deviceId  =  await Utils.getDeviceId();
+
       if (!isChannel) {
         for (var i =0; i< dataM.length; i++){
           var dataMessage  = dataM[i];
@@ -263,8 +269,13 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
           if(dataDe["success"]){
             dataMessage = {...dataDe["message"], "is_blur": false};
             // save to Isar
-            await MessageConversationServices.insertOrUpdateMessage(dataMessage);  
-            Provider.of<DirectMessage>(context, listen: false).markReadConversationV2(token, parentMessage["conversationId"], [dataMessage["id"]], [], true);
+            await MessageConversationServices.insertOrUpdateMessage(dataMessage);
+
+            if (isFocusApp) {
+              Dio().get("${Utils.apiUrl}direct_messages/${parentMessage["conversationId"]}/thread_messages/${parentMessage["id"]}/messages?token=$token&device_id=$deviceId&mark_read_thread=true");
+              Provider.of<DirectMessage>(context, listen: false).markReadConversationV2(token, parentMessage["conversationId"], [dataMessage["id"]], [], false);
+            }
+
             if (dataMessage["parent_id"] == parentMessage["id"]) {
               int index = data.indexWhere((e) => e["fake_id"] == dataMessage["fake_id"]);
               List fromListData = List.from(data);
@@ -287,6 +298,14 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
   }
 
   processFiles(files) async{
+    if(files[0]['type'] == 'text') {
+      Timer.run(() {
+        if (key.currentState != null) key.currentState!.focusNode.requestFocus();
+        key.currentState!.setMarkUpText(files[0]['text']);
+      });
+      return;
+    }
+
     List result  = [];
     for(var i = 0; i < files.length; i++) {
       // check the path has existed
@@ -325,7 +344,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
 
       var response = await Dio().get(url);
       var dataRes = response.data;
-      
+
       if (dataRes["success"] && mounted) {
         var result  = [];
         List<String> errorIds = [];
@@ -394,8 +413,8 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
     final workspaceId = parentMessage["workspaceId"];
     final channelId = parentMessage["channelId"];
     final messageId = parentMessage["id"];
-    // int index = Provider.of<Channels>(context, listen: false).data.indexWhere((e) => e["id"] == channelId); 
-    // var currentChannelSelected = Provider.of<Channels>(context, listen: false).data[index];  
+    // int index = Provider.of<Channels>(context, listen: false).data.indexWhere((e) => e["id"] == channelId);
+    // var currentChannelSelected = Provider.of<Channels>(context, listen: false).data[index];
 
     final url = Utils.apiUrl + 'workspaces/$workspaceId/channels/$channelId/messages/thread?message_id=$messageId&token=$token';
     try {
@@ -427,13 +446,13 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
     Future.delayed(const Duration(milliseconds: 500), () async {
       if (mounted) {
         await Provider.of<Threads>(context, listen: false).updateThreadUnread(workspaceId, channelId, parentMessage, token);
-        Utils.updateBadge(context);  
+        Utils.updateBadge(context);
       }
     });
   }
 
   updateSocketChannel(payload) {
-    if (mounted) { 
+    if (mounted) {
       Map newMessage = {...payload["message"], "is_blur": false};
       final parentMessage = !widget.isMessageImage
         ? Provider.of<Messages>(context, listen: false).parentMessage
@@ -444,7 +463,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
 
         if (newMessage["id"] != null && newMessage["channel_thread_id"] != null && newMessage["channel_thread_id"] ==  messageId) {
           int index = data.indexWhere((e) => e["key"] == newMessage["key"]);
-          List fromListData = List.from(data); 
+          List fromListData = List.from(data);
 
           if (index != -1) {
             fromListData[index] = newMessage;
@@ -468,7 +487,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
   processUpdateThread(dataM) async {
     if (mounted) {
       if (messageParent != null && dataM["message_id"] == messageParent["id"]) {
-        Map parentMessage = { 
+        Map parentMessage = {
           "id": dataM["id"],
           "message": dataM["message"],
           "avatarUrl": dataM["avatar_url"],
@@ -486,7 +505,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
         await Provider.of<Messages>(context, listen: false).openThreadMessage(true, parentMessage);
       } else {
         final index = data.indexWhere((element) {return element["id"] == dataM["message_id"];});
-        
+
         if (index != -1) {
           setState(() {
             data[index]["message"] = dataM["message"];
@@ -508,7 +527,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
 
     if(parentMessage["isChannel"]) {
       List members = Provider.of<Channels>(context, listen: false).getDataMember(parentMessage["channelId"]);
-      listUser = members.length < 2 ? [] : members; 
+      listUser = members.length < 2 ? [] : members;
     } else {
       int index = data.indexWhere((e) => e.id == parentMessage["conversationId"]);
       final dataUserMentions = Provider.of<User>(context, listen: false).userMentionInDirect;
@@ -951,7 +970,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
         });
       });
     }
-    
+
     return DropZone(
       stream: StreamDropzone.instance.dropped,
       shouldBlock: isEndDrawerOpen,
@@ -994,9 +1013,9 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                             const Text("Reply in thread", style: const TextStyle(color: const Color(0xffF0F4F8), fontSize: 16, fontWeight: FontWeight.w500)),
                             widget.isMessageImage ? Container() : IconButton(
                               padding: const EdgeInsets.all(0),
-                              onPressed: () { 
+                              onPressed: () {
                                 Provider.of<Messages>(context, listen: false).openThreadMessage(false, {});
-                              }, 
+                              },
                               icon: const Icon(Icons.close, size: 18, color: const Color(0xffF0F4F8))
                             )
                           ],
@@ -1006,7 +1025,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                         constraints: BoxConstraints(
                           maxHeight: MediaQuery.of(context).size.height * 1/3
                         ),
-                        child: SelectableScope(
+                        child: CustomSelectionArea(
                           child: SingleChildScrollView(
                             controller: ScrollController(),
                             child: Container(
@@ -1026,7 +1045,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                                 userId: parentMessage["userId"],
                                 isLast: true,
                                 isFirst: true,
-                                isMe: parentMessage["userId"] == currentUser["id"], 
+                                isMe: parentMessage["userId"] == currentUser["id"],
                                 reactions: parentMessage["reactions"],
                                 snippet: parentMessage["snippet"],
                                 blockCode: parentMessage["block_code"],
@@ -1037,6 +1056,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                                 isDark: isDark,
                                 customColor: customColor,
                                 updateMessage: updateMessage,
+                                workspaceId: parentMessage['workspaceId'],
                                 isShow: true
                               ),
                             ),
@@ -1065,7 +1085,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                  padding: const EdgeInsets.all(10),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
@@ -1090,7 +1110,6 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           isIssues: false,
                           style: TextStyle(fontSize: 15.5, color: isDark ? Colors.grey[300] : Colors.grey[800]),
                           onChanged: (value) {
-                            saveChangesToHive(key.currentState!.controller!.markupText);
                             if(!isSend && value.isNotEmpty) {
                               setState(() => isSend = true);
                             } else if (isSend && value.isEmpty) {
@@ -1122,7 +1141,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                             hintText: "Reply ...",
                             hintStyle: TextStyle(color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), fontSize: 13.5)
-                          ), 
+                          ),
                           key: key,
                           suggestionListDecoration: const BoxDecoration(
                             borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -1182,25 +1201,30 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                                   Text("Also send to channel", style: TextStyle(color: isDark ? Colors.white : const Color(0xff1F3033), fontSize:  13),)
                                 ],
                               ),
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    ActionThread(handleMessage: handleMessage, isUpdate: isUpdate, openFileSelector: openFileSelector, selectEmoji: selectEmoji, selectSticker: selectSticker),
-                                    InkWell(
-                                      child: Container(
-                                        padding: EdgeInsets.only(left: 6),
-                                        child: Icon(isUpdate ? Icons.check : Icons.send,
-                                          size: 18,
-                                          color: (isSend || (fileItems.isNotEmpty))
-                                          ? const Color(0xffFAAD14)
-                                          : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
-                                          // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
+                              Row(
+                                children: [
+                                  ActionThread(handleMessage: handleMessage, isUpdate: isUpdate, openFileSelector: openFileSelector, selectEmoji: selectEmoji, selectSticker: selectSticker),
+                                  Container(
+                                    margin: EdgeInsets.all(4),
+                                    child: HoverItem(
+                                      colorHover: Palette.hoverColorDefault,
+                                      radius: 4.0, isRound: true,
+                                      child: InkWell(
+                                        child: Container(
+                                          padding: EdgeInsets.all(5),
+                                          child: Icon(isUpdate ? Icons.check : Icons.send,
+                                            size: 18,
+                                            color: (isSend || (fileItems.isNotEmpty))
+                                            ? const Color(0xffFAAD14)
+                                            : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                                            // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
+                                          ),
                                         ),
+                                        onTap: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
                                       ),
-                                      onTap: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
                                     ),
-                                  ],
-                                ),
+                                  )
+                                ],
                               )
                             ],
                           ),
@@ -1245,7 +1269,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
 
   Flexible renderChatitem() {
     final dataReversed = data.reversed.toList();
-    dataReversed.sort((a,  b) => (b["current_time"] ?? 999999999999999999).compareTo((a["current_time"] ?? 999999999999999999))); 
+    dataReversed.sort((a,  b) => (b["current_time"] ?? 999999999999999999).compareTo((a["current_time"] ?? 999999999999999999)));
 
     final currentUser = Provider.of<User>(context, listen: true).currentUser;
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
@@ -1253,7 +1277,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           ? Provider.of<Messages>(context, listen: true).parentMessage
                           : Provider.of<Messages>(context, listen: true).messageImage;
     return Flexible(
-      child: SelectableScope(
+      child: CustomSelectionArea(
         child: Scrollable(
           controller: controller,
           axisDirection: AxisDirection.up,
@@ -1273,14 +1297,14 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                         var timeStamp = dateTime.toUtc().millisecondsSinceEpoch;
                         bool showHeader = true;
                         bool showNewUser = true;
-            
+
                         if ((i + 1) < (dataReversed.length)) {
                           DateTime nextTime = DateTime.parse(dataReversed[i + 1]["inserted_at"] ?? dataReversed[i + 1]["time_create"]);
                           var nextTimeStamp = nextTime.toUtc().millisecondsSinceEpoch;
                           showHeader = (dateTime.day != nextTime.day || dateTime.month != nextTime.month || dateTime.year != nextTime.year);
                           showNewUser = timeStamp - nextTimeStamp > 600000;
                         }
-            
+
                         List newList = (dataReversed[i]["attachments"] ?? []).where((e) => e["mime_type"] == "html").toList();
                         if (newList.isNotEmpty) {
                           Utils.handleSnippet(newList[0]["content_url"], false).then((value) {
@@ -1330,7 +1354,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           showHeader: showHeader,
                           showNewUser: showNewUser,
                           userId: dataReversed[i]["user_id"],
-                          reactions: Utils.checkedTypeEmpty(dataReversed[i]["reactions"]) ? dataReversed[i]["reactions"]  : [], 
+                          reactions: Utils.checkedTypeEmpty(dataReversed[i]["reactions"]) ? dataReversed[i]["reactions"]  : [],
                           isViewMention: false,
                           channelId: widget.parentMessage["channelId"],
                           updateMessage: updateMessage,
@@ -1345,6 +1369,7 @@ class _ThreadDesktopState extends State<ThreadDesktop> {
                           idMessageToJump: parentMessage["idMessageToJump"],
                           onFirstFrameDone: onFirstFrameMessageSelectedDone,
                           customColor: currentUser["custom_color"],
+                          workspaceId: parentMessage["workspaceId"]
                         );
                       },
                       childCount: dataReversed.length,
@@ -1381,13 +1406,14 @@ class ActionThread extends StatefulWidget {
 }
 
 class _ActionThreadState extends State<ActionThread> {
-  final JustTheController _controller = JustTheController(value: TooltipStatus.isHidden);
-  List stickers = ducks + pepeStickers + otherSticker;
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context);
     final isDark = auth.theme == ThemeType.DARK;
+    final parentMessage = Provider.of<Messages>(context, listen: true).parentMessage;
+    final List stickers = Provider.of<Channels>(context, listen: false).getStickerChannel(parentMessage['channelId'] ?? 0);
+
     return Row(
       children: [
         Container(
@@ -1398,7 +1424,7 @@ class _ActionThreadState extends State<ActionThread> {
             style: ButtonStyle(
               padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
               overlayColor: MaterialStateProperty.all(isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15)),
-              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0))),
             ),
             child: Icon(CupertinoIcons.plus, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
             onPressed: () {
@@ -1406,127 +1432,15 @@ class _ActionThreadState extends State<ActionThread> {
             }
           )
         ),
-        Container(
-          width: 30,
-          height: 30,
-          child: HoverItem(
-            colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-            child: JustTheTooltip(
-              controller: _controller,
-              isModal: true,
-              preferredDirection: AxisDirection.up,
-              content: Emoji(
-                workspaceId: "direct",
-                onSelect: (emoji){
-                  widget.selectEmoji(emoji);
-                },
-                onClose: (){
-                  _controller.hideTooltip();
-                }
-              ),
-              child: TextButton(
-                style: ButtonStyle(
-                  padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
-                  overlayColor: MaterialStateProperty.all(Colors.transparent),
-                  shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
-                ),
-                child: Icon(CupertinoIcons.smiley, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-                onPressed: () {
-                  _controller.showTooltip();
-                  // showPopover(
-                  //   context: context,
-                  //   direction: PopoverDirection.top,
-                  //   transitionDuration: const Duration(milliseconds: 50),
-                  //   arrowWidth: 0,
-                  //   arrowHeight: 0,
-                  //   arrowDxOffset: 0,
-                  //   shadow: [],
-                  //   onPop: (){
-                  //   },
-                  //   bodyBuilder: (context) => 
-                  // );
-                }
-              ),
-            ),
-          )
-        ),
-        ContextMenu(
-          contextMenu: Container(
-            decoration: BoxDecoration(
-              color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
-              border: Border.all(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75)),
-              borderRadius: BorderRadius.all(Radius.circular(8))
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75))
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Text(
-                          'Sticker',
-                          style: TextStyle(
-                            color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                            fontWeight: FontWeight.w500, fontSize: 16
-                          ),
-                        )
-                      ),
-                      InkWell(
-                        child: Icon(
-                          PhosphorIcons.xCircle,
-                        size: 20, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                        ),
-                        onTap: () => context.contextMenuOverlay.close(),
-                      ),
-                    ],
-                  )
-                ),
-                SingleChildScrollView(
-                  child: Container(
-                    width: 300, height: 400,
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 100,
-                        childAspectRatio: 1,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemCount: stickers.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: 80, height: 80,
-                          child: TextButton(
-                            onPressed: () {
-                              widget.selectSticker(stickers[index]);
-                              context.contextMenuOverlay.close();
-                            },
-                            child: StickerFile(data: stickers[index], isPreview: true)
-                          )
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          child: Container(
-            width: 30,
-            height: 30,
-            child: HoverItem(
-              colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-              child: Icon(PhosphorIcons.sticker, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-            )
-          ),
+        StickerEmojiWidget(
+          data: stickers,
+          selectSticker: widget.selectSticker,
+          workspaceId: parentMessage['workspaceId'] ?? 0,
+          channelId: parentMessage['channelId'] ?? 0,
+          onSelect: (emoji){
+            widget.selectEmoji(emoji);
+          },
+          isCreateSticker: false
         )
       ]
     );

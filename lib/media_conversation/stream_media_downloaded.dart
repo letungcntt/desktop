@@ -67,7 +67,8 @@ class ImageDirect {
 }
 
 class RecordDirect {
-  static Widget build(BuildContext context, String contentUrl, {Function? customBuild}){
+  static Widget build(BuildContext context, att, {Function? customBuild}){
+    final String contentUrl =  att["content_url"];
     return StreamBuilder(
       stream: StreamMediaDownloaded.instance.status,
       initialData: StreamMediaDownloaded.dataStatus,
@@ -80,10 +81,12 @@ class RecordDirect {
             }
             return AudioPlayerMessageDirect(
               path: data[contentUrl]["path"],
+              att: att,
             );
           }
           return AudioPlayerMessageDirect(
             path: data[contentUrl]["path"],
+            att: att
           );
         }
         return Padding(

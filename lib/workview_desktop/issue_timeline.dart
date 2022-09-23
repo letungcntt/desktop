@@ -1,11 +1,11 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:timeline_tile/timeline_tile.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/components/widget_text.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'label.dart';
 
@@ -33,7 +33,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
     final indexLabel = labels.indexWhere((e) => e["id"] == id);
 
     if (indexLabel != -1) {
-      return labels[indexLabel]; 
+      return labels[indexLabel];
     } else {
       return null;
     }
@@ -57,7 +57,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
     final indexMilestone = milestones.indexWhere((e) => e["id"] == id);
 
     if (indexMilestone != -1) {
-      return milestones[indexMilestone]; 
+      return milestones[indexMilestone];
     } else {
       return null;
     }
@@ -107,7 +107,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
     final auth = Provider.of<Auth>(context, listen: false);
     final isDark = auth.theme == ThemeType.DARK;
     final members = Provider.of<Workspaces>(context, listen: false).members;
-  
+
     if (!rebuild) {
       try {
         timelineItem = timelineTile(widget.timelines, members, isDark);
@@ -116,12 +116,12 @@ class _IssueTimelineState extends State<IssueTimeline> {
       }
       rebuild = true;
     }
-  
+
     return timelineItem;
   }
 
   getListAttribute(data, type) {
-    List list = []; 
+    List list = [];
 
     for (var i = 0; i < data.length; i++) {
       var e = data[i];
@@ -189,8 +189,9 @@ class _IssueTimelineState extends State<IssueTimeline> {
                           recognizer: TapGestureRecognizer()..onTap = () => widget.onTap != null ? widget.onTap!() : null,
                         ),
                       ],
+                      style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
                     ),
-                    
+
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,
                   )
@@ -223,18 +224,18 @@ class _IssueTimelineState extends State<IssueTimeline> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         AuthorTimeline(author: author, isDark: isDark, showAction: false),
-                        Text(" closed this", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))),
+                        TextWidget(" closed this", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))),
                       ],
                     ) : Text(""),
                     type == "open_issue" ? Wrap(
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         AuthorTimeline(author: author, isDark: isDark, showAction: false),
-                        Text(" reopened this", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))),
+                        TextWidget(" reopened this", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))),
                       ],
-                    ) : Text(""),
-                    type == "close_issue" || type == "open_issue" ? Text(parseDatetime(timeline["inserted_at"]), style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))) : Text(""),
-                    
+                    ) : TextWidget(""),
+                    type == "close_issue" || type == "open_issue" ? TextWidget(parseDatetime(timeline["inserted_at"]), style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))) : Text(""),
+
                     added.length > 0 ? Wrap(
                       direction: Axis.horizontal,
                       crossAxisAlignment: WrapCrossAlignment.center,
@@ -268,7 +269,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
                                             SizedBox(width: 2),
                                             CachedImage(user?["avatar_url"] ?? "", height: 28, width: 28, radius: 50, name: user["nickname"] ?? user?["full_name"] ?? "P"),
                                             SizedBox(width: 4),
-                                            Text("${user["nickname"] ?? user["full_name"]}", style: TextStyle( fontWeight: FontWeight.w700, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),),
+                                            TextWidget("${user["nickname"] ?? user["full_name"]}", style: TextStyle( fontWeight: FontWeight.w700, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),),
                                           ]
                                         )
                                       )
@@ -300,15 +301,15 @@ class _IssueTimelineState extends State<IssueTimeline> {
                           }).toList()
                         ),
                         SizedBox(width: 3),
-                        removed.length == 0 ? Text(parseDatetime(timeline["inserted_at"]), style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))) : SizedBox()
+                        removed.length == 0 ? TextWidget(parseDatetime(timeline["inserted_at"]), style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))) : SizedBox()
                       ]
-                    ) : Text(""),
+                    ) : TextWidget(""),
 
                     removed.length > 0 ? Wrap(
                       direction: Axis.horizontal,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text(added.length > 0 ? "and" : "", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))),
+                        TextWidget(added.length > 0 ? "and" : "", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))),
                         Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: removed.map((e) {
@@ -324,7 +325,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
                                   if (index == 0) AuthorTimeline(author: author, isDark: isDark, type: "removed", showAuthor: !(added.length > 0)),
                                   LabelDesktop(labelName: label["name"], color: int.parse("0XFF${label["color_hex"]}")),
                                 ]
-                              ) : 
+                              ) :
                                 type == "assignees" ? Container(
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -335,7 +336,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
                                         if (index == 0) AuthorTimeline(author: author, isDark: isDark, type: "removed", showAuthor: !(added.length > 0)),
                                         CachedImage(user?["avatar_url"] ?? "", height: 28, width: 28, radius: 50, name: user?["full_name"] ?? "P"),
                                         SizedBox(width: 8),
-                                        Text("${user["nickname"] ?? user["full_name"]} ", style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
+                                        TextWidget("${user["nickname"] ?? user["full_name"]} ", style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
                                         ),
                                       ],
                                     ),
@@ -346,11 +347,11 @@ class _IssueTimelineState extends State<IssueTimeline> {
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     if (index == 0) AuthorTimeline(author: author, isDark: isDark, type: "removed", showAuthor: !(added.length > 0)),
-                                    Text(
+                                    TextWidget(
                                       milestone["due_date"] != null ? (DateFormatter().renderTime(DateTime.parse(milestone["due_date"]), type: "MMMd")) : "",
                                       style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14, fontWeight: FontWeight.w700)
                                     ),
-                                    Text(' milestone', style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)))
+                                    TextWidget(' milestone', style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)))
                                   ],
                                 ) : Container();
                             } else {
@@ -359,7 +360,7 @@ class _IssueTimelineState extends State<IssueTimeline> {
                           }).toList()
                         ),
                         SizedBox(width: 1),
-                        Text(parseDatetime(timeline["inserted_at"]), style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)))
+                        TextWidget(parseDatetime(timeline["inserted_at"]), style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)))
                       ]
                     ) : SizedBox()
                   ]
@@ -396,11 +397,11 @@ class AuthorTimeline extends StatelessWidget {
       children: [
         if (showAuthor) CachedImage(author?["avatar_url"] ?? "", height: 28, width: 28, radius: 50, name:author?["nickname"] ?? author?["full_name"] ?? "P"),
         if (showAuthor) SizedBox(width: 8),
-        if (showAuthor) Text(
+        if (showAuthor) TextWidget(
           author?["nickname"] ?? author?["full_name"] ?? "Unknown",
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65))
         ),
-        if (showAction) Text(type == "added" ? " added " : " removed ",style: TextStyle(fontSize: 14),)
+        if (showAction) TextWidget(type == "added" ? " added " : " removed ",style: TextStyle(fontSize: 14),)
       ]
     );
   }

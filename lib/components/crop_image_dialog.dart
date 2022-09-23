@@ -1,13 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class CropImageDialog extends StatefulWidget {
   final image;
@@ -26,9 +26,8 @@ class CropImageDialog extends StatefulWidget {
 }
 
 class _CropImageDialogState extends State<CropImageDialog> {
-final _cropController = CropController();
-  // var _loadingImage = false;
-  var _isCropping = false;
+  final _cropController = CropController();
+  final checkLoading = StreamController<bool?>.broadcast(sync: false);
 
   Uint8List? _croppedData;
 
@@ -39,7 +38,7 @@ final _cropController = CropController();
 
   uint8ListTob64(Uint8List? uint8list) {
     String base64String = base64.encode(uint8list!);
-    return base64String; 
+    return base64String;
   }
 
   @override
@@ -58,7 +57,7 @@ final _cropController = CropController();
                   color:isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
                   borderRadius: BorderRadius.only(
                     topRight: Radius.circular(5),
-                    topLeft: Radius.circular(5), 
+                    topLeft: Radius.circular(5),
                   )
                 ),
                 child: Row(
@@ -86,7 +85,8 @@ final _cropController = CropController();
                   if (mounted) {
                     setState(() {
                       _croppedData = croppedData;
-                      _isCropping = false;
+                      // _isCropping = false;
+                      checkLoading.add(false);
                     });
                   }
                   Navigator.pop(context);
@@ -115,7 +115,7 @@ final _cropController = CropController();
               color:isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(5),
-                bottomRight: Radius.circular(5), 
+                bottomRight: Radius.circular(5),
                 )
               ),
               child: Row(
@@ -133,29 +133,34 @@ final _cropController = CropController();
                     ),
                     onPressed: () {
                       Navigator.pop(context);
-                    }, 
+                    },
                     child: Text(S.current.cancel, style: TextStyle(color: Colors.red))
                   ),
                   SizedBox(width: 10,),
-                  Container(
-                    width: 142,
-                    height: 32,
-                    child: ElevatedButton(
-                      onPressed: _isCropping ? null : () async {
-                        setState(() {
-                          _isCropping = true;
-                        });
-                        _cropController.crop();
-                      },
-                      child: Container(
-                        child: _isCropping 
-                        ? SpinKitFadingCircle(
-                            color: isDark ? Colors.white60 : Color(0xff096DD9),
-                            size: 19,
-                          ) 
-                        : Text(S.of(context).changeAvatar),
-                      )
-                    ),
+                  StreamBuilder<bool?>(
+                    stream: checkLoading.stream,
+                    initialData: false,
+                    builder: (context, snapshot) {
+                      final bool loading = snapshot.data ?? false;
+                      return Container(
+                        width: 142,
+                        height: 32,
+                        child: ElevatedButton(
+                          onPressed: loading ? null : () async {
+                            checkLoading.add(true);
+                            _cropController.crop();
+                          },
+                          child: Container(
+                            child: loading
+                            ? SpinKitFadingCircle(
+                                color: isDark ? Colors.white60 : Color(0xff096DD9),
+                                size: 19,
+                              )
+                            : Text(S.of(context).changeAvatar),
+                          )
+                        ),
+                      );
+                    }
                   ),
                 ],
               ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:workcake/components/widget_text.dart';
 
 class Collapse extends StatefulWidget {
   const Collapse({
@@ -33,7 +34,7 @@ class _CollapseState extends State<Collapse> {
             child: Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(
+                TextWidget(
                   widget.name,
                   style: TextStyle(color: Colors.grey[500], fontSize: 13, height: 1)
                 ),

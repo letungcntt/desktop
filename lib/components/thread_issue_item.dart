@@ -1,24 +1,26 @@
-import 'package:better_selection/better_selection.dart';
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/markdown/style_sheet.dart';
 import 'package:workcake/markdown/widget.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/workview_desktop/comment_text_field.dart';
+import 'package:workcake/workview_desktop/markdown_attachment.dart';
 import 'package:workcake/workview_desktop/markdown_checkbox.dart';
-import 'message_item/attachments/attachments.dart';
 import 'message_item/chat_item_macOS.dart';
 
 class ThreadIssueItem extends StatefulWidget {
@@ -65,6 +67,12 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
       for (var i = 0; i < list.length; i++) {
         var item = list[i];
 
+        if (i - 1 >= 0) {
+          if ((list[i-1].contains("- [ ]") || list[i-1].contains("- [x]")) && !(item.contains("- [ ]") || item.contains("- [x]"))) {
+            list[i-1] = list[i-1] + " " + item;
+            list[i] = "\n";
+          }
+        }
         if (item.contains("- [ ]") || item.contains("- [x]")) {
           if (i + 2 < list.length) {
             if (list[i+1].trim() == "") {
@@ -78,7 +86,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
           }
         }
       }
-    } 
+    }
 
     return list.join("\n");
   }
@@ -228,7 +236,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
           selectedComment = null;
         });
       } else {
-        if (comment["id"] != selectedComment["id"]) { 
+        if (comment["id"] != selectedComment["id"]) {
           this.setState(() {
             onEdit = false;
           });
@@ -291,18 +299,19 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
     final editer = issue != null && issue["last_edit_id"] != null ? getMember(issue["last_edit_id"]) : null;
     final children = issue["children"];
     final channel = getChannel(issue['channel_id']);
+    final directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
 
     return DropZone(
       stream: StreamDropzone.instance.dropped,
       onHighlightBox: (value) {
         this.setState(() { onHighlight = value; });
       },
-      builder: (context, files) { 
+      builder: (context, files) {
         if (files != null && _commentThreadKey.currentState != null) {
           _commentThreadKey.currentState?.pasteImageFromParent(files);
         }
 
-        return SelectableScope(
+        return CustomSelectionArea(
           child: Container(
             margin: EdgeInsets.only(bottom: 24),
             decoration: BoxDecoration(
@@ -331,7 +340,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                             children: [
                               Icon(channel["is_private"] ? CupertinoIcons.lock_fill : CupertinoIcons.number, size: 14),
                               SizedBox(width: 4.0),
-                              Text(channel["name"], style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color(0xFF1F2933), fontWeight: FontWeight.w500)),
+                              TextWidget(channel["name"], style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color(0xFF1F2933), fontWeight: FontWeight.w500)),
                               SizedBox(width: 4.0),
                               Container(
                                 margin: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
@@ -343,9 +352,9 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                                 onTap: () => getInfoIssue(),
                                 child: Row(
                                   children: [
-                                    Text("${issue["title"]}", style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color(0xFF1F2933), fontWeight: FontWeight.w500)),
+                                    TextWidget("${issue["title"]}", style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color(0xFF1F2933), fontWeight: FontWeight.w500)),
                                     SizedBox(width: 4),
-                                    Text("#${issue["unique_id"]}  ", style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color(0xFF1F2933), fontWeight: FontWeight.w500)),
+                                    TextWidget("#${issue["unique_id"]}  ", style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color(0xFF1F2933), fontWeight: FontWeight.w500)),
                                   ],
                                 ),
                               )
@@ -374,7 +383,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.all(Radius.circular(4.0)),
                         child: Container(
-        
+
                           padding: EdgeInsets.only(left: 20, bottom: 6, top: 16),
                             decoration: BoxDecoration(
                               border: Border(
@@ -455,29 +464,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                                         padding: EdgeInsets.only(bottom: 16, top: 4),
                                         physics: NeverScrollableScrollPhysics(),
                                         imageBuilder: (uri, title, alt) {
-                                          var tag  = Utils.getRandomString(30);
-                      
-                                          return GestureDetector(
-                                            onTap: () {
-                                              Navigator.push(
-                                                context,
-                                                PageRouteBuilder(
-                                                  barrierDismissible: true,
-                                                  barrierLabel: '',
-                                                  opaque: false,
-                                                  barrierColor: Colors.black.withOpacity(1.0),
-                                                  pageBuilder: (context, _, __) => ImageDetail(url: "$uri", id: tag, full: true, tag: tag)
-                                                )
-                                              );
-                                            },
-                                            child: Container(
-                                              constraints: BoxConstraints(
-                                                maxHeight: 400,
-                                                maxWidth: 750
-                                              ),
-                                              child: ImageItem(tag: tag, img: {'content_url': uri.toString(), 'name': alt}, previewComment: true, isConversation: false),
-                                            )
-                                          );
+                                          return MarkdownAttachment(alt: alt, uri: uri);
                                         },
                                         shrinkWrap: true,
                                         styleSheet: MarkdownStyleSheet(
@@ -499,11 +486,11 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                                             value: value,
                                             variable: variable,
                                             onChangeCheckBox: onChangeCheckBox,
-                                            isDark: isDark,
+                                            isDark: isDark
                                           );
                                         },
                                         data: (issue["description"] != null && issue["description"] != "") ? parseComment(issue["description"], false) : "_No description provided._",
-                                        
+
                                       )
                                     ]
                                   )
@@ -550,7 +537,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                           children: children.map<Widget>((item) {
                             final comment = item;
                             final creator = getMember(comment["author_id"]);
-        
+
                             return Container(
                               key: Key(comment["id"].toString()),
                               decoration: BoxDecoration(
@@ -558,7 +545,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                                 borderRadius: BorderRadius.all(Radius.circular(4)),
                               ),
                               child: HoverItem(
-                                colorHover: !isDark ? Color(0xffF8F8F8) : Color(0xff353535),
+                                colorHover: !isDark ? Color.fromARGB(255, 243, 241, 241) : Color(0xff353535),
                                 onHover: () => onChangeIsHover("${comment['id']}"),
                                 onExit: () => onChangeIsHover(""),
                                 child: Row(
@@ -704,28 +691,7 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                                               padding: EdgeInsets.symmetric(vertical: 4),
                                               physics: NeverScrollableScrollPhysics(),
                                               imageBuilder: (uri, title, alt) {
-                                                var tag  = Utils.getRandomString(30);
-                                                return GestureDetector(
-                                                  onTap: () {
-                                                    Navigator.push(
-                                                      context,
-                                                      PageRouteBuilder(
-                                                        barrierDismissible: true,
-                                                        barrierLabel: '',
-                                                        opaque: false,
-                                                        barrierColor: Colors.black.withOpacity(1.0),
-                                                        pageBuilder: (context, _, __) => ImageDetail(url: "$uri", id: tag, full: true, tag: tag)
-                                                      )
-                                                    );
-                                                  },
-                                                  child: Container(
-                                                    constraints: BoxConstraints(
-                                                      maxHeight: 400,
-                                                      maxWidth: 750
-                                                    ),
-                                                    child: ImageItem(tag: tag, img: {'content_url': uri.toString(), 'name': alt}, previewComment: true, isConversation: false),
-                                                  )
-                                                );
+                                                return MarkdownAttachment(alt: alt, uri: uri);
                                               },
                                               shrinkWrap: true,
                                               styleSheet: MarkdownStyleSheet(
@@ -748,11 +714,11 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                                                   variable: variable,
                                                   onChangeCheckBox: onChangeCheckBox,
                                                   commentId: comment["id"],
-                                                  isDark: isDark,
+                                                  isDark: isDark
                                                 );
                                               },
                                               data: (item["comment"] != null && item["comment"] != "") ? parseComment(item["comment"], false) : "_No description provided._",
-                                              
+
                                             ),
                                           ]
                                         )
@@ -779,7 +745,8 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                           editComment: false,
                           issue: issue,
                           isDescription: widget.issue["id"] == null,
-                          onCommentIssue: onCommentIssue
+                          onCommentIssue: onCommentIssue,
+                          dataDirectMessage: directMessage,
                         )
                       ) : Container(
                         padding: EdgeInsets.only(bottom: 12, top: 4),
@@ -794,7 +761,8 @@ class _ThreadIssueItemState extends State<ThreadIssueItem> {
                           editComment: false,
                           issue: issue,
                           isDescription: widget.issue["id"] == null,
-                          onCommentIssue: onCommentIssue
+                          onCommentIssue: onCommentIssue,
+                          dataDirectMessage: directMessage,
                         )
                       )
                     ]

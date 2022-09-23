@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class FilterMentions extends StatefulWidget {
   FilterMentions({Key? key}) : super(key: key);
@@ -11,7 +10,7 @@ class FilterMentions extends StatefulWidget {
 }
 
 class _FilterMentionsState extends State<FilterMentions> {
-  
+
   bool _channelFilter = false;
   bool _reactFilter = false;
   bool _userFilter = false;

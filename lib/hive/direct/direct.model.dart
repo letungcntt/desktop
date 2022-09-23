@@ -1,8 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
+import 'package:isar/isar.dart';
 import 'package:workcake/E2EE/GroupKey.dart';
 import 'package:workcake/E2EE/e2ee.dart' as E2E;
 import 'package:workcake/common/utils.dart';
+import 'package:workcake/isar/message_conversation/message_conversation.dart';
+import 'package:workcake/isar/message_conversation/service.dart';
 part 'direct.model.g.dart';
 
 @HiveType(typeId: 4)
@@ -85,19 +88,13 @@ class DirectModel {
       List<MemberKey> memberKeys = [];
       // print("___VVFDVFDBFD:$users");
       for(var i = 0; i < users.length; i++){
-
-        if (users[i]["public_key"] == null) continue;
+        if (users[i]["public_key"] == null && type != "support") continue;
         try {
           Map? uKey = getDataKeyOfUserInConversation(oldData, users[i]["user_id"]);
           if (uKey != null && uKey["public_key"] == users[i]["public_key"] && Utils.checkedTypeEmpty(uKey["shared_key"]) && (uKey["shared_key"] ==  users[i]["message_shared_key"])){
             memberKeys = memberKeys + [MemberKey(users[i]["user_id"], this.id, uKey["shared_key"], "", users[i]["public_key"], users[i]["message_shared_key"] ?? "")];
           } else {
-            var skey =  await E2E.X25519().calculateSharedSecret(
-              E2E.KeyP.fromBase64(signedKey["privKey"], false),
-              E2E.KeyP.fromBase64(users[i]["public_key"], true)
-            );
-            var keyDe;
-            if (type == "panchat"){
+            if (type == "panchat" || type == "support"){
               var dataPanchat = (users.where((element) => element["user_id"] != currentUserId).toList())[0];
               var defaultKey;
               try {
@@ -106,17 +103,21 @@ class DirectModel {
                   E2E.KeyP.fromBase64(dataPanchat["id_default_public_key"], true)
                 );
               } catch (e) {
-                print("+++++++++1 $e");
+                print("+++++++++ $e");
               }
-              memberKeys = memberKeys + [MemberKey(users[i]["user_id"], this.id, defaultKey.toBase64(), defaultKey.toBase64(), users[i]["public_key"], users[i]["message_shared_key"] ?? "")];
+              memberKeys = memberKeys + [MemberKey(users[i]["user_id"], this.id, defaultKey.toBase64(), defaultKey.toBase64(), users[i]["public_key"] ?? "", users[i]["message_shared_key"] ?? "")];
             }
             else {
-              keyDe = (users[i]["message_shared_key"] == null) ? null : Utils.decrypt(users[i]["message_shared_key"], skey.toBase64());
-              memberKeys = memberKeys + [MemberKey(users[i]["user_id"], this.id, keyDe, "", users[i]["public_key"], users[i]["message_shared_key"] ?? "")];
+              var skey =  await E2E.X25519().calculateSharedSecret(
+                E2E.KeyP.fromBase64(signedKey["privKey"], false),
+                E2E.KeyP.fromBase64(users[i]["public_key"], true)
+              );
+              var keyDe = (users[i]["message_shared_key"] == null) ? null : Utils.decrypt(users[i]["message_shared_key"], skey.toBase64());
+              memberKeys = memberKeys + [MemberKey(users[i]["user_id"], this.id, keyDe ?? "", "", users[i]["public_key"], users[i]["message_shared_key"] ?? "")];
             }            
           }
-        } catch (e) {
-          // print("______ $e");
+        } catch (e, t) {
+          print("______ $e $t ${users[i]}");
         } 
       }
       GroupKey group = GroupKey(memberKeys, this.id);
@@ -225,5 +226,23 @@ class DirectModel {
 
   getUser(){
     return user.where((element) => element["status"] == "in_conversation").toList();
+  }
+
+  Future updateSnippetLast()async{
+    Isar isar = await MessageConversationServices.getIsar();
+    MessageConversation? dataIsar =  await isar
+      .messageConversations
+      .where()
+      .parentIdConversationIdEqualTo("", this.id)
+      .filter()
+      .not()
+      .actionEqualTo("delete_for_me")
+      .sortByCurrentTimeDesc()
+      .limit(1)
+      .findFirst();
+    if (dataIsar == null) return;
+    this.snippet = MessageConversationServices.parseMessageToJson(dataIsar);
+    Box box = Hive.box("direct");
+    box.put(this.id, this);
   }
 }

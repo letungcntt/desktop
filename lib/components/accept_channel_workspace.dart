@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 
 class AcceptChannelWorkspace extends StatelessWidget{
@@ -11,14 +10,14 @@ class AcceptChannelWorkspace extends StatelessWidget{
   final inviteWorkspace;
   final members;
   final id;
-  
+
   AcceptChannelWorkspace({
     Key? key,
     @required this.inviteChannel,
     @required this.isChannel,
     @required this.otherUser,
-    @required this.inviteWorkspace, 
-    this.members, 
+    @required this.inviteWorkspace,
+    this.members,
     this.id
   });
 
@@ -135,7 +134,7 @@ class AcceptChannelWorkspace extends StatelessWidget{
                         onPressed: () async{
                         //  Navigator.pop(context);
                           if(isChannel){
-                            Provider.of<Channels>(context, listen: false).joinChannelByInvitation(auth.token, this.inviteWorkspace["workspace_id"], this.inviteChannel["channel_id"], otherUser, this.id).then((value) => 
+                            Provider.of<Channels>(context, listen: false).joinChannelByInvitation(auth.token, this.inviteWorkspace["workspace_id"], this.inviteChannel["channel_id"], otherUser, this.id).then((value) =>
                               showDialog(
                                 context: context,
                                 builder: (context) => AlertDialog(
@@ -145,7 +144,7 @@ class AcceptChannelWorkspace extends StatelessWidget{
                             );
                           }
                           else
-                            await Provider.of<Workspaces>(context,listen: false).joinWorkspaceByInvitation(auth.token, this.inviteWorkspace["workspace_id"], user["email"], 1, otherUser, this.id).then((value) => 
+                            await Provider.of<Workspaces>(context,listen: false).joinWorkspaceByInvitation(auth.token, this.inviteWorkspace["workspace_id"], user["email"], 1, otherUser, this.id).then((value) =>
                             showDialog(
                               context: context,
                               builder: (context) => AlertDialog(

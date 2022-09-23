@@ -2,13 +2,12 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/emoji/itemEmoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 class ReactionsDialog extends StatefulWidget {
   final reactions;
   final channelId;
@@ -31,7 +30,7 @@ class _ReactionsDialogState extends State<ReactionsDialog> {
     List member = Provider.of<Workspaces>(context, listen: false).members;
     final isDark  = Provider.of<Auth>(context, listen: true).theme == ThemeType.DARK;
     var index = member.indexWhere((element) => element["id"] == user);
-    
+
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(

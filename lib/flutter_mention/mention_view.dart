@@ -5,7 +5,6 @@ class FlutterMentions extends StatefulWidget {
     required this.mentions,
     Key? key,
     this.suggestionPosition = SuggestionPosition.Bottom,
-    this.suggestionListHeight = 300.0,
     this.onMarkupChanged,
     this.onMentionAdd,
     this.onSearchChanged,
@@ -62,6 +61,7 @@ class FlutterMentions extends StatefulWidget {
     this.handleCodeBlock,
     this.isUpdate,
     this.setUpdateMessage,
+    this.setShareMessage,
     this.isShowCommand,
     this.selectArrowCommand,
     this.isDark,
@@ -70,7 +70,8 @@ class FlutterMentions extends StatefulWidget {
     this.onFocusChange,
     this.afterFirstFrame,
     this.isViewThread = false,
-    this.handleMessageToAttachments
+    this.handleMessageToAttachments,
+    this.isKanbanMode = false
   }) : super(key: key);
 
   final handleMessageToAttachments;
@@ -86,10 +87,12 @@ class FlutterMentions extends StatefulWidget {
   final Function? handleUpdateIssues;
 
   final bool? isShowCommand;
-  
+
   final Function? selectArrowCommand;
 
   final Function? setUpdateMessage;
+
+  final Function? setShareMessage;
 
   final bool? isUpdate;
 
@@ -122,8 +125,6 @@ class FlutterMentions extends StatefulWidget {
   final SuggestionPosition suggestionPosition;
 
   final Function(Map<String, dynamic>)? onMentionAdd;
-
-  final double suggestionListHeight;
 
   final ValueChanged<String>? onMarkupChanged;
 
@@ -213,6 +214,8 @@ class FlutterMentions extends StatefulWidget {
 
   final Function? afterFirstFrame;
 
+  final bool isKanbanMode;
+
   @override
   FlutterMentionsState createState() => FlutterMentionsState();
 }
@@ -228,7 +231,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
   Map<String, dynamic>? currentMention;
   int indexSelectedMention = 0;
   bool isShow = false;
-  final ScrollController _controller = ScrollController();
+  final ItemScrollController _controller = ItemScrollController();
   bool triggerMention = false;
   bool isFocus = false;
   int lastCursorPosition = 0;
@@ -299,7 +302,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
       return _list.markupBuilder(_list.trigger, e["value"], e["name"], e["type"]);
     }).toList().join("");
   }
-  
+
   // tra ve so phan tu giong nhau tu ben trai
   int getLeftIndex(String left, String right){
     int count = -1;
@@ -380,7 +383,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
     }
     return -1;
   }
-  
+
   void addMention(Map<String, dynamic> value, [Mention? list]) {
     final selectedMention = _selectedMention!;
     var t = _selectedMention;
@@ -411,7 +414,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
       // Move the cursor to next position after the new mentioned item.
       var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
       if (widget.appendSpaceOnAdd) nextCursorPosition++;
-      controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));        
+      controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));
     } else {
       var dataParses = parse["data"];
 
@@ -447,7 +450,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
         // Move the cursor to next position after the new mentioned item.
         var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
         if (widget.appendSpaceOnAdd) nextCursorPosition++;
-        controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));            
+        controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));
       } else {
         dataParses[indexMentionOld] = {
           "type": value["type"],
@@ -459,7 +462,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
         _textMarkUp = getMarkUpFromParse(dataParses);
         controller!.text = getStringFromParse(dataParses);
         var nextCursorPosition = selectedMention.start! + 1 + value['display']?.length as int? ?? 0;
-        controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition + 1 > controller!.text.length ? nextCursorPosition : nextCursorPosition + 1)); 
+        controller!.selection = TextSelection.fromPosition(TextPosition(offset: nextCursorPosition + 1 > controller!.text.length ? nextCursorPosition : nextCursorPosition + 1));
       }
     }
   }
@@ -504,7 +507,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
     //   List totalMentions = widget.mentions.map((ele) {
     //     return ele.data.map((d) {
     //       return Utils.mergeMaps([
-    //         d, 
+    //         d,
     //         {
     //           "trigger": ele.trigger,
     //           "strMath": Utils.unSignVietnamese("${ele.trigger}${d["display"]}")
@@ -562,7 +565,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
     //                 "value": first["id"]
     //               }];
     //               cloneText = cloneText.replaceRange(0, first["strMath"].length, "");
-    //             } 
+    //             }
     //           } catch (e) {
     //             results += [{
     //               "type": "text",
@@ -601,7 +604,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
       return !(
         (reg.hasMatch(right) && reg.hasMatch(left))
         || (nearRegexLeftIndex == -1 ? false : reg.hasMatch(newText.substring(nearRegexLeftIndex - 1, nearRegexLeftIndex)))
-      );   
+      );
     } catch (e) {
       return false;
     }
@@ -631,7 +634,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
         try {
           if (element.start! <= cursorPos && cursorPos <= (element.end ?? 0)) content = controller!.value.text.substring(element.start!, cursorPos);
         } catch (e) { }
-    
+
         return content == null  ? false : content.toLowerCase().contains(RegExp(_pattern));
       });
       if (!checkCanShowInElement(text, cursorPos)){
@@ -686,7 +689,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
     if (widget.onChanged != null) {
       widget.onChanged!(controller!.text);
       if (controller!.text == "```" && !widget.isIssues!) {
-        widget.handleCodeBlock!(true);
+        if(widget.handleCodeBlock != null) widget.handleCodeBlock!(true);
         controller!.clear();
         controller!.selection = TextSelection.fromPosition(TextPosition(offset: controller!.text.length));
       }
@@ -704,29 +707,29 @@ class FlutterMentionsState extends State<FlutterMentions> {
       var result = checkMention(valueSearch);
 
       final data = filterOption();
-      // bool isMentionIssue = checkMentionIssue(data);
+      bool isMentionIssue = checkMentionIssue(data);
 
-      // final RenderBox box = context.findRenderObject() as RenderBox;
-      // double heightOptionList = 0.0;
-      // double widthOptionList = !widget.isThread && isMentionIssue ? 980 : 320;
+      final RenderBox box = context.findRenderObject() as RenderBox;
+      double heightOptionList = 0.0;
+      double widthOptionList = !widget.isThread && isMentionIssue ? 980 : 320;
 
-      // if(data.length >= 5) heightOptionList = 200.0;
-      // else {
-      //   if(data.length == 1) heightOptionList = 47.5;
-      //   else heightOptionList = (data.length * 45).toDouble();
-      // }
+      if(data.length >= 5) heightOptionList = 200.0;
+      else {
+        if(data.length == 1) heightOptionList = 47.5;
+        else heightOptionList = (data.length * 45).toDouble();
+      }
 
-      // if(heightOptionList > 0) {
-      //   Offset offsetCaret = box.globalToLocal(key.currentState!.editableText!.renderEditable.getOffsetForPosition(
-      //     TextPosition(offset: controller!.selection.baseOffset - 1, affinity: controller!.selection.extent.affinity)
-      //   ));
+      if(heightOptionList > 0) {
+        Offset offsetCaret = box.globalToLocal(key.currentState!.editableText!.renderEditable.getOffsetForPosition(
+          TextPosition(offset: controller!.selection.baseOffset - 1, affinity: controller!.selection.extent.affinity)
+        ));
 
-      //   double dx = offsetCaret.dx + widthOptionList >= context.size!.width
-      //                 ? (context.size!.width/2 - (context.size!.width - widthOptionList))/widthOptionList*2 - (isMentionIssue ? 1 : 0.9)
-      //                 : (context.size!.width/2 - offsetCaret.dx)/widthOptionList*2 - (isMentionIssue ? 1 : 0.9);
-      //   double dy = 1.1 - offsetCaret.dy/(heightOptionList/2);
-      //   alignment = Alignment(dx, dy);
-      // }
+        double dx = offsetCaret.dx + widthOptionList >= context.size!.width
+                      ? (context.size!.width/2 - (context.size!.width - widthOptionList))/widthOptionList*2 - (isMentionIssue ? 1 : 0.9)
+                      : (context.size!.width/2 - offsetCaret.dx)/widthOptionList*2 - (isMentionIssue ? 1 : 0.9);
+        double dy = 1.1 - offsetCaret.dy/(heightOptionList/2);
+        alignment = Alignment(dx, dy);
+      }
 
       setState(() {
         onSelectedMentions(data.length > 0 ? data[0] : {'id': "${widget.id}", 'display': 'all', 'full_name': 'all', 'photo': 'all'}, 0);
@@ -817,16 +820,20 @@ class FlutterMentionsState extends State<FlutterMentions> {
           }
         } else if (keyEvent.isKeyPressed(LogicalKeyboardKey.backspace)) {
           if (widget.isCodeBlock! && !Utils.checkedTypeEmpty(controller!.text)) {
-            widget.handleCodeBlock!(false);
+            if(widget.handleCodeBlock != null) widget.handleCodeBlock!(false);
           }
         } else if (keyEvent.isKeyPressed(LogicalKeyboardKey.escape)) {
+          if (widget.setShareMessage != null) {
+            widget.setShareMessage!(false);
+          }
+
           if (widget.isUpdate!) {
             widget.setUpdateMessage!(null, false);
             controller!.clear();
           }
 
           if (Utils.checkedTypeEmpty(widget.isCodeBlock)) {
-            widget.handleCodeBlock!(false);
+            if(widget.handleCodeBlock != null) widget.handleCodeBlock!(false);
           }
 
           if (triggerMention) {
@@ -885,7 +892,9 @@ class FlutterMentionsState extends State<FlutterMentions> {
       } else {
         if (widget.handleEnterEvent != null) {
           return widget.handleEnterEvent!();
-        } 
+        }
+
+        return KeyEventResult.ignored;
       }
     }
   }
@@ -894,19 +903,17 @@ class FlutterMentionsState extends State<FlutterMentions> {
     final data = filterOption();
 
     if (data.length > 0) {
-      var offset = _controller.offset;
-
       if (key == 'up' && data.isNotEmpty) {
         setState(() {
           onSelectedMentions(indexSelectedMention <= 0 ? data[0] : data[indexSelectedMention - 1], indexSelectedMention);
           indexSelectedMention = indexSelectedMention <= 0 ? 0 : indexSelectedMention - 1;
-          if (indexSelectedMention >= 1) _controller.animateTo(offset - 42, duration: Duration(milliseconds: 1), curve: Curves.ease);
+          if (indexSelectedMention >= 0 && indexSelectedMention <= data.length - 5) _controller.jumpTo(index: indexSelectedMention);
         });
       } else if (key == 'down' && data.isNotEmpty) {
         setState(() {
           onSelectedMentions(indexSelectedMention >= data.length - 1 ? data[data.length - 1] : data[indexSelectedMention + 1], indexSelectedMention);
           indexSelectedMention = indexSelectedMention >= data.length - 1 ? data.length - 1 : indexSelectedMention + 1;
-          if (indexSelectedMention >= 5 && indexSelectedMention <= data.length - 1) _controller.animateTo(offset + 46, duration: Duration(milliseconds: 1), curve: Curves.ease);
+          if (indexSelectedMention >= 5 && indexSelectedMention <= data.length - 4) _controller.jumpTo(index: indexSelectedMention);
         });
       }
     }
@@ -945,7 +952,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
   }
 
   int levelMentionRegex(String text) {
-    final _vietnamese = 'aâăAÂĂeêEÊoôơOÔƠuưUƯ';
+    final _vietnamese = 'aâăAÂĂeêEÊoôơOÔƠuưUƯyY';
     final _vietnameseRegex = <RegExp>[
       RegExp(r'à|á|ạ|ả|ã'),
       RegExp(r'ầ|ấ|ậ|ẩ|ẫ'),
@@ -966,7 +973,9 @@ class FlutterMentionsState extends State<FlutterMentions> {
       RegExp(r'ù|ú|ụ|ủ|ũ'),
       RegExp(r'ừ|ứ|ự|ử|ữ'),
       RegExp(r'Ù|Ú|Ụ|Ủ|Ũ'),
-      RegExp(r'Ừ|Ứ|Ự|Ử|Ữ')
+      RegExp(r'Ừ|Ứ|Ự|Ử|Ữ'),
+      RegExp(r'ỳ|ý|ỵ|ỷ|ỹ'),
+      RegExp(r'Ỳ|Ý|Ỵ|Ỷ|Ỹ')
     ];
 
     var result = text;
@@ -1004,7 +1013,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
         final ele =  Utils.unSignVietnamese(e["full_name"] ?? e["display"] ?? "");
         final str = _selectedMention!.str!
           .replaceAll(RegExp(_pattern), '');
-        
+
         bool check = ele.contains(Utils.unSignVietnamese(str));
         return check;
       }).toList() : [];
@@ -1013,18 +1022,18 @@ class FlutterMentionsState extends State<FlutterMentions> {
       var fuse = Fuzzy(data, options: FuzzyOptions(
         keys: [
           WeightedKey(
-            name: "display", 
+            name: "display",
             getter: (item){
               if (item == null) return "";
               return (Utils.unSignVietnamese((item as Map)["display"]));
-            }, 
+            },
             weight: 1
           )
         ]
       ));
       dataFiltered = {
         "str": _selectedMention!.str,
-        "data":  fuse.search(_selectedMention == null ? "" : Utils.unSignVietnamese(_selectedMention!.str ?? "")).map((ele) => ele.item).toList()  
+        "data":  fuse.search(_selectedMention == null ? "" : Utils.unSignVietnamese(_selectedMention!.str ?? "")).map((ele) => ele.item).toList()
       };
 
       String text = _selectedMention!.str != null ? _selectedMention!.str!.substring(1) : '';
@@ -1083,11 +1092,13 @@ class FlutterMentionsState extends State<FlutterMentions> {
         color: widget.isCodeBlock! ? widget.isDark! ? Color(0xFF1D2C3B) : Colors.grey[200]! : Colors.transparent,
         borderRadius: BorderRadius.circular(4),
       ),
-      padding: widget.isThread ? EdgeInsets.zero : EdgeInsets.symmetric(horizontal: 6),
-      child: PortalEntry(
-        portalAnchor: alignment ?? Alignment.bottomCenter,
-        childAnchor: Alignment.topCenter,
-        portal: ValueListenableBuilder(
+      padding: widget.isThread || widget.isKanbanMode ? EdgeInsets.zero : EdgeInsets.symmetric(horizontal: 6),
+      child: PortalTarget(
+        anchor: Aligned(
+          follower: alignment ?? Alignment.bottomCenter,
+          target: Alignment.topCenter
+        ),
+        portalFollower: ValueListenableBuilder(
           valueListenable: showSuggestions,
           builder: (BuildContext context, bool show, Widget? child) {
             return show && !widget.hideSuggestionList && isFocus
@@ -1095,7 +1106,6 @@ class FlutterMentionsState extends State<FlutterMentions> {
               isMentionIssue: isMentionIssue,
               isDark: widget.isDark,
               isShow: triggerMention,
-              suggestionListHeight: widget.suggestionListHeight,
               selectMention: currentMention,
               suggestionListDecoration: widget.suggestionListDecoration,
               data: data,
@@ -1149,7 +1159,7 @@ class FlutterMentionsState extends State<FlutterMentions> {
                     focusNode: focusNode,
                     textAlignVertical: TextAlignVertical.center,
                     maxLines: 22,
-                    minLines: widget.isIssues! && !widget.isViewThread ? 22 : 1,
+                    minLines: widget.minLines ?? (widget.isIssues! && !widget.isViewThread && !widget.isKanbanMode ? 22 : 1),
                     maxLength: widget.maxLength,
                     keyboardType: TextInputType.multiline,
                     keyboardAppearance: widget.keyboardAppearance,

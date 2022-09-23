@@ -20,68 +20,97 @@ typedef String MessageIfAbsent(String messageStr, List<dynamic> args);
 class MessageLookup extends MessageLookupByLibrary {
   String get localeName => 'vi';
 
-  static String m0(time) => "  lúc ${time}";
+  static String m0(fullName) => "${fullName} đã chỉ định bạn trong một vấn đề";
 
-  static String m1(name) => "Bạn không thể thực hiện thao tác với ${name}.";
+  static String m1(time) => "  lúc ${time}";
 
-  static String m2(count) => "${count} Đóng";
+  static String m2(name) => "Bạn không thể thực hiện thao tác với ${name}.";
 
-  static String m3(time) => "đã bình luận ${time}";
+  static String m3(name) => "${name} đã thay đổi avatar nhóm này";
 
-  static String m4(count) => " ${count} bình luận";
+  static String m4(assignUser, issueauthor, channelName) =>
+      "${assignUser} đã đóng issue mà ${issueauthor} tạo trong kênh ${channelName}";
 
-  static String m5(count) => "${count} ngày trước";
+  static String m5(assignUser, channelName) =>
+      "${assignUser} đã đóng issue mà bạn đã được chỉ định trong kênh ${channelName}";
 
-  static String m6(count) => "${count} giờ trước";
+  static String m6(count) => "${count} Đóng";
 
-  static String m7(count) => "${count} nhãn";
+  static String m7(time) => "đã bình luận ${time}";
 
-  static String m8(count) => "${count} phút trước";
+  static String m8(count) => " ${count} bình luận";
 
-  static String m9(count) => "${count} tháng trước";
+  static String m9(count) => "${count} ngày trước";
 
-  static String m10(count) => "${count} năm trước";
+  static String m10(count) => "${count} giờ trước";
 
-  static String m11(name) => "Bạn có chắc chắn muốn lưu trữ ${name}?";
+  static String m11(count) => "${count} nhãn";
 
-  static String m12(name) =>
+  static String m12(count) => "${count} phút trước";
+
+  static String m13(count) => "${count} tháng trước";
+
+  static String m14(count) => "${count} năm trước";
+
+  static String m15(name) => "Bạn có chắc chắn muốn lưu trữ ${name}?";
+
+  static String m16(name) =>
       "Tìm kiếm tất cả liên hệ và tin nhắn trong ${name}";
 
-  static String m13(name) => "Tìm kiếm tin nhắn trong ${name}";
+  static String m17(name) => "Tìm kiếm tin nhắn trong ${name}";
 
-  static String m14(time) => "•  chỉnh sửa lúc ${time}";
+  static String m18(time) => "•  chỉnh sửa lúc ${time}";
 
-  static String m15(statusCode) => "${statusCode} Lỗi với trạng thái:";
+  static String m19(statusCode) => "${statusCode} Lỗi với trạng thái:";
 
-  static String m16(name) => "Mời đến kênh ${name}";
+  static String m20(user, invitedUser) => " ${user} đã mời ${invitedUser}";
 
-  static String m17(count) => "${count} Mở";
+  static String m21(fullName, channelName) =>
+      "${fullName} đã mời bạn vào kênh ${channelName}";
 
-  static String m18(count) => "${count} mốc";
+  static String m22(fullName, workspaceName) =>
+      "${fullName} đã mời bạn vào phòng ${workspaceName}.";
 
-  static String m19(time) => "đã mở issue lúc ${time}.";
+  static String m23(name) => "Mời đến kênh ${name}";
 
-  static String m20(name) => "Tuỳ chọn: ${name}";
+  static String m24(count) => "${count} Mở";
 
-  static String m21(type) => "BẠN NHẬN ĐƯỢC LỜI MỜI THAM GIA ${type}";
+  static String m25(count) => "${count} mốc";
 
-  static String m22(hotkey) =>
+  static String m26(time) => "đã mở issue lúc ${time}.";
+
+  static String m27(name) => "Tuỳ chọn: ${name}";
+
+  static String m28(type) => "BẠN NHẬN ĐƯỢC LỜI MỜI THAM GIA ${type}";
+
+  static String m29(assignUser, issueauthor, channelName) =>
+      "${assignUser} đã mở lại issue ${issueauthor} đã tạo trong kênh ${channelName}";
+
+  static String m30(assignUser, channelName) =>
+      "${assignUser} đã mở lại issue mà bạn đã được chỉ định trong kênh ${channelName}";
+
+  static String m31(hotkey) =>
       "Tìm kiếm (${hotkey} + F) / Bất kỳ (${hotkey} + T)";
 
-  static String m23(type) => "Tìm kiếm ${type}";
+  static String m32(type) => "Tìm kiếm ${type}";
 
-  static String m24(count) => "đã gửi ${count} files.";
+  static String m33(count) => "đã gửi ${count} files.";
 
-  static String m25(count) => "đã gửi ${count} ảnh.";
+  static String m34(count) => "đã gửi ${count} ảnh.";
 
-  static String m26(count) => "đã gửi ${count} video.";
+  static String m35(count) => "đã gửi ${count} video.";
 
-  static String m27(count) => "Xem thêm ${count} bình luận";
+  static String m36(count) => "Xem thêm ${count} bình luận";
 
-  static String m28(hotkey) =>
+  static String m37(character) => "${character} Nhãn dán";
+
+  static String m38(fullName) =>
+      "${fullName} đã bỏ gán cho bạn trong một vấn đề";
+
+  static String m39(hotkey) =>
       "Mẹo: Sử dụng phím tắt ${hotkey}-T để tìm kiếm nhanh";
 
-  static String m29(hotkey) =>
+  static String m40(hotkey) =>
       "Mẹo: Sử dụng phím tắt ${hotkey}-T để tìm kiếm bất kỳ";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
@@ -124,10 +153,11 @@ class MessageLookup extends MessageLookupByLibrary {
             "Bạn có chắc chắn muốn xóa thành viên này không?"),
         "askLeaveWorkspace": MessageLookupByLibrary.simpleMessage(
             "Bạn có chắc chắn muốn rời khỏi không gian làm việc này không?"),
+        "assignIssue": m0,
         "assignedNobody":
             MessageLookupByLibrary.simpleMessage("Không giao cho ai"),
         "assignees": MessageLookupByLibrary.simpleMessage("Người được giao"),
-        "at": m0,
+        "at": m1,
         "attachImageToComment":
             MessageLookupByLibrary.simpleMessage("Đính kèm hình ảnh"),
         "attachments": MessageLookupByLibrary.simpleMessage("Tập đính kèm"),
@@ -139,9 +169,10 @@ class MessageLookup extends MessageLookupByLibrary {
         "blocked": MessageLookupByLibrary.simpleMessage("Đã chặn"),
         "call": MessageLookupByLibrary.simpleMessage("Gọi thoại"),
         "cancel": MessageLookupByLibrary.simpleMessage("Huỷ"),
-        "cantActionsForYou": m1,
+        "cantActionsForYou": m2,
         "changeAvatar":
             MessageLookupByLibrary.simpleMessage("Đổi ảnh đại diện"),
+        "changeAvatarDm": m3,
         "changeFile": MessageLookupByLibrary.simpleMessage("Thay đổi tệp"),
         "changeNickname":
             MessageLookupByLibrary.simpleMessage("Thay đổi biệt danh"),
@@ -156,15 +187,17 @@ class MessageLookup extends MessageLookupByLibrary {
         "channelType": MessageLookupByLibrary.simpleMessage("Kiểu kênh"),
         "channels": MessageLookupByLibrary.simpleMessage("Các kênh"),
         "closeIssue": MessageLookupByLibrary.simpleMessage("Đóng issue"),
+        "closeIssues": m4,
+        "closeIssues1": m5,
         "closeWithComment":
             MessageLookupByLibrary.simpleMessage("Đóng sau khi bình luận"),
-        "closed": m2,
+        "closed": m6,
         "codeInvite": MessageLookupByLibrary.simpleMessage("Mã lời mời"),
         "color": MessageLookupByLibrary.simpleMessage("Màu"),
         "colorPicker": MessageLookupByLibrary.simpleMessage("Bộ chọn màu"),
         "commands": MessageLookupByLibrary.simpleMessage("Các lệnh"),
         "comment": MessageLookupByLibrary.simpleMessage("Bình luận"),
-        "commented": m3,
+        "commented": m7,
         "communityGuide":
             MessageLookupByLibrary.simpleMessage("Hướng dẫn cộng đồng"),
         "complete": MessageLookupByLibrary.simpleMessage("hoàn thành"),
@@ -177,13 +210,13 @@ class MessageLookup extends MessageLookupByLibrary {
         "conversationName":
             MessageLookupByLibrary.simpleMessage("Tên hội thoại"),
         "copyToClipboard": MessageLookupByLibrary.simpleMessage("Sao chép"),
-        "countComments": m4,
-        "countDayAgo": m5,
-        "countHourAgo": m6,
-        "countLabels": m7,
-        "countMinuteAgo": m8,
-        "countMonthAgo": m9,
-        "countYearAgo": m10,
+        "countComments": m8,
+        "countDayAgo": m9,
+        "countHourAgo": m10,
+        "countLabels": m11,
+        "countMinuteAgo": m12,
+        "countMonthAgo": m13,
+        "countYearAgo": m14,
         "create": MessageLookupByLibrary.simpleMessage("Tạo"),
         "createApp": MessageLookupByLibrary.simpleMessage("Tạo ứng dụng"),
         "createBy": MessageLookupByLibrary.simpleMessage("Tạo bởi"),
@@ -208,10 +241,16 @@ class MessageLookup extends MessageLookupByLibrary {
         "deleteChat": MessageLookupByLibrary.simpleMessage("Xoá nhóm"),
         "deleteComment":
             MessageLookupByLibrary.simpleMessage("Xoá bình luận này?"),
+        "deleteForEveryone":
+            MessageLookupByLibrary.simpleMessage("Xóa tất cả mọi người"),
+        "deleteForMe": MessageLookupByLibrary.simpleMessage("Xoá mình tôi"),
         "deleteLabel": MessageLookupByLibrary.simpleMessage("Xoá nhãn"),
         "deleteMembers":
             MessageLookupByLibrary.simpleMessage("Xoá thành viên?"),
+        "deleteMessages": MessageLookupByLibrary.simpleMessage("Xóa tin nhắn"),
         "deleteMilestone": MessageLookupByLibrary.simpleMessage("Xoá mốc"),
+        "deleteThisMessages": MessageLookupByLibrary.simpleMessage(
+            "Bạn có chắc chắn muốn xóa tin nhắn này?"),
         "deleteWorkspace": MessageLookupByLibrary.simpleMessage("Xoá phòng"),
         "desAddFriend": MessageLookupByLibrary.simpleMessage(
             "Nhập tên bạn bè của bạn với thẻ của họ. Ví dụ: JohnDoe#1234."),
@@ -234,7 +273,7 @@ class MessageLookup extends MessageLookupByLibrary {
             "Tìm kiếm tất cả danh bạ và tin nhắn của bạn."),
         "desSilentMode":
             MessageLookupByLibrary.simpleMessage("Chỉ tắt thông báo"),
-        "descArchiveChannel": m11,
+        "descArchiveChannel": m15,
         "descCreateWorkspace": MessageLookupByLibrary.simpleMessage(
             "Không gian làm việc của bạn là nơi bạn và bạn bè của bạn làm việc. Tạo và bắt đầu trò chuyện."),
         "descDeleteLabel": MessageLookupByLibrary.simpleMessage(
@@ -267,14 +306,14 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Tìm kiếm tất cả liên hệ"),
         "descSearchDms": MessageLookupByLibrary.simpleMessage(
             "Tìm kiếm tin nhắn trong tin nhắn riêng"),
-        "descSearchInCtWs": m12,
-        "descSearchInWs": m13,
+        "descSearchInCtWs": m16,
+        "descSearchInWs": m17,
         "descSyncPanchat": MessageLookupByLibrary.simpleMessage(
             "*Mở ứng dụng Panchat trên thiết bị của bạn và nhấn vào đồng bộ hóa dữ liệu để nhận mã OTP"),
         "descWatchActivity": MessageLookupByLibrary.simpleMessage(
             "Thông báo từ tất cả hoạt động."),
         "descWatchMention": MessageLookupByLibrary.simpleMessage(
-            "Chỉ nhận thông báo từ kênh này khi tham gia và @mentions."),
+            "Chỉ nhận thông báo từ issue bạn tạo hoặc được assign."),
         "description": MessageLookupByLibrary.simpleMessage("Mô tả"),
         "details": MessageLookupByLibrary.simpleMessage("Chi tiết"),
         "devices": MessageLookupByLibrary.simpleMessage("Thiết bị"),
@@ -295,7 +334,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "editImage": MessageLookupByLibrary.simpleMessage("Sửa ảnh"),
         "edited": MessageLookupByLibrary.simpleMessage("•  đã chỉnh sửa"),
         "editedBy": MessageLookupByLibrary.simpleMessage("•  đã chỉnh sửa bởi"),
-        "editedTime": m14,
+        "editedTime": m18,
         "email": MessageLookupByLibrary.simpleMessage("Email"),
         "emailAddress": MessageLookupByLibrary.simpleMessage("Địa chỉ email"),
         "enjoyToSearch": MessageLookupByLibrary.simpleMessage("Tìm kiếm"),
@@ -305,7 +344,7 @@ class MessageLookup extends MessageLookupByLibrary {
             "Nhập mật khẩu để chuyển giao"),
         "enterUsername":
             MessageLookupByLibrary.simpleMessage("nhập tên người sử dụng#0000"),
-        "errorWithStatus": m15,
+        "errorWithStatus": m19,
         "example": MessageLookupByLibrary.simpleMessage("Ví dụ"),
         "female": MessageLookupByLibrary.simpleMessage("Nữ"),
         "fileDownloading":
@@ -341,6 +380,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "insertKeyCodeChannel":
             MessageLookupByLibrary.simpleMessage("Vui lòng chèn mã khóa kênh"),
         "install": MessageLookupByLibrary.simpleMessage("Cài đặt"),
+        "invied": m20,
+        "inviedChannel": m21,
+        "inviedChannels":
+            MessageLookupByLibrary.simpleMessage("Đã mời bạn vào kênh"),
+        "inviedWorkSpace": m22,
         "invitationHistory":
             MessageLookupByLibrary.simpleMessage("Lịch sử lời mời:"),
         "invite": MessageLookupByLibrary.simpleMessage("Mời"),
@@ -349,7 +393,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "inviteLookLike":
             MessageLookupByLibrary.simpleMessage("Ví dụ về liên kết mời"),
         "invitePeople": MessageLookupByLibrary.simpleMessage("Mời mọi người"),
-        "inviteTo": m16,
+        "inviteTo": m23,
         "inviteToChannel":
             MessageLookupByLibrary.simpleMessage("Mời người mới đến kênh này"),
         "inviteToGroup": MessageLookupByLibrary.simpleMessage("Mời vào nhóm"),
@@ -379,6 +423,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "leastRecentlyUpdated":
             MessageLookupByLibrary.simpleMessage("Cập nhật ít nhất gần đây"),
         "leaveChannel": MessageLookupByLibrary.simpleMessage("Rời kênh"),
+        "leaveDirect": MessageLookupByLibrary.simpleMessage(
+            "Đã rời khỏi cuộc trò chuyện này"),
         "leaveGroup": MessageLookupByLibrary.simpleMessage("Rời nhóm"),
         "leaveWorkspace":
             MessageLookupByLibrary.simpleMessage("Rời khỏi phòng"),
@@ -431,11 +477,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "oldest": MessageLookupByLibrary.simpleMessage("Cũ nhất"),
         "on": MessageLookupByLibrary.simpleMessage("on"),
         "online": MessageLookupByLibrary.simpleMessage("Trực tuyến"),
-        "open": m17,
-        "openMilestones": m18,
-        "openThisIssue": m19,
+        "open": m24,
+        "openMilestones": m25,
+        "openThisIssue": m26,
         "option": MessageLookupByLibrary.simpleMessage("Tuỳ chỉnh"),
-        "optionName": m20,
+        "optionName": m27,
         "or": MessageLookupByLibrary.simpleMessage("hoặc"),
         "outgoingFriendRequest":
             MessageLookupByLibrary.simpleMessage("Yêu cầu kết bạn gửi đi"),
@@ -452,6 +498,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Vui lòng chọn kênh"),
         "pleaseUpdateVersion": MessageLookupByLibrary.simpleMessage(
             "Vui lòng cập nhật phiên bản mới"),
+        "pollIsDisabled": MessageLookupByLibrary.simpleMessage(
+            "Cuộc thăm dò ý kiến ​​này đã bị vô hiệu hóa"),
         "preview": MessageLookupByLibrary.simpleMessage("Xem trước"),
         "previewComment":
             MessageLookupByLibrary.simpleMessage("Xem trước bình luận"),
@@ -459,7 +507,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Xem trước văn bản"),
         "previous": MessageLookupByLibrary.simpleMessage("Trước"),
         "private": MessageLookupByLibrary.simpleMessage("Riêng tư"),
-        "receiveJoinChannel": m21,
+        "receiveJoinChannel": m28,
         "recentChannel": MessageLookupByLibrary.simpleMessage("Kênh gần đây"),
         "recentlyUpdated":
             MessageLookupByLibrary.simpleMessage("Cập nhật gần đây"),
@@ -470,6 +518,9 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Xoá khỏi mục đã lưu"),
         "reopen": MessageLookupByLibrary.simpleMessage("Mở lại"),
         "reopenIssue": MessageLookupByLibrary.simpleMessage("Mở lại issue"),
+        "reopened": m29,
+        "reopened1": m30,
+        "reply": MessageLookupByLibrary.simpleMessage("Đã trả lời tin nhắn"),
         "requestUrl": MessageLookupByLibrary.simpleMessage("Yêu cầu URL:"),
         "resetDeviceKey":
             MessageLookupByLibrary.simpleMessage("Đặt lại khoá thiết bị **"),
@@ -481,11 +532,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "saveChanges": MessageLookupByLibrary.simpleMessage("Lưu thay đổi"),
         "savedMessages":
             MessageLookupByLibrary.simpleMessage("Tin nhắn đã lưu"),
-        "searchAnything": m22,
+        "searchAnything": m31,
         "searchChannel": MessageLookupByLibrary.simpleMessage("Tìm kênh"),
         "searchMember":
             MessageLookupByLibrary.simpleMessage("Tìm kiếm thành viên"),
-        "searchType": m23,
+        "searchType": m32,
         "selectChannel": MessageLookupByLibrary.simpleMessage("Chọn kênh"),
         "selectMember": MessageLookupByLibrary.simpleMessage("Chọn thành viên"),
         "sent": MessageLookupByLibrary.simpleMessage("Đã gửi"),
@@ -494,23 +545,28 @@ class MessageLookup extends MessageLookupByLibrary {
         "sentAnImage": MessageLookupByLibrary.simpleMessage("đã gửi một ảnh."),
         "sentAttachments":
             MessageLookupByLibrary.simpleMessage("đã gửi tập tin đính kèm."),
-        "sentFiles": m24,
-        "sentImages": m25,
-        "sentVideos": m26,
+        "sentFiles": m33,
+        "sentImages": m34,
+        "sentVideos": m35,
         "setAdmin": MessageLookupByLibrary.simpleMessage("Quản trị viên"),
         "setDesc": MessageLookupByLibrary.simpleMessage("Đặt mô tả"),
         "setEditor": MessageLookupByLibrary.simpleMessage("Biên tập viên"),
         "setMember": MessageLookupByLibrary.simpleMessage("Thành viên"),
         "setTopic": MessageLookupByLibrary.simpleMessage("Đặt chủ đề"),
+        "setrole": MessageLookupByLibrary.simpleMessage("Đặt vai trò"),
         "settings": MessageLookupByLibrary.simpleMessage("Cài đặt"),
+        "share":
+            MessageLookupByLibrary.simpleMessage("Đã chia sẻ một tin nhắn"),
         "shareMessage":
             MessageLookupByLibrary.simpleMessage("Chia sẻ tin nhắn:"),
         "shortcut": MessageLookupByLibrary.simpleMessage("Rút gọn:"),
-        "showMoreComments": m27,
+        "showMoreComments": m36,
         "silentMode": MessageLookupByLibrary.simpleMessage("CHẾ ĐỘ IM LẶNG"),
         "sort": MessageLookupByLibrary.simpleMessage("Sắp xếp"),
         "sortBy": MessageLookupByLibrary.simpleMessage("Sắp xếp theo"),
         "startingUp": MessageLookupByLibrary.simpleMessage("Khởi động"),
+        "sticker": m37,
+        "sticker1": MessageLookupByLibrary.simpleMessage("Đã gửi một nhãn dán"),
         "submit": MessageLookupByLibrary.simpleMessage("Gửi đi"),
         "submitNewIssue": MessageLookupByLibrary.simpleMessage("Tạo issue mới"),
         "success": MessageLookupByLibrary.simpleMessage("Thành công"),
@@ -519,6 +575,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Đồng bộ bằng Panchat *"),
         "syntaxError": MessageLookupByLibrary.simpleMessage(
             "Mã cú pháp không đúng, hãy thử lại!"),
+        "tClose": MessageLookupByLibrary.simpleMessage("Đóng"),
         "tClosed": MessageLookupByLibrary.simpleMessage("Đóng"),
         "tOpen": MessageLookupByLibrary.simpleMessage("Mở"),
         "tagName": MessageLookupByLibrary.simpleMessage("Thẻ"),
@@ -546,14 +603,15 @@ class MessageLookup extends MessageLookupByLibrary {
         "typeMessage": MessageLookupByLibrary.simpleMessage("Nhập tin nhắn..."),
         "unPinThisChannel":
             MessageLookupByLibrary.simpleMessage("Bỏ ghim kênh này."),
+        "unassignIssue": m38,
         "unreadOnly": MessageLookupByLibrary.simpleMessage("Chưa đọc"),
         "unwatch": MessageLookupByLibrary.simpleMessage("Bỏ theo dõi"),
         "updateCommand": MessageLookupByLibrary.simpleMessage("Cập nhật lệnh"),
         "updateComment":
             MessageLookupByLibrary.simpleMessage("Cập nhật bình luận"),
         "upload": MessageLookupByLibrary.simpleMessage("Tải lên"),
-        "useShotKeyboardQuickSearch": m28,
-        "useShotKeyboardSearchAnything": m29,
+        "useShotKeyboardQuickSearch": m39,
+        "useShotKeyboardSearchAnything": m40,
         "userProfile":
             MessageLookupByLibrary.simpleMessage("Thông tin người dùng"),
         "videoCall": MessageLookupByLibrary.simpleMessage("Gọi video"),

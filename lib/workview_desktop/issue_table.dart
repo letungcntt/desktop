@@ -4,13 +4,13 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/components/message_item/attachments/text_file.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/workview_desktop/pagination.dart';
 import 'package:workcake/workview_desktop/renderListUser.dart';
 import 'issue_drop_bar.dart';
@@ -89,7 +89,7 @@ class _IssueTableState extends State<IssueTable> {
     } else {
       Timer.run(() async{
         final currentUser = Provider.of<User>(context, listen: false).currentUser;
-        var snapshot = await Hive.openBox("snapshotData:${currentUser["id"]}");
+        var snapshot = await Hive.openBox("snapshotData_${currentUser["id"]}");
         Provider.of<Channels>(context, listen: false).setDataIssue(snapshot.get("issues") ?? []);
         isIssueLoading = false;
         final tempIssueState = Provider.of<Channels>(context, listen: false).tempIssueState;
@@ -193,7 +193,7 @@ class _IssueTableState extends State<IssueTable> {
         } else if (type == "Milestones") {
           List list = List.from(selectedMilestone);
           final index = list.indexWhere((e) => e == item["id"]);
-          
+
           if (item["no_milestone"] == true) {
             selectedMilestone = list.indexWhere((element) => element == "no_milestone") == -1 ? ["no_milestone"] : [];
           } else {
@@ -296,7 +296,7 @@ class _IssueTableState extends State<IssueTable> {
         newFilters.add({
           "type": "milestone",
           "no_milestone": true
-        });     
+        });
       } else {
         var index = milestones.indexWhere((ele) => ele["id"] == e);
 
@@ -410,7 +410,7 @@ class _IssueTableState extends State<IssueTable> {
         selectedCheckbox = [];
       });
     }
-    
+
     this.setState(() {
       selectAll = value;
     });
@@ -665,23 +665,29 @@ class _IssueTableState extends State<IssueTable> {
                                           setState(() { unreadOnly = !unreadOnly; });
                                           onFilterIssue();
                                         },
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: unreadOnly ? isDark ? Palette.backgroundRightSiderDark : Color(0xffDBDBDB) : null,
-                                            borderRadius: BorderRadius.circular(6)
+                                        child: ListAction(
+                                          action: '',
+                                          isDark: isDark,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: unreadOnly ? isDark ? Palette.backgroundRightSiderDark : Color(0xffDBDBDB) : null,
+                                              borderRadius: BorderRadius.circular(6)
+                                            ),
+                                            padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+                                            child: Text(
+                                              "Unread only",
+                                              style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontWeight: FontWeight.w500)
+                                            )
                                           ),
-                                          padding: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-                                          child: Text(
-                                            "Unread only",
-                                            style: TextStyle(fontSize: 14, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontWeight: FontWeight.w500)
-                                          )
                                         )
                                       ),
-                                      selectedCheckbox.length > 0 ? Container() : IssueDropBar(title: "Author", listAttribute: newListChannelMember(channelMember), onSelectAtt: onSelectAtt, selectedAtt: selectedAuthor, onFilterIssue: onFilterIssue),
+                                      selectedCheckbox.length > 0 ? Container() : 
+                                      IssueDropBar(title: "Author", listAttribute: newListChannelMember(channelMember), onSelectAtt: onSelectAtt, selectedAtt: selectedAuthor, onFilterIssue: onFilterIssue),
                                       IssueDropBar(title: "Label", listAttribute: labels, onSelectAtt: onSelectAtt, selectedAtt: selectedLabel, selectedCheckbox: selectedCheckbox, onFilterIssue: onFilterIssue),
                                       IssueDropBar(title: "Milestones", listAttribute: milestones, onSelectAtt: onSelectAtt, selectedAtt: selectedMilestone, selectedCheckbox: selectedCheckbox, onFilterIssue: onFilterIssue),
                                       IssueDropBar(title: "Assignee", listAttribute: newListAssignee, onSelectAtt: onSelectAtt, selectedAtt: selectedAssignee, selectedCheckbox: selectedCheckbox, onFilterIssue: onFilterIssue),
-                                      selectedCheckbox.length > 0 ? Container() : IssueDropBar(title: "Sort", sortBy: sortBy, changeSort: changeSort, onFilterIssue: onFilterIssue, onSelectAtt: onSelectAtt),
+                                      selectedCheckbox.length > 0 ? Container() : 
+                                      IssueDropBar(title: "Sort", sortBy: sortBy, changeSort: changeSort, onFilterIssue: onFilterIssue, onSelectAtt: onSelectAtt),
                                     ]
                                   )
                                 )
@@ -698,7 +704,7 @@ class _IssueTableState extends State<IssueTable> {
                             ),
                           ) : ListIssue(
                             issues: issues,
-                            filters: filters, 
+                            filters: filters,
                             sortBy: sortBy,
                             selectedCheckbox: selectedCheckbox,
                             onChangeCheckbox: onChangeCheckbox,
@@ -731,7 +737,7 @@ class ListIssue extends StatefulWidget {
     this.sortBy,
     this.isClosed,
     this.page,
-    this.selectedCheckbox, 
+    this.selectedCheckbox,
     this.onChangeCheckbox,
     this.selectAssignee,
     this.selectMilestone,
@@ -927,6 +933,7 @@ class _IssueItemState extends State<IssueItem> {
     final userId = auth.userId;
     final token = auth.token;
     Provider.of<Channels>(context, listen: false).updateUnreadIssue(token, currentWorkspace["id"], currentChannel["id"], issue["id"], userId);
+    Provider.of<Threads>(context, listen: false).updateUnreadThreadIssue(currentWorkspace["id"], currentChannel["id"], issue["id"], token);
 
     final index = data.indexWhere((e) => e["id"] == currentChannel["id"]);
 
@@ -1043,7 +1050,7 @@ class _IssueItemState extends State<IssueItem> {
                           ),
                         ],
                       ),
-                      
+
                       if (author != null) Container(
                         child: Wrap(
                           direction: Axis.horizontal,

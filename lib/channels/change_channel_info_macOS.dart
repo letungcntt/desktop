@@ -1,8 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ChangeChannelInfoMacOS extends StatefulWidget {
   final type;
@@ -111,67 +110,93 @@ class _ChangeChannelInfoState extends State<ChangeChannelInfoMacOS> {
         ],
       ) : type == 2 ? Container(
         child: Column(children: <Widget>[
-          Container(
-              padding: EdgeInsets.all(10),
-              child: Text(
-              "Channel Type",
-              style: TextStyle(
-                color: isDark ? Color(0xff6B6B6B) : Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w500
-              )
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(5),
+                      topLeft: Radius.circular(5),
+                    ),
+                  ),
+                  padding: EdgeInsets.all(13),
+                  child: Text(
+                  "Channel Type",
+                  style: TextStyle(
+                    color: isDark ? Color(0xFFFFFFFF) : Color(0xff5E5E5E),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500
+                    )
+                  ),
+                ),
+              ),
+            ],
           ),
           Container(
             decoration: BoxDecoration(border: Border(bottom: BorderSide(
-              color: isDark ? Colors.black12 : Colors.white54,
-              width: 0.5
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+              width: 1
             ))),
             child: ListTile(
               onTap: (){
                 currentChannel["is_private"] = false;
                 onChangeChannelInfo();
               },
-              title: Text("Regular"), trailing: currentChannel["is_private"] == false ? Icon(Icons.check) : null)
+              title: Text("Regular"), trailing: currentChannel["is_private"] == false ? Icon(Icons.check_circle, color: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),size: 20,) : null)
             ),
           Container(child: ListTile(
             onTap: (){
               currentChannel["is_private"] = true;
               onChangeChannelInfo();
             },
-            title: Text("Private"), trailing: currentChannel["is_private"] == true ? Icon(Icons.check) : null)
+            title: Text("Private"), trailing: currentChannel["is_private"] == true ? Icon(Icons.check_circle, color: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),size: 20,) : null)
           )
         ])
-      ) : Column(children: <Widget>[
-          Container(
-              padding: EdgeInsets.all(10),
-              child: Text(
-              "Channel Type",
-              style: TextStyle(
-                color: isDark ? Color(0xff6B6B6B) : Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w500
-              )
-            ),
+      ):Column(children: <Widget>[
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(5),
+                      topLeft: Radius.circular(5),
+                    ),
+                  ),
+                  padding: EdgeInsets.all(13),
+                  child: Text(
+                  "Change Workflow",
+                  style: TextStyle(
+                    color: isDark ? Color(0xFFFFFFFF) : Color(0xff5E5E5E),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500
+                    )
+                  ),
+                ),
+              ),
+            ],
           ),
           Container(
             decoration: BoxDecoration(border: Border(bottom: BorderSide(
-              color: isDark ? Colors.black12 : Colors.white54,
-              width: 0.5
+              color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB),
+              width: 1
             ))),
             child: ListTile(
               onTap: (){
                 currentChannel["kanban_mode"] = true;
                 onChangeChannelInfo();
               },
-              title: Text("Kanban mode"), trailing: currentChannel["kanban_mode"] == true ? Icon(Icons.check) : null)
+              title: Text("Kanban mode"), trailing: currentChannel["kanban_mode"] == true ? Icon(Icons.check_circle, color: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),size: 20,) : null)
             ),
           Container(child: ListTile(
             onTap: (){
               currentChannel["kanban_mode"] = false;
               onChangeChannelInfo();
             },
-            title: Text("Dev mode"), trailing: currentChannel["kanban_mode"] == false ? Icon(Icons.check) : null)
+            title: Text("Dev mode"), trailing: currentChannel["kanban_mode"] == false ? Icon(Icons.check_circle, color: isDark ? Color(0xffFAAD14) :Utils.getPrimaryColor(),size: 20) : null)
           )
         ]
       )

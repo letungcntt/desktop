@@ -3,15 +3,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:provider/provider.dart';
+import 'package:local_notifier/local_notifier.dart';
 import 'package:rxdart/subjects.dart';
+import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:flutter/services.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
 import 'dart:convert';
 
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class NotificationMacOS extends StatefulWidget {
   NotificationMacOS({Key? key}) : super(key: key);
@@ -50,7 +51,16 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
   void initState() {
     super.initState();
     if (mounted) {
-      if(Platform.isMacOS) setUpNotify();
+      if(Platform.isMacOS) {
+        setUpNotify();
+      } else {
+        Timer.run(() async{ 
+          await localNotifier.setup(
+            appName: 'PancakeChat',
+            shortcutPolicy: ShortcutPolicy.requireCreate,
+          );
+        });
+      }
     }
 
     Timer(Duration(seconds: 2), () {
@@ -98,13 +108,18 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
         var dataMessage = messageDecrypted["message"];
         var body = getBodyNotification(currentDM, dataMessage, messageDecrypted["message"]["full_name"]);
         if (settingNoti == "MENTION" && !checkInMention(dataMessage["attachments"])) return;
-        if (Platform.isWindows){
-          String subBody = body.substring(0, body.length > 254 ? 254 : body.length);
-          String subTitle = title.substring(0, title.length > 254 ? 254 : title.length);
-          notifyChannel.invokeMethod("push_notify",[subTitle, subBody]);
-        }
+
         if (Platform.isMacOS){
-          pushNotiMacOS(title, body, jsonEncode(messageDecrypted["message"]));        
+          pushNotiMacOS(title, body, jsonEncode(messageDecrypted["message"]));
+        } else {
+          LocalNotification notification = LocalNotification(
+            title: title,
+            body: body
+          );
+          notification.show();     
+          notification.onClick = () {
+            onGotoDirect(conversationId, jsonEncode(messageDecrypted["message"]));
+          };
         }
       }
     } catch (e, trace) {
@@ -115,10 +130,10 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
   pushNotiMacOS(title, body, payload, {isDefault: false}){
     int id = int.parse(DateTime.now().millisecondsSinceEpoch.toString().substring(7));
     var macOSPlatformChannelSpecifics = new MacOSNotificationDetails(
-      presentAlert: !isDefault, 
-      presentBadge: true, 
-      presentSound: !isDefault, 
-      sound: isDefault ? null : 'slow_spring_board', 
+      presentAlert: !isDefault,
+      presentBadge: true,
+      presentSound: !isDefault,
+      sound: isDefault ? null : 'slow_spring_board',
       badgeNumber: checkNewBadgeCount()
     );
 
@@ -129,7 +144,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
       body,
       platformChannelSpecifics,
       payload: payload
-    ); 
+    );
   }
 
   onClearBadge(channelId) async {
@@ -138,7 +153,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
       await Utils.updateBadge(context);
     }
   }
-  
+
   setUpNotify() {
     WidgetsFlutterBinding.ensureInitialized();
     MacOSInitializationSettings initializationSettingsMacOS = MacOSInitializationSettings(
@@ -146,11 +161,11 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
       requestBadgePermission: true,
       requestSoundPermission: true
     );
-    final InitializationSettings initializationSettings = 
+    final InitializationSettings initializationSettings =
       InitializationSettings(
         macOS: initializationSettingsMacOS
       );
-    
+
     flutterLocalNotificationsPlugin.initialize(initializationSettings,
       onSelectNotification: (payload) async {
         var newPayload = jsonDecode(payload!);
@@ -166,27 +181,33 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
         selectNotificationSubject.add(payload);
       }
     );
-    pushNotiMacOS("", "", null, isDefault: true); 
+    pushNotiMacOS("", "", null, isDefault: true);
   }
 
   parseAttachments(att, isChannel, {var convId = ""}) {
     final attachment = att.length > 0 ? att[0] : null;
 
-    if (attachment != null) {
-      final string = attachment["type"] == "mention" ? attachment["data"].map((e) {
-        if (e["type"] == "text" ) return e["value"];
-        return "${e["trigger"] ?? "@"}${e["name"] ?? ""} ";
-      }).toList().join() :
-        attachment["type"] == "delete" ? "${attachment['delete_user_name']} was kicked from this channel." :
-        attachment["type"] == "bot" ? "Sent an attachment" : 
-        attachment["type"] == "change_name" ? "${attachment["user_name"]} has changed channel name to ${attachment["params"]["name"]}" :
-        attachment["type"] == "invite" ? "${attachment["invited_user"]} has join a channel" : 
-        attachment["type"] == "leave_channel" ? "${attachment["user"]} has leave the channel" :
-        attachment["type"] == "change_topic" ? "${attachment["user_name"]} has changed channel topic to ${attachment["params"]["topic"]}" :
-        attachment["type"] == "change_private" ? "${attachment["user_name"]} has changed channel private to ${attachment["params"]["is_private"] ? "private" : "public"}" :
-        attachment["mime_type"] == "image" ? "Sent a photo" : "Sent an attachment";
-
-      return string;
+    if (attachment.length > 0) {
+      switch (attachment["type"]) {
+        case 'delete':
+          return "${attachment['delete_user_name']} was kicked from this channel.";
+        case 'bot':
+          return "Sent an attachment";
+        case 'change_name':
+          return "${attachment["user_name"]} has changed channel name to ${attachment["params"]["name"]}";
+        case 'invite':
+          return "${attachment["invited_user"]} has join a channel";
+        case 'leave_channel':
+          return "${attachment["user"]} has leave the channel";
+        case 'change_topic':
+          return "${attachment["user_name"]} has changed channel topic to ${attachment["params"]["topic"]}";
+        case 'change_private':
+          return "${attachment["user_name"]} has changed channel private to ${attachment["params"]["is_private"] ? "private" : "public"}";
+        case 'poll':
+          return 'created a poll';
+        default:
+          return MessageConversationServices.renderSnippet(att, null, true);
+      }
     } else {
       return "Error payload";
     }
@@ -202,6 +223,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
     final message = payload["message"];
     final userId = payload["user_id"];
     final attachments = payload["attachments"] ?? [];
+    final parentMessage = Provider.of<Messages>(context, listen: false).parentMessage;
     int index = data.indexWhere((e) => e["id"] == channelId);
 
     if (userId != currentUser["id"]) {
@@ -211,7 +233,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
         }
 
         if (data[index]["status_notify"] == "NORMAL" || (data[index]["status_notify"] == "MENTION" && checkInMention(attachments))) {
-          if ((tab == 0 || currentChannel["id"] != channelId) || !onFocusApp) {
+          if ((tab == 0 || ( currentChannel["id"] != channelId || (parentMessage["id"] != payload["channel_thread_id"]) )) || !onFocusApp) {
             int index = data.indexWhere((e) => e["id"] == channelId);
             String title = payload["full_name"] != null ? "${payload["full_name"]} to ${data[index]["name"]}" : "Bot to ${data[index]["name"]}";
             var body = !Utils.checkedTypeEmpty(message) ? parseAttachments(attachments, true) : "${payload["message"]}";
@@ -219,10 +241,16 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
             if (Platform.isMacOS) {
               pushNotiMacOS(title, body, newPayload);
             } else {
-              String subBody = body.substring(0, body.length > 254 ? 254 : body.length);
-              notifyChannel.invokeMethod("push_notify", [title, subBody]);
+              LocalNotification notification = LocalNotification(
+                identifier: newPayload,
+                title: title,
+                body: body,
+              );
+              notification.show();
+              notification.onClick = () {
+                onChangeWorkspace(payload["workspace_id"], channelId, payload);
+              };
             }
-
           }
         }
       }
@@ -308,6 +336,7 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
   }
 
   onChangeWorkspace(workspaceId, channelId, payload) async {
+    if (workspaceId == null && channelId == null) { return; }
     final token = Provider.of<Auth>(context, listen: false).token;
     final channel = Provider.of<Auth>(context, listen: false).channel;
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
@@ -315,16 +344,16 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
     await Provider.of<Channels>(context, listen: false).setCurrentChannel(channelId);
     Provider.of<User>(context, listen: false).selectTab("channel");
     Provider.of<Workspaces>(context, listen: false).tab = workspaceId;
-    Provider.of<Workspaces>(context, listen: false).selectWorkspace(token, workspaceId, context);
+    await Provider.of<Workspaces>(context, listen: false).selectWorkspace(token, workspaceId, context);
     Provider.of<Workspaces>(context, listen: false).getInfoWorkspace(token, workspaceId, context);
-    Provider.of<Messages>(context, listen: false).loadMessages(token, workspaceId, channelId);
-    Provider.of<Channels>(context, listen: false).selectChannel(token, workspaceId, channelId);
+    await Provider.of<Messages>(context, listen: false).loadMessages(token, workspaceId, channelId);
+    await Provider.of<Channels>(context, listen: false).selectChannel(token, workspaceId, channelId);
     Provider.of<Channels>(context, listen: false).loadCommandChannel(token, workspaceId, channelId);
     Provider.of<Channels>(context, listen: false).onChangeLastChannel(workspaceId, channelId);
     Provider.of<Channels>(context, listen: false).getChannelMemberInfo(token, workspaceId, channelId, currentUser["id"]);
     Provider.of<Workspaces>(context, listen: false).clearMentionWhenClickChannel(workspaceId, channelId);
-    
-    channel.push(
+
+    await channel.push(
       event: "join_channel",
       payload: {"channel_id": channelId, "workspace_id": workspaceId}
     );
@@ -337,9 +366,9 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
         List messages = data[index]["messages"];
         int indexMessage = messages.indexWhere((e) => e["id"] == payload["channel_thread_id"]);
 
-        if (indexMessage != -1) { 
+        if (indexMessage != -1) {
           final message = messages[indexMessage];
-          Map parentMessage = { 
+          Map parentMessage = {
             "id": message["id"],
             "message": message["message"],
             "avatarUrl": message["avatar_url"],
@@ -354,13 +383,17 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
             "isChannel": true
           };
 
-          Provider.of<Channels>(context, listen: false).openChannelSetting(false);
-          Provider.of<Messages>(context, listen: false).openThreadMessage(true, parentMessage);
-          Provider.of<Threads>(context, listen: false).updateThreadUnread(workspaceId, channelId, parentMessage, token);
+          await Provider.of<Channels>(context, listen: false).openChannelSetting(false);
+          await Provider.of<Messages>(context, listen: false).openThreadMessage(true, parentMessage);
+          await Provider.of<Threads>(context, listen: false).updateThreadUnread(workspaceId, channelId, parentMessage, token);
+          FocusInputStream.instance.focusToThread();
         }
       }
     }
-    
+    else {
+      FocusInputStream.instance.focusToMessage();
+    }
+
     Utils.updateBadge(context);
   }
 
@@ -374,14 +407,15 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
 
     if (index != -1) {
       DirectModel directMessage = list[index];
-
       await channel.push(event: "join_direct", payload: {"direct_id": conversationId});
       Provider.of<Workspaces>(context, listen: false).tab = 0;
       Provider.of<Workspaces>(context, listen: false).changeToMessageView(true);
       await Provider.of<DirectMessage>(context, listen: false).onChangeSelectedFriend(false);
       await Provider.of<DirectMessage>(context, listen: false).setSelectedDM(directMessage, token);
       await Provider.of<DirectMessage>(context, listen: false).getMessageFromApiDown(conversationId, true, token, userId);
-
+      FocusInputStream.instance.focusToMessage();
+      
+      
 
       if (payload["parent_id"] != null) {
         final data = Provider.of<DirectMessage>(context, listen: false).dataDMMessages;
@@ -411,10 +445,11 @@ class _NotificationMacOSState extends State<NotificationMacOS> {
 
               Provider.of<Channels>(context, listen: false).openChannelSetting(false);
               await Provider.of<Messages>(context, listen: false).openThreadMessage(true, parentMessage);
+              FocusInputStream.instance.focusToThread();
             }
           }
         }
-      } 
+      }
     }
 
     Utils.updateBadge(context);

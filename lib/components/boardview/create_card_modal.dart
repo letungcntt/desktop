@@ -8,13 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/component/AttachmentItem.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'component/ChecklistItem.dart';
 import 'component/ListMember.dart';
 import 'component/models.dart';
@@ -41,10 +40,11 @@ class _CreateCardState extends State<CreateCard> {
   List attachments = [];
   TextEditingController titleController = TextEditingController();
   TextEditingController descriptionController = TextEditingController();
+  FocusNode titleFocusNode = FocusNode();
   var box;
 
   @override
-  void initState() { 
+  void initState() {
     Timer.run(() async {
       final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
       box = await Hive.openBox("draftsKanban");
@@ -52,7 +52,12 @@ class _CreateCardState extends State<CreateCard> {
       if (draftCard == null) return;
       this.setState(() {
         descriptionController.text = draftCard["description"] ?? "";
-        titleController.text = draftCard["title"] ?? "";
+        titleController.value = titleController.value.copyWith(
+          text: draftCard["title"] ?? "",
+          selection: TextSelection.collapsed(
+            offset: (draftCard["title"] ?? "").length
+          )
+        );
         members = draftCard["members"] ?? [];
         labels = draftCard["labels"] ?? [];
         priority = draftCard["priority"];
@@ -61,7 +66,7 @@ class _CreateCardState extends State<CreateCard> {
         checklists = draftCard["checklists"] ?? [];
       });
     });
-    
+
     super.initState();
   }
 
@@ -145,12 +150,8 @@ class _CreateCardState extends State<CreateCard> {
     final token = Provider.of<Auth>(context, listen: false).token;
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     try {
-      var myMultipleFiles = await Utils.openFilePicker([
-        XTypeGroup(
-          extensions: ['jpg', 'jpeg', 'gif', 'png', 'xlsx', 'json', 'xls', 'zip', 'docs']
-        )
-      ]);
-      
+      var myMultipleFiles = await Utils.openFilePicker([XTypeGroup(extensions: [])]);
+
       for (var e in myMultipleFiles) {
         Map newFile = {
           "filename": e["name"],
@@ -193,6 +194,7 @@ class _CreateCardState extends State<CreateCard> {
     final token = Provider.of<Auth>(context, listen: false).token;
     final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
     var card = {
+      "id": Utils.getRandomNumber(10),
       "title": titleController.text,
       "description": descriptionController.text,
       "checklists": checklists,
@@ -251,11 +253,13 @@ class _CreateCardState extends State<CreateCard> {
                                       height: 46,
                                       child: TextFormField(
                                         controller: titleController,
-                                        autofocus: false,
+                                        focusNode: titleFocusNode,
+                                        autofocus: true,
                                         onEditingComplete: () {
                                           if (titleController.text.trim() != "") {
                                             saveDraftCard();
                                           }
+                                          titleFocusNode.unfocus();
                                         },
                                         decoration: InputDecoration(
                                           hintText: "Please input title",
@@ -295,14 +299,14 @@ class _CreateCardState extends State<CreateCard> {
                                     crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
                                       Container(
-                                        // padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(4),
                                           color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                                         ),
                                         width: double.infinity,
-                                        height: 176,
+                                        height: 126,
                                         child: TextFormField(
+                                          autofocus: true,
                                           controller: descriptionController,
                                           onChanged: (value) {
                                             saveDraftCard();
@@ -330,12 +334,12 @@ class _CreateCardState extends State<CreateCard> {
                                 //////////////////////////////////////////////////////////////////////////////
                                 /////// Checklist/////////////////////////////////////////////////////////////
                                 /////////////////////////////////////////////////////////////////////////////////
-                                
+
                                 Checklists(checklists: checklists, onCreateChecklist: onCreateChecklist),
-                                
+
                                 //////////////////////////////////////////////////////////////////////////////
                                 ////////////////////////////////////////////////////////////////////////////
-                                
+
                                 SizedBox(height: 30),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -350,7 +354,7 @@ class _CreateCardState extends State<CreateCard> {
                                     InkWell(
                                       onTap: () {
                                         openFileSelector();
-                                      }, 
+                                      },
                                       child: Container(
                                         margin: EdgeInsets.only(right: 4),
                                         child: Icon(PhosphorIcons.uploadSimple, size: 20)
@@ -365,7 +369,7 @@ class _CreateCardState extends State<CreateCard> {
                                   child: ListView.builder(
                                     scrollDirection: Axis.horizontal,
                                     itemCount: attachments.length,
-                                    itemBuilder: (BuildContext context, int index) { 
+                                    itemBuilder: (BuildContext context, int index) {
                                       return AttachmentItem(attachments: attachments, onDeleteAttachment: onDeleteAttachment, index: index);
                                     }
                                   )
@@ -374,7 +378,7 @@ class _CreateCardState extends State<CreateCard> {
                                   overlayColor: MaterialStateProperty.all(Colors.transparent),
                                   onTap: () {
                                     openFileSelector();
-                                  }, 
+                                  },
                                   child: Wrap(
                                     crossAxisAlignment: WrapCrossAlignment.center,
                                     children: [
@@ -559,7 +563,7 @@ class _ChecklistsState extends State<Checklists> {
                 setState(() { onAddChecklist = false; });
               },
               cursorColor: isDark ? Colors.white : null,
-              style: TextStyle(color: isDark ? Color(0xffFFFFFF) : Color(0xffA6A6A6), fontSize: 15),
+              style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 15),
               decoration: InputDecoration(
                 hintText: "Please input title",
                 contentPadding: EdgeInsets.only(left: 16, bottom: 2),
@@ -681,7 +685,7 @@ class _SelectDueDateState extends State<SelectDueDate> {
               selectDate(context);
             },
             child: Text(
-              "${DateFormatter().renderTime(DateTime.parse('${widget.dueDate}'), type: 'yMMMd')}", 
+              "${DateFormatter().renderTime(DateTime.parse('${widget.dueDate}'), type: 'yMMMd')}",
               style: TextStyle(color: Color(0xffB7B7B7), fontSize: 14)
             )
           ) : Text("Add Due Date", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12))
@@ -776,7 +780,11 @@ class _SelectLabelState extends State<SelectLabel> {
                                     children: [
                                       Checkbox(
                                         activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
-                                        onChanged: (bool? value) {  }, value: widget.labels.contains(labels[index]["id"])
+                                        onChanged: (bool? value) { 
+                                          setState(() {
+                                            widget.setLabel(labels[index]["id"]);
+                                          });
+                                         }, value: widget.labels.contains(labels[index]["id"])
                                       ),
                                       SizedBox(width: 6),
                                       Container(
@@ -852,7 +860,7 @@ class _SelectLabelState extends State<SelectLabel> {
                             children: [
                               Icon(PhosphorIcons.plus, size: 16),
                               SizedBox(width: 6),
-                              Text("Add a Label", style: TextStyle(fontSize: 14))
+                              Text("Create a Label", style: TextStyle(fontSize: 14))
                             ]
                           )
                         )
@@ -871,7 +879,7 @@ class _SelectLabelState extends State<SelectLabel> {
   onCreateLabel() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
-    showPopover( 
+    showPopover(
       backgroundColor: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
@@ -900,7 +908,7 @@ class _SelectLabelState extends State<SelectLabel> {
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
-    
+
     Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color, null);
     Navigator.pop(context);
     onSelectLabel();
@@ -913,8 +921,8 @@ class _SelectLabelState extends State<SelectLabel> {
 
     List labels = widget.labels.map((e) {
       var index = selectedBoard["labels"].indexWhere((ele) => ele["id"] == e);
-      var item = selectedBoard["labels"][index];
-      return Label(colorHex: item["color_hex"], title: item["name"], id: item["id"].toString());
+      var item = index != -1 ? selectedBoard["labels"][index] : null;
+      return item != null ? Label(colorHex: item["color_hex"], title: item["name"], id: item["id"].toString()) : null;
     }).toList();
 
     return Column(
@@ -946,7 +954,7 @@ class _SelectLabelState extends State<SelectLabel> {
           child: Text("None yet", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12))
         ) : Wrap(
           children: labels.map<Widget>((label) {
-            return Container(
+            return label == null ? Container(width: 0) : Container(
               decoration: BoxDecoration(
                 color: Color(int.parse("0xFF${label.colorHex}")),
                 borderRadius: BorderRadius.circular(16)
@@ -979,7 +987,7 @@ class CreateLabel extends StatefulWidget {
 
 class _CreateLabelState extends State<CreateLabel> {
   List colors = [
-    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA", 
+    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA",
     "13C2C2", "B7EB8F", "096DD9", "722ED1", "C41D7F", "FFD666", "FA8C16", "F5222D", "8F90A6",
     "08979C", "237804", "0050B3", "B37FEB", "9E1068", "D48806", "FFA940", "A8071A", "6B7588"
   ];
@@ -1139,7 +1147,7 @@ class SelectPriority extends StatefulWidget {
 class _SelectPriorityState extends State<SelectPriority> {
   onSelectPriority() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    showPopover( 
+    showPopover(
       backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
@@ -1285,7 +1293,6 @@ class _SelectPriorityState extends State<SelectPriority> {
               onSelectPriority();
             },
             child: Container(
-              margin: EdgeInsets.only(top: 4),
               height: 32,
               padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
               decoration: BoxDecoration(
@@ -1302,12 +1309,12 @@ class _SelectPriorityState extends State<SelectPriority> {
             )
           ),
           SizedBox(height: 12),
-          widget.priority == null ? Text("Add a Priority", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12)) 
+          widget.priority == null ? Text("Add a Priority", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12))
           : Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Icon(
-                PhosphorIcons.warning, size: 14, 
+                PhosphorIcons.warning, size: 14,
                 color: Color(widget.priority == 1 ? 0xffFF7875 : widget.priority == 2 ? 0xffFAAD14 : widget.priority == 3 ? 0xff27AE60 : widget.priority == 4 ? 0xff69C0FF : 0xffFFFFFF)
               ),
               SizedBox(width: 6),
@@ -1351,7 +1358,7 @@ class _SelectAssigneeState extends State<SelectAssignee> {
 
   onSelectAssignee() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    showPopover( 
+    showPopover(
       backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),

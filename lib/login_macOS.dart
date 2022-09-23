@@ -1,4 +1,3 @@
-// import 'dart:convert';
 import 'dart:io';
 
 import 'package:bitsdojo_window/bitsdojo_window.dart';
@@ -6,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/login/forgot_password.dart';
 import 'package:workcake/components/login/input_field.dart';
@@ -15,7 +13,7 @@ import 'package:workcake/components/login/logo.dart';
 import 'package:workcake/components/login/signup.dart';
 import 'package:workcake/components/login/submit_button.dart';
 import 'package:workcake/data_channel_webrtc/device_socket.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'common/utils.dart';
 
 class LoginMacOS extends StatefulWidget {
@@ -64,7 +62,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
           FocusScope.of(context).requestFocus(focusNode1);
           return KeyEventResult.handled;
         }
-      } 
+      }
 
       return KeyEventResult.ignored;
     });
@@ -78,7 +76,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
     focusNode2!.dispose();
     super.dispose();
   }
-  
+
   void loginUser() async {
     try {
       setState(() {
@@ -86,7 +84,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
       });
       final form = _formKey.currentState;
       form!.save();
-      
+
       if (form.validate()) {
         await Provider.of<Auth>(context, listen: false).loginUserPassword(_emailController.text, _passwordController.text, context);
       }
@@ -115,6 +113,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
           children: <Widget>[
             InputFieldMacOs(
               controller: _emailController,
+              autoFocus: true,
               focusNode: focusNode1,
               hintText: "Email or Phone number",
               prefix: Container(
@@ -142,7 +141,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     return InkWell(
       onTap: () {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (BuildContext context) => SignUpMacOS()));
+        Navigator.push(context, MaterialPageRoute(builder: (BuildContext context) => SignUpMacOS()));
       },
       child: Container(
         // width: MediaQuery.of(context).size.width,
@@ -221,7 +220,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
                             setState((){
                               loginType = "password";
                           });
-                        }) 
+                        })
                         : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
@@ -300,7 +299,7 @@ class _LoginMacOSState extends State<LoginMacOS> {
                         )
                       ],
                     ),
-                    
+
                   ),
                   SizedBox(width: width * 0.2,),
                   Container(
@@ -335,7 +334,7 @@ class _WindowButtonsState extends State<WindowButtons> {
              appWindow.maximizeOrRestore();
            }),
           )
-          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]), 
+          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]),
             onPressed: () => setState(() {
               appWindow.maximizeOrRestore();
             }))
@@ -355,7 +354,6 @@ class RememberMe extends StatefulWidget {
   _RememberMeState createState() => _RememberMeState();
 }
 
-// ignore: camel_case_types
 class _RememberMeState extends State<RememberMe> {
   bool checked = true;
   @override
@@ -410,6 +408,21 @@ class LoginQrCode extends StatefulWidget {
 }
 
 class _LoginQrCodeState extends State<LoginQrCode> {
+
+  @override
+  void initState(){
+    super.initState();
+    loop();
+  }
+
+  Future<void> loop() async {
+    await Future.delayed(Duration(seconds: 50));
+    if (this.mounted) {
+      DeviceSocket.instance.sendRequestQrCode();
+      loop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: false);
@@ -468,7 +481,7 @@ class _LoginQrCodeState extends State<LoginQrCode> {
           SizedBox(height: height * 0.05),
           Row(
             children: const [
-              Text("Note: ", 
+              Text("Note: ",
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
 
@@ -500,7 +513,7 @@ class _LoginQrCodeState extends State<LoginQrCode> {
               )
             ],
           )
-          
+
           // AssetImage("assets/images/scan.svg")
           // SvgPicture.asset("assets/images/scan.svg")
         ],

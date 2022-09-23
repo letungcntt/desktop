@@ -7,15 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/component/AttachmentItem.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'CardItem.dart';
+import 'card_timeline.dart';
 import 'component/ChecklistItem.dart';
 import 'component/ListMember.dart';
 import 'component/models.dart';
@@ -45,9 +45,11 @@ class _CardDetailState extends State<CardDetail> {
   var focusNode = FocusNode();
   bool hideDescription = false;
   bool hideAttachment = false;
+  bool showCardTimeline = false;
 
   @override
-  void initState() { 
+  void initState() {
+    final channel = Provider.of<Auth>(context, listen: false).channel;
     CardItem card = widget.card;
     final token = Provider.of<Auth>(context, listen: false).token;
     Provider.of<Boards>(context, listen: false).getActivity(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id).then((res) {
@@ -56,12 +58,31 @@ class _CardDetailState extends State<CardDetail> {
         card.activity = res["activity"];
         card.checklists = res["checklists"];
         card.attachments = res["attachments"];
+        card.timelines = res["timelines"] ?? [];
       });
       Provider.of<Boards>(context, listen: false).onSelectCard(card);
     });
     descriptionController.text = widget.card.description;
     titleController.text = widget.card.title;
+
+    channel.on("update_card_timeline", (payload, _ref, _j){
+      updateCardTimeline(payload);
+    });
+
     super.initState();
+  }
+
+  updateCardTimeline(payload) {
+    CardItem card = widget.card;
+    final cardId = payload["card_id"];
+
+    if (cardId.toString() == card.id.toString()) {
+      if (this.mounted) {
+        this.setState(() {
+          card.timelines = [payload] + card.timelines;
+        });
+      }
+    }
   }
 
   addOrRemoveMember(userId) {
@@ -74,7 +95,7 @@ class _CardDetailState extends State<CardDetail> {
       widget.card.members.removeAt(index);
     }
     this.setState(() {});
-    Provider.of<Boards>(context, listen: false).addOrRemoveAttribute(token, widget.card.workspaceId, widget.card.channelId, widget.card.boardId, widget.card.listCardId, widget.card.id, userId, "member");
+    Provider.of<Boards>(context, listen: false).addOrRemoveAttribute(token, widget.card.workspaceId, widget.card.channelId, widget.card.boardId, widget.card.listCardId, widget.card, userId, "member");
   }
 
   setLabel(value) {
@@ -87,7 +108,7 @@ class _CardDetailState extends State<CardDetail> {
       widget.card.labels.removeAt(index);
     }
     this.setState(() {});
-    Provider.of<Boards>(context, listen: false).addOrRemoveAttribute(token, widget.card.workspaceId, widget.card.channelId, widget.card.boardId, widget.card.listCardId, widget.card.id, value, "label");
+    Provider.of<Boards>(context, listen: false).addOrRemoveAttribute(token, widget.card.workspaceId, widget.card.channelId, widget.card.boardId, widget.card.listCardId, widget.card, value, "label");
   }
 
   onDeleteAttachment(att) {
@@ -106,12 +127,8 @@ class _CardDetailState extends State<CardDetail> {
     List attachments = widget.card.attachments;
 
     try {
-      var myMultipleFiles = await Utils.openFilePicker([
-        XTypeGroup(
-          extensions: ['jpg', 'jpeg', 'gif', 'png', 'xlsx', 'json', 'xls', 'zip', 'docs']
-        )
-      ]);
-      
+      var myMultipleFiles = await Utils.openFilePicker([XTypeGroup(extensions: [])]);
+
       for (var e in myMultipleFiles) {
         Map newFile = {
           "filename": e["name"],
@@ -142,7 +159,7 @@ class _CardDetailState extends State<CardDetail> {
             setState(() {
               attachments[i] = responseData;
             });
-            Provider.of<Boards>(context, listen: false).addAttachment(token, widget.card.workspaceId, widget.card.channelId, widget.card.boardId, 
+            Provider.of<Boards>(context, listen: false).addAttachment(token, widget.card.workspaceId, widget.card.channelId, widget.card.boardId,
               widget.card.listCardId, widget.card.id, responseData["content_url"], responseData["mime_type"], responseData["file_name"]).then((res) {
                 attachments[i]["id"] = res["attachment"]["id"];
               });
@@ -178,7 +195,7 @@ class _CardDetailState extends State<CardDetail> {
 
   handleKeyPress(event) {
     if (event is RawKeyDownEvent) {
-      if (event.isKeyPressed(LogicalKeyboardKey.enter) && (event.isShiftPressed || event.isMetaPressed)) {
+      if ((event.isKeyPressed(LogicalKeyboardKey.enter) || event.isKeyPressed(LogicalKeyboardKey.numpadEnter)) && (event.isShiftPressed || event.isMetaPressed)) {
         if (descriptionController.text.trim() != "") {
           widget.card.description = descriptionController.text.trim();
           updateCardTitleOrDescription();
@@ -203,14 +220,26 @@ class _CardDetailState extends State<CardDetail> {
       "due_date": card.dueDate != null ? card.dueDate!.toUtc().millisecondsSinceEpoch~/1000 + 86400 : null,
       "priority": card.priority
     };
-    Provider.of<Boards>(context, listen: false).updateCardTitleOrDescription(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, payload);
+    Provider.of<Boards>(context, listen: false).updateCardTitleOrDescription(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card, "cardInfo", payload);
     this.setState(() {});
+  }
+
+  findUser(id) {
+    final members = Provider.of<Workspaces>(context, listen: false).members;
+    final indexMember = members.indexWhere((e) => e["id"] == id);
+
+    if (indexMember != -1) {
+      return members[indexMember];
+    } else {
+      return {};
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
     final card = widget.card;
+    final author = card.author != null ? findUser(card.author) : null;
 
     return Container(
       width: 994,
@@ -219,7 +248,12 @@ class _CardDetailState extends State<CardDetail> {
         child: Container(
           constraints: BoxConstraints(minHeight: 606, maxHeight: 720),
           child: SingleChildScrollView(
-            child: Row(
+            physics: showCardTimeline ? NeverScrollableScrollPhysics() : AlwaysScrollableScrollPhysics(),
+            child: showCardTimeline ? 
+              CardTimeline(
+                timelines: card.timelines,
+                onBack: () => { this.setState(() {showCardTimeline = false; }) }
+              ) : Row(
               mainAxisAlignment: MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -232,7 +266,7 @@ class _CardDetailState extends State<CardDetail> {
                       )
                     )
                   ),
-                  padding: EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                  padding: EdgeInsets.only(top: 42, left: 18, right: 18, bottom: 24),
                   width: 732,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,8 +303,8 @@ class _CardDetailState extends State<CardDetail> {
                               ),
                               cursorColor: isDark ? Colors.white : null,
                               style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 16),
-                            ),
-                          ),
+                            )
+                          )
                         ) : InkWell(
                           onTap: () {
                             this.setState(() {
@@ -278,20 +312,23 @@ class _CardDetailState extends State<CardDetail> {
                             });
                           },
                           child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 11),
+                            width: 720,
+                            padding: EdgeInsets.symmetric(horizontal: 11, vertical: 12),
                             decoration: BoxDecoration(
                               color: isDark ? Color(0xff4C4C4C) : Color(0xffF3F3F3),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                             ),
-                            height: 46,
-                            child: Row(
-                              children: [
-                                Text(card.title, style: TextStyle(fontSize: 16, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight))
-                              ]
+                            // height: 46,
+                            child: Text(
+                              card.title, 
+                              style: TextStyle(
+                                fontSize: 16, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight
+                              ), 
+                              overflow: TextOverflow.ellipsis
                             )
                           )
-                        ),
+                        )
                       ),
                       SizedBox(height: 30),
                       Row(
@@ -307,7 +344,7 @@ class _CardDetailState extends State<CardDetail> {
                                 SizedBox(width: 12),
                                 Icon(hideDescription ? PhosphorIcons.caretRight : PhosphorIcons.caretDown, size: 18.0),
                               ]
-                            ),
+                            )
                           ),
                           InkWell(
                             onTap: () {
@@ -315,47 +352,80 @@ class _CardDetailState extends State<CardDetail> {
                             },
                             child: Icon(PhosphorIcons.pencilSimpleLine, size: 17)
                           )
-                        ],
+                        ]
                       ),
                       if(!hideDescription) Container(
                         margin: EdgeInsets.only(top: 16),
                         child: Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            onEditDescription ? Container(
-                              width: double.infinity,
-                              color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
-                              height: 176,
-                              child: RawKeyboardListener(
-                                focusNode: focusNode,
-                                onKey: handleKeyPress,
-                                child: Focus(
-                                  onFocusChange: (focus) {
-                                    if (!focus) {
-                                      this.setState(() { onEditDescription = false; });
-                                    }
-                                  },
-                                  child: TextFormField(
-                                    autofocus: true,
-                                    controller: descriptionController,
-                                    minLines: 8,
-                                    maxLines: 8,
-                                    cursorColor: isDark ? Colors.white : null,
-                                    decoration: InputDecoration(
-                                      hintText: "Add a more detailed...",
-                                      hintStyle: TextStyle(fontSize: 14),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
-                                        borderRadius: BorderRadius.all(Radius.circular(4))
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
-                                        borderRadius: BorderRadius.all(Radius.circular(4))
+                            onEditDescription ? Column(
+                              children: [
+                                Container(
+                                  width: double.infinity,
+                                  color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
+                                  height: 126,
+                                  child: RawKeyboardListener(
+                                    focusNode: focusNode,
+                                    onKey: handleKeyPress,
+                                    child: TextFormField(
+                                      autofocus: true,
+                                      controller: descriptionController,
+                                      minLines: 8,
+                                      maxLines: 8,
+                                      cursorColor: isDark ? Colors.white : null,
+                                      decoration: InputDecoration(
+                                        hintText: "Add a more detailed...",
+                                        hintStyle: TextStyle(fontSize: 14),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
+                                          borderRadius: BorderRadius.all(Radius.circular(4))
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderSide: BorderSide(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
+                                          borderRadius: BorderRadius.all(Radius.circular(4))
+                                        )
                                       )
                                     )
-                                  ),
+                                  )
                                 ),
-                              )
+                                SizedBox(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        this.setState(() { onEditDescription = false; });
+                                      },
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        child: Text("Cancel"),
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    InkWell(
+                                      onTap: () {
+                                        if (descriptionController.text.trim() != "") {
+                                          widget.card.description = descriptionController.text.trim();
+                                          updateCardTitleOrDescription();
+                                        }
+                                        this.setState(() {
+                                          onEditDescription = false;
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(4),
+                                          color: Color(0xffFAAD14)
+                                        ),
+                                        height: 32,
+                                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        child: Text("Save"),
+                                      ),
+                                    )
+                                  ],
+                                )
+                              ]
                             ) : InkWell(
                               onTap: () {
                                 this.setState(() {
@@ -363,14 +433,20 @@ class _CardDetailState extends State<CardDetail> {
                                 });
                               },
                               child: Container(
-                                height: 176, width: double.infinity,
+                                constraints: BoxConstraints(minHeight: 126),
+                                width: double.infinity,
                                 padding: EdgeInsets.symmetric(horizontal: 11.25, vertical: 13.5),
                                 decoration: BoxDecoration(
                                   color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                                   borderRadius: BorderRadius.circular(4),
                                   border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                                 ),
-                                child: Text(card.description, style: TextStyle(fontSize: 16))
+                                child: Text(
+                                  Utils.checkedTypeEmpty(card.description) ? card.description : 'No description provided.',
+                                  style: TextStyle(
+                                    fontSize: 16, fontStyle: Utils.checkedTypeEmpty(card.description) ? FontStyle.normal : FontStyle.italic
+                                  )
+                                )
                               )
                             )
                           ]
@@ -383,7 +459,7 @@ class _CardDetailState extends State<CardDetail> {
                       Checklists(checklists: card.checklists, card: card),
                       //////////////////////////////////////////////////////////////////////////////
                       ////////////////////////////////////////////////////////////////////////////
-                      
+
                       SizedBox(height: 30),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -405,7 +481,7 @@ class _CardDetailState extends State<CardDetail> {
                           InkWell(
                             onTap: () {
                               openFileSelector();
-                            }, 
+                            },
                             child: Icon(PhosphorIcons.uploadSimple, size: 20),
                           )
                         ]
@@ -415,13 +491,12 @@ class _CardDetailState extends State<CardDetail> {
                         thickness: 6.0,
                         controller: controller,
                         child: Container(
-                          margin: EdgeInsets.only(bottom: 12),
-                          height: 96,
+                          height: 84,
                           child: ListView.builder(
                             scrollDirection: Axis.horizontal,
                             controller: controller,
                             itemCount: card.attachments.length,
-                            itemBuilder: (BuildContext context, int index) { 
+                            itemBuilder: (BuildContext context, int index) {
                               return AttachmentItem(attachments: card.attachments, onDeleteAttachment: onDeleteAttachment, index: index);
                             }
                           )
@@ -431,7 +506,7 @@ class _CardDetailState extends State<CardDetail> {
                         overlayColor: MaterialStateProperty.all(Colors.transparent),
                         onTap: () {
                           openFileSelector();
-                        }, 
+                        },
                         child: Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
@@ -461,19 +536,67 @@ class _CardDetailState extends State<CardDetail> {
                   )
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(vertical: 24, horizontal: 24),
+                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 18),
                   width: 262,
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          InkWell(
+                            onTap: () {
+                              this.setState(() {
+                                showCardTimeline = true;
+                              });
+                            },
+                            child: Icon(PhosphorIcons.clock, size: 18)
+                          ),
+                          SizedBox(width: 12),
+                          InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                            },
+                            child: Icon(PhosphorIcons.x, size: 19)
+                          )
+                        ]
+                      ),
+                      SizedBox(height: 12),
                       SelectAssignee(members: card.members, addOrRemoveMember: addOrRemoveMember),
                       SizedBox(height: 24),
                       SelectLabel(labels: card.labels, setLabel: setLabel),
                       SizedBox(height: 24),
                       SelectPriority(priority: card.priority, setPriority: setPriority),
                       SizedBox(height: 24),
-                      SelectDueDate(setDueDate: setDueDate, dueDate: card.dueDate)
+                      SelectDueDate(setDueDate: setDueDate, dueDate: card.dueDate),
+                      SizedBox(height: 24),
+                      if (author != null) Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 32,
+                            padding: EdgeInsets.symmetric(vertical: 7, horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: isDark ? Color(0xff5E5E5E) : Color(0xffF3F3F3),
+                              borderRadius: BorderRadius.circular(4)
+                            ),
+                            child: Row(children: [Text("Created by")])
+                          ),
+                          SizedBox(height: 12),
+                          Container(
+                            margin: EdgeInsets.symmetric(horizontal: 2),
+                            child: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                CachedAvatar(author["avatar_url"], name: author["full_name"], width: 24, height: 24, radius: 50),
+                                SizedBox(width: 12),
+                                Text(author["nickname"] ?? author["full_name"])
+                              ],
+                            )
+                          ),
+                        ]
+                      )
                     ]
                   )
                 )
@@ -521,7 +644,7 @@ class _ChecklistsState extends State<Checklists> {
 
     Provider.of<Boards>(context, listen: false).createChecklist(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, card.id, title).then((res) {
       this.setState(() {
-        widget.checklists.insert(0, {"title": title, "tasks": [], "id": res["checklist"]["id"]});
+        widget.checklists.insert(0, {"title": title, "tasks": [], "id": res["checklist"]["id"], "isNew": true});
       });
     });
   }
@@ -540,7 +663,7 @@ class _ChecklistsState extends State<Checklists> {
             InkWell(
               onTap: () {
                 this.setState(() {
-                  hideCheckList = !hideCheckList; 
+                  hideCheckList = !hideCheckList;
                 });
               },
               child: Wrap(
@@ -554,7 +677,7 @@ class _ChecklistsState extends State<Checklists> {
             if(!onAddChecklist && widget.checklists.length > 0) InkWell(
               onTap: () {
                 this.setState(() {
-                  hideCheckList = false; 
+                  hideCheckList = false;
                   onAddChecklist = true;
                 });
               },
@@ -585,7 +708,7 @@ class _ChecklistsState extends State<Checklists> {
                 setState(() { onAddChecklist = false; });
               },
               cursorColor: isDark ? Colors.white : null,
-              style: TextStyle(color: isDark ? Color(0xffFFFFFF) : Color(0xffA6A6A6), fontSize: 15),
+              style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 15),
               decoration: InputDecoration(
                 hintText: "Please input title",
                 contentPadding: EdgeInsets.only(left: 16, bottom: 2),
@@ -707,7 +830,7 @@ class _SelectDueDateState extends State<SelectDueDate> {
               selectDate(context);
             },
             child: Text(
-              "${DateFormatter().renderTime(DateTime.parse('${widget.dueDate}'), type: 'yMMMd')}", 
+              "${DateFormatter().renderTime(DateTime.parse('${widget.dueDate}'), type: 'yMMMd')}",
               style: TextStyle(color: Color(0xffB7B7B7), fontSize: 14)
             )
           ) : Text("Add Due Date", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12))
@@ -732,6 +855,9 @@ class SelectLabel extends StatefulWidget {
 }
 
 class _SelectLabelState extends State<SelectLabel> {
+
+  String textSearch = "";
+
   onDeleteLabel(labelId) {
     final selectedBoard = Provider.of<Boards>(context, listen: false).selectedBoard;
 
@@ -753,7 +879,7 @@ class _SelectLabelState extends State<SelectLabel> {
   onSelectLabel() {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
-    showPopover( 
+    showPopover(
       backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
@@ -776,15 +902,21 @@ class _SelectLabelState extends State<SelectLabel> {
                   Container(
                     padding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                     child: CupertinoTextField(
+                      onChanged: (value) {
+                        setState(() {
+                          textSearch = value.toLowerCase();
+                        });
+                      },
                       decoration: BoxDecoration(
                         color: isDark ? Palette.backgroundTheardDark : Color(0xffF3F3F3),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB))
                       ),
-                      padding: EdgeInsets.only(top: 6, left: 10, bottom: 4),
+                      padding: EdgeInsets.only(top: 6, left: 10, bottom: 8),
                       placeholder: "Filter labels",
-                      placeholderStyle: TextStyle(fontSize: 14, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65)),
-                    ),
+                      style: TextStyle(fontSize: 14, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65)),
+                      placeholderStyle: TextStyle(fontSize: 14, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65))
+                    )
                   ),
                   Divider(height: 1, thickness: 1, color: isDark ? Color(0xff5E5E5E) : Color(0xffDBDBDB)),
                   Expanded(
@@ -798,7 +930,7 @@ class _SelectLabelState extends State<SelectLabel> {
                               widget.setLabel(labels[index]["id"]);
                             });
                           },
-                          child: Container(
+                          child: (textSearch.trim() != "" && !labels[index]["name"].toLowerCase().contains(textSearch)) ? Container() : Container(
                             padding: EdgeInsets.only(left: 9, right: 14),
                             height: 44,
                             decoration: BoxDecoration(
@@ -818,9 +950,9 @@ class _SelectLabelState extends State<SelectLabel> {
                                   children: [
                                     Checkbox(
                                       activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
-                                      onChanged: (bool? value) {  
+                                      onChanged: (bool? value) {
                                         widget.setLabel(labels[index]["id"]);
-                                      }, 
+                                      },
                                       value: widget.labels.contains(labels[index]["id"])
                                     ),
                                     SizedBox(width: 6),
@@ -892,7 +1024,6 @@ class _SelectLabelState extends State<SelectLabel> {
                   ),
                   child: InkWell(
                     onTap: () {
-                      Navigator.pop(context);
                       onCreateLabel(null);
                     },
                     child: Center(
@@ -909,7 +1040,7 @@ class _SelectLabelState extends State<SelectLabel> {
                             children: [
                               Icon(PhosphorIcons.plus, size: 16),
                               SizedBox(width: 6),
-                              Text("Add a Label", style: TextStyle(fontSize: 14))
+                              Text("Create a Label", style: TextStyle(fontSize: 14))
                             ]
                           )
                         )
@@ -927,7 +1058,7 @@ class _SelectLabelState extends State<SelectLabel> {
 
   onCreateLabel(label) {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
-    showPopover( 
+    showPopover(
       backgroundColor: isDark ? Palette.backgroundTheardDark : Palette.backgroundTheardLight,
       context: context,
       transitionDuration: const Duration(milliseconds: 50),
@@ -964,6 +1095,7 @@ class _SelectLabelState extends State<SelectLabel> {
       Provider.of<Boards>(context, listen: false).createLabel(token, currentWorkspace["id"], currentChannel["id"], selectedBoard["id"], title, color, null);
       onSelectLabel();
     }
+    Navigator.pop(context);
     Navigator.pop(context);
   }
 
@@ -1048,7 +1180,7 @@ class CreateLabel extends StatefulWidget {
 
 class _CreateLabelState extends State<CreateLabel> {
   List colors = [
-    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA", 
+    "5CDBD3", "389E0D", "1890FF", "531DAB", "F759AB", "FAAD14", "D46B08", "FF7875", "D9DBEA",
     "13C2C2", "B7EB8F", "096DD9", "722ED1", "C41D7F", "FFD666", "FA8C16", "F5222D", "8F90A6",
     "08979C", "237804", "0050B3", "B37FEB", "9E1068", "D48806", "FFA940", "A8071A", "6B7588"
   ];
@@ -1386,17 +1518,17 @@ class _SelectPriorityState extends State<SelectPriority> {
             )
           ),
           SizedBox(height: 12),
-          widget.priority == null ? Text("Add a Priority", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12)) 
+          (widget.priority == null || widget.priority == 5) ? Text("Add a Priority", style: TextStyle(color: Color(0xffA6A6A6), fontSize: 12))
           : Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Icon(
-                PhosphorIcons.warning, size: 14, 
+                PhosphorIcons.warning, size: 14,
                 color: Color(widget.priority == 1 ? 0xffFF7875 : widget.priority == 2 ? 0xffFAAD14 : widget.priority == 3 ? 0xff27AE60 : widget.priority == 4 ? 0xff69C0FF : 0xffFFFFFF)
               ),
               SizedBox(width: 6),
               Text(
-                "${widget.priority == 1 ? 'Urgent' : widget.priority == 2 ? 'High' : widget.priority == 3 ? 'Medium' : 'Low'}",
+                "${widget.priority == 1 ? 'Urgent' : widget.priority == 2 ? 'High' : widget.priority == 3 ? 'Medium' :  widget.priority == 4 ? 'Low' : 'None'}",
                 style: TextStyle(color: Color(widget.priority == 1 ? 0xffFF7875 : widget.priority == 2 ? 0xffFAAD14 : widget.priority == 3 ? 0xff27AE60 : widget.priority == 4 ? 0xff69C0FF : 0xffFFFFFF))
               )
             ]
@@ -1498,13 +1630,13 @@ class _SelectAssigneeState extends State<SelectAssignee> {
                       CachedAvatar(user["avatar_url"], name: user["full_name"], width: 26, height: 26, radius: 50),
                       SizedBox(width: 12),
                       Text(user["nickname"] ?? user["full_name"])
-                    ],
+                    ]
                   )
-                ),
+                )
               );
             }).toList()
-        ),
           )
+        )
       ]
     );
   }

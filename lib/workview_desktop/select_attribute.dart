@@ -6,15 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/dropdown_overlay.dart';
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'label.dart';
 
 class SelectAttribute extends StatefulWidget {
@@ -73,7 +73,7 @@ class _SelectAttributeState extends State<SelectAttribute> {
   var indexFind;
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     _currentDropdownKey = widget.dropdownKey;
     this.setState(() {
@@ -97,7 +97,7 @@ class _SelectAttributeState extends State<SelectAttribute> {
         return KeyEventResult.ignored;
       }
     );
-    
+
   }
 
   @override
@@ -177,7 +177,7 @@ class _SelectAttributeState extends State<SelectAttribute> {
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
     final formatted = formatter. format(now);
     final isPast = (milestone["due_date"].compareTo(formatted) < 0);
-    
+
     return isIcon ? Container(
       padding: EdgeInsets.only(left: 16),
       child: Icon(isPast ? Icons.warning_amber_outlined : Icons.calendar_today_outlined,
@@ -201,7 +201,7 @@ showDialogNewLable(context) {
   this.setState(() {
     listAttribute = sortListAttribute();
     pickedColor = random.nextInt(8);
-  }); 
+  });
   Navigator.pop(context);
 
   showGeneralDialog(
@@ -250,7 +250,7 @@ showDialogNewMilestones(context) {
   this.setState(() {
     listAttribute = sortListAttribute();
     pickedColor = random.nextInt(8);
-  }); 
+  });
   Navigator.pop(context);
 
   showGeneralDialog(
@@ -414,16 +414,22 @@ showDialogNewMilestones(context) {
   }
   goDirectAssignee(user) async {
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
-    Provider.of<Workspaces>(context, listen: false).setTab(0);
-    Provider.of<DirectMessage>(context, listen: false).setSelectedDM(DirectModel(
-      "", 
-      [
-        {"user_id": currentUser["id"], "full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true},
-        {"user_id": user["id"], "full_name": user["full_name"], "avatar_url": user["avatar_url"], "is_online": user["is_online"]}
-      ], "", false, 0, {}, false, 0, {}, user["full_name"], null), ""
-    );
-    final keyScaffold = Provider.of<Auth>(context, listen: false).keyDrawer;
-    keyScaffold.currentState?.openDrawer();
+    if(user["id"] != currentUser["id"]) {
+      Provider.of<Workspaces>(context, listen: false).setTab(0);
+
+      Provider.of<DirectMessage>(context, listen: false).setSelectedDM(DirectModel(
+        "",
+        [
+          {"user_id": currentUser["id"], "full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true},
+          {"user_id": user["id"], "full_name": user["full_name"], "avatar_url": user["avatar_url"], "is_online": user["is_online"]}
+        ], "", false, 0, {}, false, 0, {}, user["full_name"], null), ""
+      );
+      final keyScaffold = Provider.of<Auth>(context, listen: false).keyDrawer;
+      keyScaffold.currentState?.openDrawer();
+    }
+    else {
+      return;
+    }
   }
 
   @override
@@ -457,7 +463,7 @@ showDialogNewMilestones(context) {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("${widget.title}", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14, fontWeight: FontWeight.w700)),
+                        TextWidget("${widget.title}", style: TextStyle(color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 14, fontWeight: FontWeight.w700)),
                         widget.icon
                       ],
                     ),
@@ -474,7 +480,7 @@ showDialogNewMilestones(context) {
                   listAttribute = sortListAttribute();
                 }
               );
-            } 
+            }
             return Container(
               decoration: BoxDecoration(
                 color: isDark ? Palette.backgroundTheardDark : Colors.white,
@@ -508,6 +514,8 @@ showDialogNewMilestones(context) {
                               fontFamily: "Roboto"
                             ),
                             suffixIcon: Utils.checkedTypeEmpty(_titleController.text) ? InkWell(
+                              focusNode: FocusNode()..skipTraversal = true,
+                              canRequestFocus: false,
                               child: Icon(Icons.clear, size: 14, color: isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 0.65)),
                               onTap: () {
                                 _titleController.clear();
@@ -529,9 +537,10 @@ showDialogNewMilestones(context) {
                         ),
                       ),
                       if(indexFind == -1 && listAttribute.length == 0) widget.title == "Labels" ? InkWell(
+                        focusNode: FocusNode()..skipTraversal = true,
                         onTap: (){
                           showDialogNewLable(context);
-                            this.setState(() {}); 
+                            this.setState(() {});
                           },
                         child: HoverItem(
                           colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
@@ -554,9 +563,10 @@ showDialogNewMilestones(context) {
                         ),
                       ):SizedBox(),
                       if(indexFind == -1 && listAttribute.length==0) widget.title == "Milestone" ? InkWell(
+                        focusNode: FocusNode()..skipTraversal = true,
                         onTap: (){
                           showDialogNewMilestones(context);
-                          this.setState(() {}); 
+                          this.setState(() {});
                         },
                         child: HoverItem(
                           colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
@@ -580,132 +590,135 @@ showDialogNewMilestones(context) {
                       ):SizedBox(),
                       Container(
                         height: 380,
-                        child: SingleChildScrollView(
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: listAttribute.length, 
-                            itemBuilder: (BuildContext context, int index) {
-                              var item = listAttribute[index];
-                              return Focus(
-                                focusNode: FocusNode(
-                                  onKey: (FocusNode node, RawKeyEvent event) {
-                                    if (event is RawKeyDownEvent) {
-                                      if(event.isKeyPressed(LogicalKeyboardKey.enter)) {
-                                        final index = selectedDefault.indexWhere((e) => e == item["id"]);
-                                        List list = List.from(selectedDefault);
-                                        if (index != -1) list.removeAt(index);
-                                        else list.add(item["id"]);
-                                        setState(() => selectedDefault = list);
-                                        widget.selectAttribute(item);
-                                        Navigator.pop(context);
-                                        return KeyEventResult.handled;
-                                      } else if(event.isKeyPressed(LogicalKeyboardKey.tab)) {
-                                        _currentDropdownKey.currentState!.removeDropdownRoute();
-                                        if(widget.title != "Milestone") {
-                                          widget.nextDropdown(widget.title);
-                                        }
-                                      } else if(!(event.isKeyPressed(LogicalKeyboardKey.arrowDown) || event.isKeyPressed(LogicalKeyboardKey.arrowUp)
-                                        || event.isKeyPressed(LogicalKeyboardKey.enter) || event.isKeyPressed(LogicalKeyboardKey.space)
-                                        || event.isKeyPressed(LogicalKeyboardKey.tab)
-                                      )){
-                                        _focusNodeInput.requestFocus();
-                                      } else if(event.isKeyPressed(LogicalKeyboardKey.tab)) {
-                                        _currentDropdownKey.currentState!.dispose();
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          controller: ScrollController(),
+                          itemCount: listAttribute.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            var item = listAttribute[index];
+                            return Focus(
+                              focusNode: FocusNode(
+                                onKey: (FocusNode node, RawKeyEvent event) {
+                                  if (event is RawKeyDownEvent) {
+                                    if(event.isKeyPressed(LogicalKeyboardKey.space)) {
+                                      final index = selectedDefault.indexWhere((e) => e == item["id"]);
+                                      List list = List.from(selectedDefault);
+                                      if (index != -1) list.removeAt(index);
+                                      else list.add(item["id"]);
+                                      setState(() => selectedDefault = list);
+                                      widget.selectAttribute(item);
+                                      return KeyEventResult.handled;
+                                    } else if (event.isKeyPressed(LogicalKeyboardKey.enter)){
+                                      Navigator.pop(context);
+                                      return KeyEventResult.handled;
+                                    } else if(event.isKeyPressed(LogicalKeyboardKey.tab)) {
+                                      _currentDropdownKey.currentState!.removeDropdownRoute();
+                                      if(widget.title != "Milestone") {
+                                        widget.nextDropdown(widget.title);
                                       }
+                                    } else if(!(event.isKeyPressed(LogicalKeyboardKey.arrowDown) || event.isKeyPressed(LogicalKeyboardKey.arrowUp)
+                                      || event.isKeyPressed(LogicalKeyboardKey.enter)
+                                      || event.isKeyPressed(LogicalKeyboardKey.tab)
+                                      || event.isKeyPressed(LogicalKeyboardKey.space)
+                                    )){
+                                      _focusNodeInput.requestFocus();
+                                    } else if(event.isKeyPressed(LogicalKeyboardKey.tab)) {
+                                      _currentDropdownKey.currentState!.dispose();
                                     }
-                                    return KeyEventResult.ignored;
                                   }
+                                  return KeyEventResult.ignored;
+                                }
+                              ),
+                              child: TextButton(
+                                style: ButtonStyle(
+                                  overlayColor: MaterialStateProperty.all(isDark ? Palette.selectChannelColor : Color(0xffF3F3F3)),
+                                  padding: MaterialStateProperty.all(EdgeInsets.zero)
                                 ),
-                                child: TextButton(
-                                  style: ButtonStyle(
-                                    overlayColor: MaterialStateProperty.all(isDark ? Palette.selectChannelColor : Color(0xffF3F3F3)),
-                                    padding: MaterialStateProperty.all(EdgeInsets.zero)
+                                onPressed: () {
+                                  _focusNodeInput.requestFocus();
+                                  final index = selectedDefault.indexWhere((e) => e == item["id"]);
+                                  List list = List.from(selectedDefault);
+                                  if (index != -1) list.removeAt(index);
+                                  else list.add(item["id"]);
+                                  setState(() => selectedDefault = list);
+                                  widget.selectAttribute(item);
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
+                                    color: selectedDefault.contains(item["id"]) && widget.title == "Milestone" ? (isDark ? Color(0xff323F4B) : Color(0xffE4E7EB)) : Colors.transparent,
                                   ),
-                                  onPressed: () {
-                                    final index = selectedDefault.indexWhere((e) => e == item["id"]);
-                                    List list = List.from(selectedDefault);
-                                    if (index != -1) list.removeAt(index);
-                                    else list.add(item["id"]);
-                                    setState(() => selectedDefault = list);
-                                    widget.selectAttribute(item);
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight)),
-                                      color: selectedDefault.contains(item["id"]) && widget.title == "Milestone" ? (isDark ? Color(0xff323F4B) : Color(0xffE4E7EB)) : Colors.transparent,
-                                    ),
-                                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
-                                    child: Row(
-                                      children: [
-                                        if(widget.title == "Milestone") renderDueDate(milestone: item, isIcon: true),
-                                        Container(
-                                          margin: widget.title == "Milestone" ? EdgeInsets.only(left: 16) : EdgeInsets.only(left: 0),
-                                          child: Column(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                width: widget.title == "Milestone" ? 198 : 288,
-                                                child: Row(
-                                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                  children: [
-                                                    Container(
-                                                      child: Row(
-                                                        children: [
-                                                          if (widget.title != "Milestone") SizedBox(width: 12),
-                                                          if (widget.title == "Assignees") CachedImage(
-                                                            item["avatar_url"],
-                                                            height: 24,
-                                                            width: 24,
-                                                            radius: 50,
-                                                            name: item["nickname"] ?? item["full_name"],
-                                                          ),
-                                                          if (widget.title == "Assignees") SizedBox(width: 12),
-                                                          Container(
-                                                            width: widget.title == "Milestone" ? 100 : null,
-                                                            padding: EdgeInsets.symmetric(vertical: widget.title != "Milestone" ? 4 : 0, horizontal: widget.title == "Labels" ? 8 : 0),
-                                                            decoration: BoxDecoration(
-                                                              borderRadius: BorderRadius.circular(16),
-                                                              color: widget.title == "Labels" ? Color(int.parse("0xFF${listAttribute[index]["color_hex"]}")) : Colors.transparent,
-                                                            ),
-                                                            child: Text(
-                                                              widget.title == "Milestone" ? item["title"] :  widget.title == "Labels" ? item["name"] : item["nickname"] ?? item["full_name"], 
-                                                              style: TextStyle(color: widget.title == "Labels" ? Colors.white : (isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 065)), fontWeight: widget.title == "Labels" ? FontWeight.w400 : FontWeight.w600, fontSize: widget.title == "Labels" ? 12 : 14),
-                                                              overflow: TextOverflow.ellipsis,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    Container(
-                                                      margin: EdgeInsets.only(right: 15),
-                                                      child: selectedDefault.contains(item["id"]) && widget.title != "Milestone"
-                                                      ? Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 16, color: Palette.buttonColor)
-                                                      : Container(width: 16, height: 16)
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-
-                                              if (widget.title == "Milestone") Container(
-                                                margin: EdgeInsets.only(top: 6),
-                                                child: Row(children: [
+                                  padding: EdgeInsets.symmetric(vertical: 12, horizontal: 5),
+                                  child: Row(
+                                    children: [
+                                      if(widget.title == "Milestone") renderDueDate(milestone: item, isIcon: true),
+                                      Container(
+                                        margin: widget.title == "Milestone" ? EdgeInsets.only(left: 16) : EdgeInsets.only(left: 0),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              width: widget.title == "Milestone" ? 198 : 288,
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
                                                   Container(
-                                                    child: widget.title == "Milestone" ? renderDueDate(milestone: item) : 
-                                                    Text(item["description"], style: TextStyle(color: Colors.grey[700]))),
-                                                  ],
-                                                ),
-                                              )
-                                            ],
-                                          ),
+                                                    child: Row(
+                                                      children: [
+                                                        if (widget.title != "Milestone") SizedBox(width: 12),
+                                                        if (widget.title == "Assignees") CachedImage(
+                                                          item["avatar_url"],
+                                                          height: 24,
+                                                          width: 24,
+                                                          radius: 50,
+                                                          name: item["nickname"] ?? item["full_name"],
+                                                        ),
+                                                        if (widget.title == "Assignees") SizedBox(width: 12),
+                                                        Container(
+                                                          width: widget.title == "Milestone" ? 100 : null,
+                                                          padding: EdgeInsets.symmetric(vertical: widget.title != "Milestone" ? 4 : 0, horizontal: widget.title == "Labels" ? 8 : 0),
+                                                          decoration: BoxDecoration(
+                                                            borderRadius: BorderRadius.circular(16),
+                                                            color: widget.title == "Labels" ? Color(int.parse("0xFF${listAttribute[index]["color_hex"]}")) : Colors.transparent,
+                                                          ),
+                                                          child: Text(
+                                                            widget.title == "Milestone" ? item["title"] :  widget.title == "Labels" ? item["name"] : item["nickname"] ?? item["full_name"],
+                                                            style: TextStyle(color: widget.title == "Labels" ? Colors.white : (isDark ? Colors.white : Color.fromRGBO(0, 0, 0, 065)), fontWeight: widget.title == "Labels" ? FontWeight.w400 : FontWeight.w600, fontSize: widget.title == "Labels" ? 12 : 14),
+                                                            overflow: TextOverflow.ellipsis,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    margin: EdgeInsets.only(right: 15),
+                                                    child: selectedDefault.contains(item["id"]) && widget.title != "Milestone"
+                                                    ? Icon(CupertinoIcons.checkmark_alt_circle_fill, size: 16, color: Palette.buttonColor)
+                                                    : Container(width: 16, height: 16)
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+
+                                            if (widget.title == "Milestone") Container(
+                                              margin: EdgeInsets.only(top: 6),
+                                              child: Row(children: [
+                                                Container(
+                                                  child: widget.title == "Milestone" ? renderDueDate(milestone: item) :
+                                                  Text(item["description"], style: TextStyle(color: Colors.grey[700]))),
+                                                ],
+                                              ),
+                                            )
+                                          ],
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            }
-                          ),
+                              ),
+                            );
+                          }
                         ),
                       ),
                       Container(
@@ -766,8 +779,8 @@ showDialogNewMilestones(context) {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 4.0,),
                   height: 24,
-                  child: Text(
-                    widget.title == "Milestone" ? "No milestone" : widget.title == "Labels" ? "None yet" : "No one-assign yourself", 
+                  child: TextWidget(
+                    widget.title == "Milestone" ? "No milestone" : widget.title == "Labels" ? "None yet" : "No one-assign yourself",
                     style: TextStyle(color: isDark ? Color(0xffD9D9D9) : Color.fromRGBO(0, 0, 0, 0.45), fontSize: 12)
                   )
                 )
@@ -820,8 +833,8 @@ showDialogNewMilestones(context) {
                               ),
                               Container(
                                 margin: EdgeInsets.only(top: widget.title == "Milestone" ? 12 : 0),
-                                child: Text(
-                                  widget.title == "Milestone" ? item["title"] : item["nickname"] ?? item["full_name"], 
+                                child: TextWidget(
+                                  widget.title == "Milestone" ? item["title"] : item["nickname"] ?? item["full_name"],
                                   style: TextStyle(fontWeight: widget.title != "Milestone" ? FontWeight.w400 : FontWeight.w700, fontSize: 14),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1003,7 +1016,7 @@ showDialogNewMilestones(context) {
                         crossAxisSpacing: 8,
                         mainAxisSpacing: 5,
                         crossAxisCount: 9,
-                        children: colors.map((e) => 
+                        children: colors.map((e) =>
                           InkWell(
                             onTap: () {
                               onChangedColorPicker(e);
@@ -1047,13 +1060,13 @@ showDialogNewMilestones(context) {
                       padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 16.0, horizontal: 30.0)),
                       backgroundColor: MaterialStateProperty.all(Palette.buttonColor)
                     ),
-                    onPressed: () { 
+                    onPressed: () {
                       setState(() {
                         if(label==null){
                           setState(() => _titleController.text);
                           Navigator.pop(context);
                           onCreateLabel();
-                        } 
+                        }
                       });
                     },
                     child:Text( "Create label", style: TextStyle(color: Colors.white)),
@@ -1177,7 +1190,7 @@ Widget createOrNewMilestones(BuildContext context, label) {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Text(
-                                  dateString, 
+                                  dateString,
                                   style: TextStyle(color: isDark ? Colors.white.withOpacity(0.85) : Color(0xff1F2933), fontSize: 13.0, fontWeight: FontWeight.w300),
                                 ),
                                 Icon(Icons.calendar_today_outlined, size: 18.0, color: isDark ? Colors.white.withOpacity(0.85) : Color(0xff1F2933))

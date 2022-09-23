@@ -2,10 +2,9 @@ import 'dart:math';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/service_locator.dart';
 
 class CreateOrJoinDialogMacOs extends StatefulWidget {
@@ -33,8 +32,8 @@ class _CreateOrJoinDialogMacOsState extends State<CreateOrJoinDialogMacOs> {
       return;
     }
     final token = Provider.of<Auth>(context, listen: false).token;
-    var uploadFile = await Provider.of<Messages>(context, listen: false).getUploadData(file[0]);
-    var response = await Provider.of<Messages>(context, listen: false).uploadImage(token, 0, uploadFile, "image", (v){});
+    var uploadFile = await Provider.of<Work>(context, listen: false).getUploadData(file[0]);
+    var response = await Provider.of<Work>(context, listen: false).uploadImage(token, 0, uploadFile, "image", (v){});
     if (response['success']) {
         setState(() {
           contentUrl = response['content_url'];
@@ -177,7 +176,7 @@ class _CreateOrJoinDialogMacOsState extends State<CreateOrJoinDialogMacOs> {
                 }
               ),
             ),
-            errorMessage == "" 
+            errorMessage == ""
             ? Container(height: 4)
             : Container(
                 margin: EdgeInsets.only(top: 5),
@@ -377,7 +376,7 @@ class _CreateOrJoinDialogMacOsState extends State<CreateOrJoinDialogMacOs> {
               context: context,
               builder: (BuildContext context) {
                 return CupertinoAlertDialog(
-                  title: Text(S.of(context).joinWorkspaceSuccess,style: TextStyle(color: Colors.green),), 
+                  title: Text(S.of(context).joinWorkspaceSuccess,style: TextStyle(color: Colors.green),),
                   // content: "Join workspace was successful"
                 );
               }
@@ -410,7 +409,7 @@ class CircularBorder extends StatelessWidget {
   final width;
   final icon;
   final title;
-  
+
   const CircularBorder({
     Key? key,
     this.color = Colors.blue,

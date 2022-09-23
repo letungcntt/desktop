@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:better_selection/better_selection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
@@ -22,9 +22,11 @@ import 'package:workcake/components/message_item/record_audio.dart';
 import 'package:workcake/components/typing.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/flutter_mention/action_input.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/isar/message_conversation/service.dart';
+import 'package:workcake/providers/providers.dart';
 
 
 class MessageViewMacOS extends StatefulWidget {
@@ -40,7 +42,7 @@ class MessageViewMacOS extends StatefulWidget {
     this.id, // truong nay se ko dc dung nua do dup trong this.dataDirectMessage
     @required this.name,
     @required this.avatarUrl,
-    required this.dataDirectMessage, 
+    required this.dataDirectMessage,
     this.itemFiles, this.idMessageToJump
   }) : super(key: key);
 
@@ -136,10 +138,10 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
     List listUserDM = [user, {"user_id":currentUser["id"] }];
     Provider.of<DirectMessage>(context, listen: false).createDirectMessage(
-      token, 
+      token,
       {
         "users": listUserDM
-      }, 
+      },
       context,
       userId
     );
@@ -148,9 +150,9 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
   @override
   didUpdateWidget(oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
-    
-    if (oldWidget.dataDirectMessage.id != widget.dataDirectMessage.id) { 
+
+
+    if (oldWidget.dataDirectMessage.id != widget.dataDirectMessage.id) {
       setState(() {
         isShowRecord = false;
         DropTarget.instance.initDrop();
@@ -179,6 +181,14 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
   }
 
   processFiles(files) async {
+    if(files[0]['type'] == 'text') {
+      Timer.run(() {
+        if (key.currentState != null) key.currentState!.focusNode.requestFocus();
+        key.currentState!.setMarkUpText(files[0]['text']);
+      });
+      return;
+    }
+
     List result  = [];
     for(var i = 0; i < files.length; i++) {
       // check the path has existed
@@ -364,6 +374,9 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     onChangeIsSendMessage(true);
     _uploadImage(auth.token);
     handleCodeBlock(false);
+    if (Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id != ""){
+      Provider.of<DirectMessage>(context, listen: false).removeMarkNewMessage(Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id);
+    }
 
     setState(() {
       newLine = 1;
@@ -421,13 +434,13 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     if (controller.position.extentAfter < 10) {
       Provider.of<DirectMessage>(context, listen: false).getMessageFromApi(widget.dataDirectMessage.id, auth.token, false, null, auth.userId);
     }
-    if (controller.position.extentBefore > 10 && !streamShowGoUpStatus && controller.position.userScrollDirection == ScrollDirection.reverse){
+    if (controller.position.extentBefore > 2500 && !streamShowGoUpStatus && controller.position.userScrollDirection == ScrollDirection.reverse){
       setStreamShow(true);
     }
     if (controller.position.extentBefore < 10 && streamShowGoUpStatus && (controller.position.userScrollDirection == ScrollDirection.forward || controller.position.userScrollDirection == ScrollDirection.idle)){
       if (streamShowGoUpStatus){
         setStreamShow(false);
-      }  
+      }
     }
     if (controller.position.extentBefore < 10 && (controller.position.userScrollDirection == ScrollDirection.forward)){
       Provider.of<DirectMessage>(context, listen: false).getMessageFromApiUp(widget.dataDirectMessage.id, auth.token, auth.userId);
@@ -495,7 +508,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     } else {
       Provider.of<DirectMessage>(context, listen: false).handleSendDirectMessage(dataMessage, token);
     }
-      
+
   }
 
   getRandomString(int length){
@@ -542,41 +555,89 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     var directMessageSelected = Provider.of<DirectMessage>(context, listen: false).directMessageSelected;
     var userId = Provider.of<Auth>(context, listen: false).userId;
     var currentUser = Provider.of<User>(context, listen: false).currentUser;
+    var message = key.currentState!.controller!.text.trim();
+    
+    var checkingBlockCode = Provider.of<Messages>(context, listen: false).regexMessageBlockCode(message);
 
-    List list = fileItems;
+    
     var fakeId = getRandomString(20);
     var result = Provider.of<Messages>(context, listen: false).checkMentions(key.currentState!.controller!.markupText, trim: true);
     var idDirectmessage = directMessageSelected.id;
-    var checkingShareMessage = list.where((element) => element["mime_type"] == "share").toList();
-    var dataMessage = {
-        "message": result["success"] || isBlockCode ? "" : result["data"],
-        "attachments": [] + (result["success"] ? [{"type": "mention", "data": result["data"]}] : []) + (isBlockCode ? [{"type": "block_code", "data": [{"type": "block_code", "value": key.currentState!.controller!.text}]}] : []) + checkingShareMessage,
-        "title": "",
-        "conversation_id": idDirectmessage,
-        "show": true,
-        "id": selectedMessage == null ? "" : selectedMessage["id"],
-        "user_id": userId,
-        "time_create": selectedMessage == null ? DateTime.now().add(const Duration(hours: -7)).toIso8601String() : selectedMessage["time_create"],
-        "count": 0,
-        "isSend": selectedMessage == null,
-        "sending": true,
-        "success": true,
-        "fake_id": fakeId,
-        "current_time": selectedMessage == null ? DateTime.now().millisecondsSinceEpoch * 1000 : selectedMessage["current_time"],
-        "isDesktop": true,
-        "avatar_url": currentUser["avatar_url"],
-        "full_name": currentUser["full_name"],
-      };
+    List list = fileItems;
     setState(() {
       DropTarget.instance.initDrop();
       fileItems = [];
       selectedMessage = null;
     });
+    var checkingShareMessage = list.where((element) => element["mime_type"] == "share").toList();
+   
+    if (isBlockCode) {
+      data = [{'type': 'block_code', 'value': key.currentState!.controller!.text.trimRight()}];
+    } else if (result['success']) {
+      for (int i=0; i<result["data"].length; i++) {
+        if(result["data"][i]['type'] == 'text') {
+          var blockCode = Provider.of<Messages>(context, listen: false).regexMessageBlockCode(result["data"][i]['value']);
+          if (blockCode['success']) {
+            data = blockCode['data'];
+          } else {
+            data.add(result["data"][i]);
+          }
+        } else {
+          data.add(result["data"][i]);
+        }
+      }
+    } else {
+      if(checkingBlockCode['success']) data = checkingBlockCode['data'];
+    }
+    List attachments = [];
+    if(result['success'] && checkingBlockCode['success']) {
+      attachments = [{
+        "type": "mention", "data": data.where((ele) => ele['type'] != 'block_code').toList()
+      }, {
+        "type": "block_code", "data": data.where((ele) => ele['type'] == 'block_code').toList()
+      }];
+    } else {
+      if(result['success']) {
+        attachments = [{
+          "type": "mention", "data": data
+        }];
+      } else if (checkingBlockCode['success'] || isBlockCode) {
+        attachments = [{
+          "type": "block_code", "data": data
+        }];
+      }
+    }
+    var dataMessage = {
+      "message": result["success"] || checkingBlockCode["success"]|| isBlockCode ? "" : result["data"],
+      "attachments": attachments + checkingShareMessage,
+      "title": "",
+      "conversation_id": idDirectmessage,
+      "show": true,
+      "id": selectedMessage == null ? "" : selectedMessage["id"],
+      "user_id": userId,
+      "time_create": selectedMessage == null ? DateTime.now().add(const Duration(hours: -7)).toIso8601String() : selectedMessage["time_create"],
+      "count": 0,
+      "isSend": selectedMessage == null,
+      "sending": true,
+      "success": true,
+      "fake_id": fakeId,
+      "current_time": selectedMessage == null ? DateTime.now().millisecondsSinceEpoch * 1000 : selectedMessage["current_time"],
+      "isDesktop": true,
+      "avatar_url": currentUser["avatar_url"],
+      "full_name": currentUser["full_name"],
+    };
+    key.currentState!.controller!.clear();
+    
 
     if (Utils.checkedTypeEmpty(dataMessage["message"]) || dataMessage["attachments"].length > 0 || list.isNotEmpty) {
-      Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage(list, dataMessage, token);  
+      Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage(list, dataMessage, token);
     }
-    key.currentState!.controller!.clear();
+    
+    if (mounted) {
+      setState(() {
+        fileItems = [];
+      });
+    }
     onSaveAttachments();
   }
 
@@ -607,6 +668,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
       print("$e Cancel");
     }
   }
+
   selectEmoji(emoji) {
     key.currentState!.setMarkUpText((key.currentState?.controller?.markupText ?? '') + emoji.value);
     key.currentState!.focusNode.requestFocus();
@@ -740,6 +802,13 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     }
   }
 
+  setShareMessage (bool setShareMessage){
+    setState(() {
+      fileItems = [];
+    });
+    onSaveAttachments();
+  }
+
   onShareMessage(attachment) {
      List list = fileItems;
     final index = list.indexWhere((element) => element["mime_type"] == "share");
@@ -759,6 +828,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     processFiles([{
       "name": '$name.txt',
       "mime_type": 'txt',
+      "type": 'txt',
       "path": '',
       "file": bytes
     }]);
@@ -766,7 +836,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
 
   @override
   Widget build(BuildContext context) {
-    
+    final errorCode = Provider.of<DirectMessage>(context, listen: false).errorCode;
     final auth = Provider.of<Auth>(context, listen: false);
     final isDark = auth.theme == ThemeType.DARK;
     final theme = Provider.of<Auth>(context, listen: false).theme;
@@ -787,7 +857,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
     final idMessageToJump = Provider.of<DirectMessage>(context, listen: true).idMessageToJump;
     try {
       if (!dataMessageConversation["disableLoadingUp"]) setStreamShow(true);
-      if (dataMessageConversation["disableLoadingUp"] && controller.position.extentBefore < 10) setStreamShow(false);      
+      if (dataMessageConversation["disableLoadingUp"] && controller.position.extentBefore < 10) setStreamShow(false);
     } catch (e) {
     }
     if (dataMessageConversation == null) {return Container();}
@@ -821,12 +891,12 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                       alignment: Alignment.center,
                       duration: const Duration(milliseconds: 300),
                       color: Colors.red[100],
-                      height: index == -1 ? 0 : (dataDMMessages[index]["conversationKey"] == null) ? 50 : 0,
+                      height: (errorCode != null) && (widget.id != MessageConversationServices.shaString([Utils.panchatSupportId, auth.userId])) ? 50 : 0,
                       child: const Text("You can't send message to user on conversation.", style: TextStyle(color: Colors.red),),
                     ),
                     Container(
                       child: Expanded(
-                        child: SelectableScope(
+                        child: CustomSelectionArea(
                           child: DraggableScrollbar.rrect(
                             key: keyScroll,
                             id: widget.dataDirectMessage.id,
@@ -842,81 +912,79 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                             scrollbarTimeToFade: const Duration(seconds: 1),
                             itemCount: data.length,
                             controller: controller,
-                            child: ScrollConfiguration(
-                              behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-                              child: Container(
-                                height: double.infinity,
-                                child: ListView.builder(
-                                  // physics: AllwaysScrollableFixedPositionScrollPhysics(),
-                                  shrinkWrap: true,
-                                  reverse: true,
-                                  controller: controller,
-                                  itemCount: dataMessage.length,
-                                  itemBuilder: (context, index) { 
-                                  // children: ([(dataMessageConversation["isFetching"] ?? false) ? (shimmerEffect(context, number: 1) as Widget) : (Container() as Widget)] as List<Widget>)
-                                  //  + dataMessage.map<Widget>((message) {
-                                    // + ([(dataMessageConversation["isFetchingUp"] ?? false) ? shimmerEffect(context, number: 1) : Container()] as List<Widget>)
-                                    var message = dataMessage[index];
-                                    if (message["action"] == "delete_for_me") return Container();
-                                    var avatarUrl;
-                                    var fullName;
-                                    final int indexUser = directMessage.user.indexWhere((e) => e["user_id"] == message["user_id"]);
-                                    final user = indexUser != -1 ? directMessage.user[indexUser] : null;
-                                    if (user != null) {
-                                      avatarUrl = user["avatar_url"];
-                                      fullName = user["full_name"];
-                                    }
-
-                                    return Container(
-                                      key: Key("message_${Utils.checkedTypeEmpty(message["id"]) ? message["id"] : message["fake_id"]}"),
-                                      margin: EdgeInsets.only(bottom: index == dataMessage.length - 1 ? 8 : 0),
-                                      child: ChatItemMacOS(
-                                        key:  (message["id"] != null && message["id"].trim() != "") ? Key(message["id"]) : Key(message["fake_id"]),
-                                        idMessageToJump: idMessageToJump,
-                                        onEditMessage: onEditMessage,
-                                        isChannel: false,
-                                        id: "${message["current_time"]}" == "1"  ? null :message["id"],
-                                        accountType: message["account_type"] ?? "user",
-                                        isMe: message["user_id"] == auth.userId,
-                                        message: message["message"] ?? "",
-                                        avatarUrl: avatarUrl ?? message["avatar_url"],
-                                        insertedAt: message["inserted_at"] ?? message["time_create"],
-                                        fullName: fullName ?? message["full_name"],
-                                        attachments: message["attachments"],
-                                        isFirst: message["isFirst"],
-                                        count: (dataInfoThreadMessage[message["id"]] ?? {})["count"] ?? message["count"] ?? 0,
-                                        isLast: message["isLast"],
-                                        isChildMessage: false,
-                                        userId: message["user_id"],
-                                        success: message["success"] ?? true,
-                                        infoThread: message["info_thread"] ?? [],
-                                        showHeader: false,
-                                        showNewUser: message["showNewUser"],
-                                        isBlur:  message["isBlur"] ?? false,
-                                        reactions: message["reactions"] ?? [],
-                                        isThread: false,
-                                        firstMessage: message["firstMessage"],
-                                        isSystemMessage: message["is_system_message"] ?? false,
-                                        isViewMention: false,
-                                        conversationId: message["conversation_id"] ?? widget.dataDirectMessage.id,
-                                        // lastEditedAt: Utils.checkedTypeEmpty(message["last_edited_at"]) && message["last_edited_at"] != "null" ? message["last_edited_at"] : null,
-                                        onFirstFrameDone: onFirstFrameMessageSelectedDone,
-                                        isDark: isDark,
-                                        waittingForResponse: (message["status_decrypted"] ?? "") == "decryptionFailed",
-                                        isUnreadThreadMessage: ((dataInfoThreadMessage[message["id"]] ?? {})["is_read"] ?? true),
-                                        isUnsent: (message["action"] ?? "") == "delete",
-                                        currentTime: message["current_time"],
-                                        isDirect: true,
-                                        onShareMessage: onShareMessage,
-                                        isShow: isShow,
-                                        keyScroll: keyScroll,
-                                        isFetchingDown: (dataMessageConversation["isFetchingDown"] ?? false) && index == dataMessage.length,
-                                        isFetchingUp: (dataMessageConversation["isFetchingUp"] ?? false) && index == 0,
-                                      ),
-                                    );
+                            child: Container(
+                              height: double.infinity,
+                              child: ListView.builder(
+                                // physics: AllwaysScrollableFixedPositionScrollPhysics(),
+                                shrinkWrap: true,
+                                reverse: true,
+                                controller: controller,
+                                itemCount: dataMessage.length,
+                                itemBuilder: (context, index) {
+                                // children: ([(dataMessageConversation["isFetching"] ?? false) ? (shimmerEffect(context, number: 1) as Widget) : (Container() as Widget)] as List<Widget>)
+                                //  + dataMessage.map<Widget>((message) {
+                                  // + ([(dataMessageConversation["isFetchingUp"] ?? false) ? shimmerEffect(context, number: 1) : Container()] as List<Widget>)
+                                  var message = dataMessage[index];
+                                  if (message["action"] == "delete_for_me") return Container();
+                                  var avatarUrl;
+                                  var fullName;
+                                  final int indexUser = directMessage.user.indexWhere((e) => e["user_id"] == message["user_id"]);
+                                  final user = indexUser != -1 ? directMessage.user[indexUser] : null;
+                                  if (user != null) {
+                                    avatarUrl = user["avatar_url"];
+                                    fullName = user["full_name"];
                                   }
-                                ),
-                              )
+
+                                  return Container(
+                                    key: Key("message_${Utils.checkedTypeEmpty(message["id"]) ? message["id"] : message["fake_id"]}"),
+                                    margin: EdgeInsets.only(bottom: index == dataMessage.length - 1 ? 8 : 0),
+                                    child: ChatItemMacOS(
+                                      key:  (message["id"] != null && message["id"].trim() != "") ? Key(message["id"]) : Key(message["fake_id"]),
+                                      idMessageToJump: idMessageToJump,
+                                      onEditMessage: onEditMessage,
+                                      isChannel: false,
+                                      id: "${message["current_time"]}" == "1"  ? null :message["id"],
+                                      accountType: message["account_type"] ?? "user",
+                                      isMe: message["user_id"] == auth.userId,
+                                      message: message["message"] ?? "",
+                                      avatarUrl: avatarUrl ?? message["avatar_url"],
+                                      insertedAt: message["inserted_at"] ?? message["time_create"],
+                                      fullName: fullName ?? message["full_name"],
+                                      attachments: message["attachments"],
+                                      isFirst: message["isFirst"],
+                                      count: (dataInfoThreadMessage[message["id"]] ?? {})["count"] ?? message["count"] ?? 0,
+                                      isLast: message["isLast"],
+                                      isChildMessage: false,
+                                      userId: message["user_id"],
+                                      success: message["success"] ?? true,
+                                      infoThread: message["info_thread"] ?? [],
+                                      showHeader: false,
+                                      showNewUser: message["showNewUser"],
+                                      isBlur:  message["is_blur"] ?? false,
+                                      reactions: message["reactions"] ?? [],
+                                      isThread: false,
+                                      firstMessage: message["firstMessage"],
+                                      isSystemMessage: message["is_system_message"] ?? false,
+                                      isViewMention: false,
+                                      conversationId: message["conversation_id"] ?? widget.dataDirectMessage.id,
+                                      // lastEditedAt: Utils.checkedTypeEmpty(message["last_edited_at"]) && message["last_edited_at"] != "null" ? message["last_edited_at"] : null,
+                                      onFirstFrameDone: onFirstFrameMessageSelectedDone,
+                                      isDark: isDark,
+                                      waittingForResponse: (message["status_decrypted"] ?? "") == "decryptionFailed",
+                                      isUnreadThreadMessage: ((dataInfoThreadMessage[message["id"]] ?? {})["is_read"] ?? true),
+                                      isUnsent: (message["action"] ?? "") == "delete",
+                                      currentTime: message["current_time"],
+                                      isDirect: true,
+                                      onShareMessage: onShareMessage,
+                                      isShow: isShow,
+                                      keyScroll: keyScroll,
+                                      isFetchingDown: (dataMessageConversation["isFetchingDown"] ?? false) && index == dataMessage.length,
+                                      isFetchingUp: (dataMessageConversation["isFetchingUp"] ?? false) && index == 0,
+                                      workspaceId: 0,
+                                    ),
+                                  );
+                                }
+                              ),
                             )
                           )
                         )
@@ -928,7 +996,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                         padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                         child: Column(
                           children: [
-                            fileItems.isNotEmpty ? FileItems(files: fileItems, removeFile: removeFile, onChangedTypeFile: onChangedTypeFile) : Container(),
+                            fileItems.isNotEmpty ? FileItems(files: fileItems, removeFile: removeFile, onChangedTypeFile: onChangedTypeFile, setShareMessage: setShareMessage) : Container(),
                             isShowRecord
                               ? RecordAudio(onExit: (value) => setState(() => isShowRecord = value), isDMs: true)
                               : Container(
@@ -1066,18 +1134,29 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                                                     "full_name": currentUser["full_name"],
                                                   };
 
-                                                  Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage([], dataMessage, token);  
+                                                  Provider.of<DirectMessage>(context, listen: false).sendMessageWithImage([], dataMessage, token);
                                                 },
                                               ),
-                                              IconButton(
-                                                icon: Icon(selectedMessage != null? Icons.check : Icons.send,
-                                                color: (isSend || (fileItems.isNotEmpty))
-                                                  ? const Color(0xffFAAD14)
-                                                  : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
-                                                  size: 18
+                                              Container(
+                                                margin: EdgeInsets.all(4),
+                                                child: HoverItem(
+                                                  colorHover: Palette.hoverColorDefault,
+                                                  radius: 4.0, isRound: true,
+                                                  child: InkWell(
+                                                    child: Container(
+                                                      padding: EdgeInsets.all(6),
+                                                      child: Icon(
+                                                        selectedMessage != null? Icons.check : Icons.send,
+                                                        color: (isSend || (fileItems.isNotEmpty))
+                                                          ? const Color(0xffFAAD14)
+                                                          : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                                                        size: 18
+                                                      ),
+                                                    ),
+                                                    onTap: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
+                                                  ),
                                                 ),
-                                                onPressed: () => (isSend || (fileItems.isNotEmpty)) ? handleMessage() : null,
-                                              ),
+                                              )
                                             ],
                                           )
                                       ],
@@ -1088,11 +1167,11 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                         )
                       )
                     )
-                
+
                   ]
                 )
               ),
-              dataMessageConversation != null && dataMessageConversation["numberNewMessage"] != null && dataMessageConversation["numberNewMessage"] != 0 
+              dataMessageConversation != null && dataMessageConversation["numberNewMessage"] != null && dataMessageConversation["numberNewMessage"] != 0
               ? Positioned(
                 bottom: 100,
                 height: 50,
@@ -1100,7 +1179,7 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                 right: 0,
                 child: Center(
                   child: HoverItem(
-                    
+
                     child: GestureDetector(
                       onTap: (){
                         setStreamShow(false);
@@ -1121,38 +1200,59 @@ class _MessageViewMacOSState extends State<MessageViewMacOS> {
                     ),
                   ),
                 ),
-              ) 
+              )
               : Container(),
-              // StreamBuilder(
-              //   stream: streamShowGoUp.stream,
-              //   initialData: false,
-              //   builder: (context, snapshot) {
-              //     bool isShow = (snapshot.data as bool?) ?? false;
-              //     return AnimatedPositioned(
-                    
-              //       duration: Duration(milliseconds: 300),
-              //       bottom: isShow ? 80 : -100, left: 0, right: 0,
-              //       child: Center(
-              //         child: HoverItem(
-              //           // colorHover: Colors.pink,
-              //           child: InkWell(
-              //             onTap: () {
-              //               setStreamShow(false);
-              //               Provider.of<DirectMessage>(context, listen: false).resetOneConversation(widget.dataDirectMessage.id);
-              //             },
-              //             child: Container(
-              //               padding: EdgeInsets.all(6),
-              //               decoration: BoxDecoration(
-              //                 borderRadius: BorderRadius.circular(16),
-              //                 color: !isDark ? Color(0xFFbfbfbf) : Color(0xff262626)
-              //               ),
-              //               child: Icon(PhosphorIcons.arrowDown, size: 20)),
-              //           ),
-              //         ),
-              //       ),
-              //     );
-              //   }
-              // )
+              StreamBuilder(
+                stream: streamShowGoUp.stream,
+                initialData: false,
+                builder: (context, snapshot) {
+                  bool isShow = (snapshot.data as bool?) ?? false;
+                  return AnimatedPositioned(
+                    duration: Duration(milliseconds: 300),
+                    top: isShow ? 10 : -50, left: 0, right: 0,
+                    child: Center(
+                      child: dataMessageConversation["isFetching"] == false ? HoverItem(
+                        // colorHover: Colors.pink,
+                        child: InkWell(
+                          onTap: () {
+                            setStreamShow(false);
+                            Provider.of<DirectMessage>(context, listen: false).resetOneConversation(widget.dataDirectMessage.id);
+                          },
+                          child: Container(
+                            padding: EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              color: !isDark ? Color(0xFFbfbfbf) : Color(0xff262626)
+                            ),
+                            child: Icon(PhosphorIcons.arrowDown, size: 20)),
+                        ),
+                      ): Column(
+                        children: [
+                          Container(
+                            child: Center(
+                              child: Container(
+                                height: 30,
+                                width: 30,
+                                padding: EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white12 : Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(100)
+                                ),
+                                child: SpinKitRing(
+                                  color: Colors.blue,
+                                  lineWidth: 3,
+                                  size: 30,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+              ),
+
             ],
           ),
         );

@@ -14,10 +14,13 @@ class CardItem{
   List _checklists = [];
   List _attachments = [];
   int _commentsCount = 0;
+  int _attachmentsCount = 0;
   List _tasks = [];
   int? _priority;
   DateTime? _dueDate;
   bool isArchived = false;
+  String? author;
+  List _timelines = [];
 
   DateTime? get dueDate => this._dueDate;
   set dueDate(DateTime? value) => this._dueDate = value;
@@ -31,8 +34,14 @@ class CardItem{
   int get commentsCount => this._commentsCount;
   set commentsCount(int value) => this._commentsCount = value;
 
+  int get attachmentsCount => this._attachmentsCount;
+  set attachmentsCount(int value) => this._attachmentsCount = value;
+
   List get attachments => this._attachments;
   set attachments(List value) => this._attachments = value;
+
+  List get timelines => this._timelines;
+  set timelines(List value) => this._timelines = value;
  
   List get checklists => this._checklists;
   set checklists(List value) => this._checklists = value;
@@ -57,7 +66,9 @@ class CardItem{
     _description = value ?? _description;
   }
 
-  CardItem({id, title, listIndex, itemIndex, workspaceId, channelId, boardId, listCardId, description, members, labels, activity, checklists, attachments, commentsCount, tasks, isArchived, dueDate, priority}){
+  CardItem({id, title, listIndex, itemIndex, workspaceId, channelId, boardId, listCardId, description, author, 
+    members, labels, activity, checklists, attachments, commentsCount, attachmentsCount, tasks, isArchived, 
+    dueDate, priority, timelines}){
     this.id = id != null ? id.toString() : this.id;
     this.title = title ?? this.title;
     this.itemIndex = itemIndex;
@@ -73,10 +84,13 @@ class CardItem{
     this.checklists = checklists ?? this.checklists;
     this.attachments = attachments ?? this.attachments;
     this.commentsCount = commentsCount ?? this.commentsCount;
+    this.attachmentsCount = attachmentsCount ?? this.attachmentsCount;
     this.tasks = tasks ?? this.tasks;
     this.isArchived = isArchived ?? this.isArchived;
     this.dueDate = dueDate;
     this.priority = priority;
+    this.author = author;
+    this.timelines = timelines ?? this.timelines;
   }
 
   static cardFrom(obj) {
@@ -95,10 +109,13 @@ class CardItem{
       checklists: obj["checklists"],
       attachments: obj["attachments"],
       commentsCount: obj["commentsCount"],
+      attachmentsCount: obj["attachmentsCount"],
       tasks: obj["tasks"],
       isArchived: obj["isArchived"],
       dueDate: obj["dueDate"] != null ? DateTime.parse(obj["dueDate"]) : null,
-      priority: obj["priority"]
+      priority: obj["priority"],
+      author: obj["author"],
+      timelines: obj["timelines"]
     );
 
     return card;

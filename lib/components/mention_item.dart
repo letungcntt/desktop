@@ -1,29 +1,31 @@
-import 'package:better_selection/better_selection.dart';
+import 'package:context_menus/context_menus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:workcake/components/custom_context_menu.dart';
+import 'package:workcake/components/render_list_emoji.dart';
+import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
 import 'package:workcake/markdown/style_sheet.dart';
 import 'package:workcake/markdown/widget.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
+import 'package:workcake/workview_desktop/markdown_attachment.dart';
 import 'package:workcake/workview_desktop/markdown_checkbox.dart';
-import 'message_item/attachments/attachments.dart';
 import 'message_item/chat_item_macOS.dart';
 
 class MentionItem extends StatefulWidget {
-  MentionItem({Key? key, this.sourceName, this.mentions, this.index, this.issueUniq, this.text, this.showDateThread}) : super(key: key);
+  MentionItem({Key? key, this.sourceName, this.mention, this.issueUniq, this.text, this.showDateThread}) : super(key: key);
 
   final sourceName;
-  final mentions;
-  final index;
+  final mention;
   final issueUniq;
   final text;
   final showDateThread;
@@ -34,6 +36,15 @@ class MentionItem extends StatefulWidget {
 class _MentionItemState extends State<MentionItem> {
   bool _isHover = false;
   bool showEmoji = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.mention["unread"] == true && widget.mention["source_id"] != null) {
+      final token = Provider.of<Auth>(context, listen: false).token;
+      Provider.of<Workspaces>(context, listen: false).updateUnreadMentionItem(token, widget.mention["workspace_id"], widget.mention["channel_id"], widget.mention);
+    }
+  }
 
   parseMention(comment) {
     var parse = Provider.of<Messages>(context, listen: false).checkMentions(comment);
@@ -49,6 +60,12 @@ class _MentionItemState extends State<MentionItem> {
       for (var i = 0; i < list.length; i++) {
         var item = list[i];
 
+        if (i - 1 >= 0) {
+          if ((list[i-1].contains("- [ ]") || list[i-1].contains("- [x]")) && !(item.contains("- [ ]") || item.contains("- [x]"))) {
+            list[i-1] = list[i-1] + " " + item;
+            list[i] = "\n";
+          }
+        }
         if (item.contains("- [ ]") || item.contains("- [x]")) {
           if (i + 2 < list.length) {
             if (list[i+1].trim() == "") {
@@ -62,7 +79,7 @@ class _MentionItemState extends State<MentionItem> {
           }
         }
       }
-    } 
+    }
     return list.join("\n");
   }
 
@@ -93,10 +110,10 @@ class _MentionItemState extends State<MentionItem> {
   }
 
   onChangeCheckBox(value, elText, commentId) {
-    final issue = widget.mentions[widget.index]["issue"];
+    final issue = widget.mention["issue"];
     final auth = Provider.of<Auth>(context, listen: false);
-    final workspaceId = widget.mentions[widget.index]["workspace_id"];
-    final channelId = widget.mentions[widget.index]["channel_id"];
+    final workspaceId = widget.mention["workspace_id"];
+    final channelId = widget.mention["channel_id"];
 
     if (elText.length >= 1) {
       String description = issue["description"];
@@ -121,16 +138,14 @@ class _MentionItemState extends State<MentionItem> {
       Provider.of<Channels>(context, listen: false).updateIssueTitle(auth.token, workspaceId, channelId, issue["id"], issue["title"], dataDescription);
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: false);
     final token = auth.token;
     final isDark = auth.theme == ThemeType.DARK;
     final currentUser = Provider.of<User>(context, listen: true).currentUser;
-    var index = widget.index;
-    var mentions = widget.mentions;
-    var mentionInThread = mentions[widget.index]["message"] == null ? false: Utils.checkedTypeEmpty(mentions[widget.index]["message"]["parent_id"]);
+    var mentionInThread = widget.mention["message"] == null ? false: Utils.checkedTypeEmpty(widget.mention["message"]["parent_id"]);
     final customColor = Provider.of<User>(context, listen: false).currentUser["custom_color"];
 
     return MouseRegion(
@@ -169,12 +184,12 @@ class _MentionItemState extends State<MentionItem> {
                         text: TextSpan(
                           style: TextStyle(fontSize: 13, color: isDark ? Colors.white : Color(0xFF1F2933)),
                           children: <TextSpan>[
-                            TextSpan(text: Utils.getUserNickName(mentions[index]["creator_id"]) ?? mentions[index]["creator_name"], style: TextStyle(fontWeight: FontWeight.w600)),
+                            TextSpan(text: Utils.getUserNickName(widget.mention["creator_id"]) ?? widget.mention["creator_name"], style: TextStyle(fontWeight: FontWeight.w600)),
                             TextSpan(text: ' mentioned you in '),
                             TextSpan(text: mentionInThread ? "a thread in " : ""),
                             TextSpan(
                               text: widget.sourceName,
-                              style: TextStyle(fontWeight: Utils.checkedTypeEmpty(mentions[index]["channel_id"])
+                              style: TextStyle(fontWeight: Utils.checkedTypeEmpty(widget.mention["channel_id"])
                                   ? FontWeight.bold
                                   : FontWeight.normal)
                             ),
@@ -185,27 +200,46 @@ class _MentionItemState extends State<MentionItem> {
                                 color: isDark ? Colors.white : Color(0XFF1F2933)
                               )
                             ) : TextSpan(),
+                            (widget.mention["unread"] ?? []) ? TextSpan(
+                              text: '   NEW' ,
+                              style: TextStyle(
+                              fontWeight: FontWeight.w600, 
+                              color: Palette.errorColor,fontStyle: FontStyle.italic, fontSize: 10.5)
+                            ) :TextSpan(text: ' '),
                           ],
                         ),
                       ),
                       !_isHover ? Container() : Row(
                         children: [
-                          mentions[index]["conversation_id"] == null
-                          ? Container(
-                            width: 18,
-                            child: mentions[index]["issue"]["id"] == null ? IconButton(
-                              hoverColor: Colors.transparent,
-                              focusColor: Colors.transparent,
-                              highlightColor: Colors.transparent,
-                              splashColor: Colors.transparent,
-                              iconSize: 18,
-                              constraints: BoxConstraints(),
-                              padding: EdgeInsets.zero,
-                              onPressed: () {},
-                              icon: Icon(CupertinoIcons.smiley)
-                            ) : Container(),
-                          )
-                          : Container(),
+                          widget.mention["conversation_id"] == null
+                          ? ContextMenu(
+                            child: HoverItem(
+                              child: Icon(CupertinoIcons.smiley, size: 18,)
+                            ),
+                            contextMenu: Container(
+                              width: 400, height: 556.75,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(2),
+                                color:isDark ? const Color(0xFF3D3D3D) : const Color(0xFFFFFFFF),
+                                border: Border.all(width: 0.3, color:isDark ? Colors.grey[700]! : Colors.grey)
+                              ),
+                              child: ListEmojiWidget(
+                                workspaceId: widget.mention["workspace_id"],
+                                onSelect: (emoji){
+                                  Provider.of<Messages>(context, listen: false).handleReactionMessage({
+                                    "message_id": widget.mention["message"]["id"],
+                                    "channel_id": widget.mention["channel_id"],
+                                    "workspace_id": widget.mention["workspace_id"],
+                                    "token": token,
+                                    "emoji_id": emoji.id
+                                  });
+                                },
+                                onClose: () {
+                                  context.contextMenuOverlay.close();
+                                }
+                              ),
+                            )
+                          ) : Container(),
                           Container(
                             width: 18,
                             margin: EdgeInsets.symmetric(horizontal: 12),
@@ -217,14 +251,14 @@ class _MentionItemState extends State<MentionItem> {
                               iconSize: 18,
                               padding: EdgeInsets.zero,
                               onPressed: () async {
-                                if ( mentions[index]["conversation_id"] == null){
-                                  var jumpToIssue = mentions[index]["issue"]["id"] != null ? true : false;
+                                if ( widget.mention["conversation_id"] == null){
+                                  var jumpToIssue = widget.mention["issue"]["id"] != null ? true : false;
                                   if(jumpToIssue) {
-                                    var issue = mentions[index]["issue"];
-                                    if (mentions[index]["issue_comment"]["id"] == null)
-                                    issue["mention_id"] = mentions[index]["issue_comment"]["id"];
-                                    issue["channel_id"] = mentions[index]["channel_id"];
-                                    issue["workspace_id"] = mentions[index]["workspace_id"];
+                                    var issue = widget.mention["issue"];
+                                    if (widget.mention["issue_comment"]["id"] == null)
+                                    issue["mention_id"] = widget.mention["issue_comment"]["id"];
+                                    issue["channel_id"] = widget.mention["channel_id"];
+                                    issue["workspace_id"] = widget.mention["workspace_id"];
                                     issue["is_closed"] = false; // de default tranh trang man hinh
                                     issue["comments"] = [];
                                     issue["is_closed"] = false;
@@ -233,49 +267,49 @@ class _MentionItemState extends State<MentionItem> {
                                   } else {
                                     Provider.of<Messages>(context, listen: false).handleProcessMessageToJump(
                                       {
-                                        ...mentions[index]["message"],
-                                        "avatarUrl": mentions[index]["creator_url"] ?? "",
-                                        "fullName": mentions[index]["creator_name"],
-                                        "workspace_id": mentions[index]["workspace_id"],
-                                        "channel_id": mentions[index]["channel_id"]
+                                        ...widget.mention["message"],
+                                        "avatarUrl": widget.mention["creator_url"] ?? "",
+                                        "fullName": widget.mention["creator_name"],
+                                        "workspace_id": widget.mention["workspace_id"],
+                                        "channel_id": widget.mention["channel_id"]
                                       }
                                       , context);
-                                  } 
+                                  }
                                 } else {
-                                  var indexConverastion = Provider.of<DirectMessage>(context, listen: false).data.indexWhere((element) => element.id == mentions[index]["conversation_id"]);
+                                  var indexConverastion = Provider.of<DirectMessage>(context, listen: false).data.indexWhere((element) => element.id == widget.mention["conversation_id"]);
                                   if (indexConverastion != -1){
-                                    // hien tai viec nhay vao hoi thoai co van de => 
+                                    // hien tai viec nhay vao hoi thoai co van de =>
                                     // -> doi voi tin nhan trong luong chinj
                                     // chi mo hoi thoai
                                     // -> doi voi tin nhan trong thread
                                     // nhay vao luong chinh, mo thread;
 
                                     DirectModel dm  = Provider.of<DirectMessage>(context, listen: false).data[indexConverastion];
-                                    var dataDMMessages = Provider.of<DirectMessage>(context, listen: false).getCurrentDataDMMessage(mentions[widget.index]["conversation_id"]);
+                                    var dataDMMessages = Provider.of<DirectMessage>(context, listen: false).getCurrentDataDMMessage(widget.mention["conversation_id"]);
 
                                     if (mentionInThread){
                                       var parentMessage = {
-                                        "id": mentions[widget.index]["message"]["parent_id"],
+                                        "id": widget.mention["message"]["parent_id"],
                                         "isChannel": false,
-                                        "conversationId": mentions[widget.index]["conversation_id"],
+                                        "conversationId": widget.mention["conversation_id"],
                                         "attachments": [],
                                         "messsage": "Message is not loaded",
-                                        "insertedAt": mentions[widget.index]["inserted_at"],
+                                        "insertedAt": widget.mention["inserted_at"],
                                       };
-                                      var indexMessage = (dataDMMessages["messages"] as List).indexWhere((element) => element["id"] == mentions[widget.index]["message"]["parent_id"]);
-                                      
+                                      var indexMessage = (dataDMMessages["messages"] as List).indexWhere((element) => element["id"] == widget.mention["message"]["parent_id"]);
+
                                       if (indexMessage == -1){
-                                        var messageOnIsar = await MessageConversationServices.getListMessageById(mentions[index]["message"]["parent_id"], "");
+                                        var messageOnIsar = await MessageConversationServices.getListMessageById(widget.mention["message"]["parent_id"], "");
                                         if (messageOnIsar != null){
-                                          parentMessage = {...parentMessage, ...messageOnIsar, 
+                                          parentMessage = {...parentMessage, ...messageOnIsar,
                                           "insertedAt": messageOnIsar["time_create"],
                                           };
                                         }
                                       } else {
-                                        parentMessage = {...parentMessage, ...(dataDMMessages["messages"][indexMessage]), 
+                                        parentMessage = {...parentMessage, ...(dataDMMessages["messages"][indexMessage]),
                                         "insertedAt": dataDMMessages["messages"][indexMessage]["time_create"],
                                         };
-                                      }    
+                                      }
                                       if (parentMessage["user_id"] != null ){
                                         String fullName = "";
                                         String avatarUrl = "";
@@ -284,26 +318,26 @@ class _MentionItemState extends State<MentionItem> {
                                           fullName = u[0]["full_name"];
                                           avatarUrl = u[0]["avatar_url"] ?? "";
                                         }
-                                        parentMessage = {...parentMessage, 
+                                        parentMessage = {...parentMessage,
                                            "avatarUrl": avatarUrl,
                                            "fullName": fullName
                                         };
                                       }
                                       Provider.of<DirectMessage>(context, listen: false).setSelectedMention(false);
-                                      Provider.of<DirectMessage>(context, listen: false).setSelectedDM(Provider.of<DirectMessage>(context, listen: false).data[indexConverastion], ""); 
+                                      Provider.of<DirectMessage>(context, listen: false).setSelectedDM(Provider.of<DirectMessage>(context, listen: false).data[indexConverastion], "");
                                       Provider.of<Messages>(context, listen: false).openThreadMessage(true, parentMessage);
                                     } else {
-                                      processDataMessageToJump(mentions[index]["message"], mentions[index]["conversation_id"]);
+                                      processDataMessageToJump(widget.mention["message"], widget.mention["conversation_id"]);
                                     }
                                     // trong truong hojp hoi thoai chua dc load hoac tin nhan ko trong hoi thoaij
                                     // set ["messages"] = [{tin nhan}]
                                   }
-                                }      
+                                }
                               },
                               icon: Icon(CupertinoIcons.arrow_turn_up_left)
                             ),
                           ),
-                          if (mentions[index]["issue"]["id"] == null )Container(
+                          if (widget.mention["issue"]["id"] == null )Container(
                             width: 18,
                             margin: EdgeInsets.only(right: 10),
                             child: IconButton(
@@ -314,17 +348,17 @@ class _MentionItemState extends State<MentionItem> {
                               iconSize: 18,
                               padding: EdgeInsets.zero,
                               onPressed: () async {
-                                var isChild = mentions[index]["message"]["parent_id"] != null;
+                                var isChild = widget.mention["message"]["parent_id"] != null;
                                 var messages;
                                 if (isChild) {
-                                  messages = mentions[index]["parent"];
+                                  messages = widget.mention["parent"];
                                 }
                                 else {
-                                  messages = mentions[index];
+                                  messages = widget.mention;
                                 }
 
-                                final workspaceId = mentions[index]["workspace_id"];
-                                final channelId = mentions[index]["channel_id"];
+                                final workspaceId = widget.mention["workspace_id"];
+                                final channelId = widget.mention["channel_id"];
                                 Map parentMessage = {
                                   "id": isChild ? messages["id"] : messages["message"]["id"],
                                   "message": isChild ? messages["message"] : messages["message"]["message"],
@@ -373,21 +407,21 @@ class _MentionItemState extends State<MentionItem> {
                     ),
                   ),
                   margin: EdgeInsets.only(top: 2), padding: EdgeInsets.symmetric(vertical: 8),
-                  child: mentions[index]["type"] == "channel" || mentions[index]["conversation_id"] != null ? SelectableScope(
+                  child: widget.mention["type"] == "channel" || widget.mention["conversation_id"] != null ? CustomSelectionArea(
                     child: ChatItemMacOS(
-                      conversationId: mentions[index]["conversation_id"],
-                      id: mentions[index]["message"]["id"],
-                      userId: mentions[index]["message"]["user_id"],
-                      isChildMessage: mentions[index]["message"]["parent_id"] != null,
-                      isMe: mentions[index]["message"]["user_id"] == auth.userId,
-                      message: mentions[index]["message"]["message"] ?? "",
-                      avatarUrl: mentions[index]["creator_url"] ?? "",
-                      insertedAt: mentions[index]["message"]["inserted_at"] ?? mentions[index]["message"]["time_create"],
-                      fullName: Utils.getUserNickName(mentions[index]["message"]["user_id"]) ?? mentions[index]["creator_name"],
-                      attachments: mentions[index]["message"]["attachments"],
+                      conversationId: widget.mention["conversation_id"],
+                      id: widget.mention["message"]["id"],
+                      userId: widget.mention["message"]["user_id"],
+                      isChildMessage: widget.mention["message"]["parent_id"] != null,
+                      isMe: widget.mention["message"]["user_id"] == auth.userId,
+                      message: widget.mention["message"]["message"] ?? "",
+                      avatarUrl: widget.mention["creator_url"] ?? "",
+                      insertedAt: widget.mention["message"]["inserted_at"] ?? widget.mention["message"]["time_create"],
+                      fullName: Utils.getUserNickName(widget.mention["message"]["user_id"]) ?? widget.mention["creator_name"],
+                      attachments: widget.mention["message"]["attachments"],
                       isFirst: true,
-                      accountType: mentions[index]["message"]["account_type"] ?? "user",
-                      isChannel: mentions[index]["conversation_id"] == null,
+                      accountType: widget.mention["message"]["account_type"] ?? "user",
+                      isChannel: widget.mention["conversation_id"] == null,
                       isThread: false,
                       count: 0,
                       infoThread:  [],
@@ -396,13 +430,14 @@ class _MentionItemState extends State<MentionItem> {
                       showNewUser: true,
                       isLast: true,
                       isBlur: false ,
-                      reactions:  Utils.checkedTypeEmpty(mentions[index]["message"]["reactions"]) ? mentions[index]["message"]["reactions"]  : [],
+                      reactions:  Utils.checkedTypeEmpty(widget.mention["message"]["reactions"]) ? widget.mention["message"]["reactions"]  : [],
                       isViewMention: true,
-                      channelId: mentions[index]["channel_id"],
+                      channelId: widget.mention["channel_id"],
                       isDark: isDark,
-                      customColor: customColor
+                      customColor: customColor,
+                      workspaceId: widget.mention['workspace_id'],
                     ),
-                  ) : SelectableScope(
+                  ) : CustomSelectionArea(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -410,16 +445,16 @@ class _MentionItemState extends State<MentionItem> {
                           padding: EdgeInsets.only(left: 16, right: 8),
                           child: GestureDetector(
                             onTap: () {
-                              if (currentUser["id"] != mentions[index]["creator_id"]) {
-                                onShowUserInfo(context, mentions[index]["creator_id"]);
+                              if (currentUser["id"] != widget.mention["creator_id"]) {
+                                onShowUserInfo(context, widget.mention["creator_id"]);
                               }
                             },
                             child: CachedImage(
-                              getUser(mentions[index]["creator_id"])["avatar_url"],
+                              getUser(widget.mention["creator_id"])["avatar_url"],
                               radius: 34,
                               width: 34,
                               height: 34,
-                              name: mentions[index]["creator_name"],
+                              name: widget.mention["creator_name"],
                               isAvatar: true
                             )
                           ),
@@ -431,14 +466,14 @@ class _MentionItemState extends State<MentionItem> {
                                 children: [
                                   GestureDetector(
                                     onTap: () {
-                                      if (currentUser["id"] != mentions[index]["creator_id"]) {
-                                        onShowUserInfo(context, mentions[index]["creator_id"]);
+                                      if (currentUser["id"] != widget.mention["creator_id"]) {
+                                        onShowUserInfo(context, widget.mention["creator_id"]);
                                       }
                                     },
                                     child: Text(
-                                      Utils.getUserNickName(mentions[index]["creator_id"]) ?? mentions[index]["creator_name"],
+                                      Utils.getUserNickName(widget.mention["creator_id"]) ?? widget.mention["creator_name"],
                                       style: TextStyle(
-                                        color: mentions[index]["creator_id"] == currentUser["id"] ? Colors.lightBlue : isDark ? Color(0xffF5F7FA) : Color(0xff102A43),
+                                        color: widget.mention["creator_id"] == currentUser["id"] ? Colors.lightBlue : isDark ? Color(0xffF5F7FA) : Color(0xff102A43),
                                         fontWeight: FontWeight.w700,
                                         fontSize: 14.5
                                       ),
@@ -456,16 +491,11 @@ class _MentionItemState extends State<MentionItem> {
                               Container(
                                 margin: EdgeInsets.only(top: 4.0, bottom: 8.0),
                                 child: Markdown(
+                                  physics: NeverScrollableScrollPhysics(),
                                   shrinkWrap: true,
                                   isViewMention: true,
                                   imageBuilder: (uri, title, alt) {
-                                    return  Container(
-                                      constraints: BoxConstraints(
-                                        maxHeight: 400,
-                                        maxWidth: 750
-                                      ),
-                                      child: ImageItem(tag: uri, img: {'content_url': uri.toString(), 'name': alt}, previewComment: true, isConversation: false)
-                                    );
+                                    return MarkdownAttachment(alt: alt, uri: uri);
                                   },
                                   styleSheet: MarkdownStyleSheet(
                                     p: TextStyle(fontSize: 16.5, height: 1, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
@@ -489,8 +519,8 @@ class _MentionItemState extends State<MentionItem> {
                                       value: value,
                                       variable: variable,
                                       onChangeCheckBox: onChangeCheckBox,
-                                      commentId: mentions[index]["issue"]["id"] ?? mentions[index]["issue_comments"]["id"],
-                                      isDark: isDark,
+                                      commentId: widget.mention["issue"]["id"] ?? widget.mention["issue_comments"]["id"],
+                                      isDark: isDark
                                     );
                                   },
                                   data: parseComment(widget.text, false)

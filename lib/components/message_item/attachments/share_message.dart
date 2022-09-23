@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/message_item/attachment_card_desktop.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ShareAttachments extends StatefulWidget {
   final att;
   final channel;
 
-  const ShareAttachments({ Key? key, @required this.att, this.channel}) : super(key: key);
+  const ShareAttachments({ Key? key, required this.att, this.channel}) : super(key: key);
 
   @override
   State<ShareAttachments> createState() => _ShareAttachmentsState();
@@ -69,7 +68,7 @@ class _ShareAttachmentsState extends State<ShareAttachments> {
           });
         }
       },
-      child: Container( 
+      child: Container(
         margin: EdgeInsets.only(top: 5, right: 16),
         padding: EdgeInsets.all(10),
         decoration: BoxDecoration(
@@ -87,7 +86,7 @@ class _ShareAttachmentsState extends State<ShareAttachments> {
             Container(
               child: Row(
                 children: [
-                  Text("Replied to ", style: TextStyle(fontStyle: FontStyle.italic)),
+                  // Text("Replied to ", style: TextStyle(fontStyle: FontStyle.italic)),
                   CachedAvatar(
                     att["data"]["avatarUrl"],
                     height: 20, width: 20,
@@ -163,7 +162,7 @@ class _ShareAttachmentsState extends State<ShareAttachments> {
     final att = widget.att;
     final channel = widget.channel;
 
-    return channel == null 
+    return channel == null
     ? replyDM()
     : Container(
       margin: EdgeInsets.only(top: 5, right: 16),
@@ -259,9 +258,9 @@ class _ShareAttachmentsState extends State<ShareAttachments> {
                 SizedBox(width: 5),
                 Text(parseTime(att["data"]["insertedAt"]), style: TextStyle(fontSize: 12, color: isDark ? Colors.white70 : Color(0xFF323F4B))),
                 SizedBox(width: 5),
-                Container(width: 1, height: 13, color: Colors.blueGrey),
-                SizedBox(width: 5),
-                Expanded(
+                if(att['data']['current_time'] != null) Container(width: 1, height: 13, color: Colors.blueGrey),
+                if(att['data']['current_time'] != null) SizedBox(width: 5),
+                if(att['data']['current_time'] != null) Expanded(
                   child: InkWell(
                     onTap: () {
                       onSelectMessage({

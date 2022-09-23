@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:html/parser.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/service_locator.dart';
 import 'package:http/http.dart' as http;
 import 'package:workcake/services/sharedprefsutil.dart';
@@ -132,7 +131,7 @@ class _BizBankingState extends State<BizBanking> {
             .map((el) => el.attributes["fragmenturl"])
             .where((element) => element!.indexOf("MainBody") >= 0).toList();
         final compScreen = paramsX[0].toString().split("&").where((el) => el.startsWith("compScreen")).toList()[0].toString();
-      
+
         final paramsT = "BrowserServlet?method=post&user=${controller1.text}&windowName=$mainBodyCode&WS_FragmentName=$mainBodyCode&contextRoot=&companyId=VN0010001&$compScreen&command=globusCommand&skin=arc-ib&requestType=UTILITY.ROUTINE&routineName=OS.GET.COMPOSITE.SCREEN.XML&routineArgs=AI.QCK.SUM&WS_replaceAll=&WS_parentComposite=$mainBodyCode";
         final urlT = Uri.parse('https://ib.techcombank.com.vn/servlet/' + paramsT);
         var responseT = await http.get(urlT, headers: headers);

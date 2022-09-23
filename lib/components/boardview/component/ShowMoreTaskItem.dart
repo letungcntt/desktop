@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'SelectTaskAssignee.dart';
 import 'SelectTaskAttachment.dart';
@@ -35,7 +34,7 @@ class _ShowMoreTaskIconState extends State<ShowMoreTaskIcon> {
     return InkWell(
       onTap: () {
         showPopover(
-          context: context, 
+          context: context,
           backgroundColor: isDark ? Color(0xff2E2E2E) : Colors.white,
           transitionDuration: const Duration(milliseconds: 50),
           direction: PopoverDirection.bottom,

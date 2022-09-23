@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'issue_table.dart';
 
@@ -16,7 +15,7 @@ class _FilterInputState extends State<FilterInput> {
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: false);
     final isDark = auth.theme == ThemeType.DARK;
-    
+
     return  Container(
       margin: EdgeInsets.only(top: 12),
       width: (MediaQuery.of(context).size.width - 348),

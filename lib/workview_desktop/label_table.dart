@@ -3,12 +3,11 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:phoenix_wings/phoenix_wings.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'label.dart';
 
@@ -48,7 +47,7 @@ class _LabelTableState extends State<LabelTable> {
   var selectLabel;
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     this.setState(() {
       pickedColor = random.nextInt(8);
@@ -140,7 +139,7 @@ class _LabelTableState extends State<LabelTable> {
      }
      return openIssue;
   }
- 
+
   @override
   Widget build(BuildContext context) {
     final channelId = widget.channelId;
@@ -201,7 +200,7 @@ class _LabelTableState extends State<LabelTable> {
                 ),
                 child: Column(
                   children: [
-                    Container( 
+                    Container(
                       padding: EdgeInsets.symmetric(vertical: 14, horizontal: 8),
                       decoration: BoxDecoration(
                         color: isDark ? Palette.borderSideColorDark : Palette.backgroundTheardLight,
@@ -268,8 +267,8 @@ class _LabelTableState extends State<LabelTable> {
                                                         widget.onSelectLabel(label);
                                                       },
                                                       child: LabelDesktop(
-                                                        labelName: selectLabel == label["id"] ? _labelNameEditController.text : label["name"], 
-                                                        color: selectLabel == label["id"] ? int.parse("0xFF${colors[pickedColorEdit]}") : 
+                                                        labelName: selectLabel == label["id"] ? _labelNameEditController.text : label["name"],
+                                                        color: selectLabel == label["id"] ? int.parse("0xFF${colors[pickedColorEdit]}") :
                                                         label["color_hex"] != null ? int.parse("0XFF${label["color_hex"]}") : 0xffffff,
                                                       ),
                                                     )
@@ -304,7 +303,7 @@ class _LabelTableState extends State<LabelTable> {
                                             onTap: () {
                                               _labelNameEditController.text = label["name"];
                                               _descriptionEditController.text = label["description"];
-      
+
                                               int indexColor = colors.indexWhere((e) => e == label["color_hex"]);
                                               this.setState(() {
                                                 pickedColorEdit = indexColor != -1 ? indexColor : 0;
@@ -446,7 +445,7 @@ class _LabelTableState extends State<LabelTable> {
                                 crossAxisSpacing: 8,
                                 mainAxisSpacing: 8,
                                 crossAxisCount: 9,
-                                children: colors.map((e) => 
+                                children: colors.map((e) =>
                                   InkWell(
                                     onTap: () {
                                       if (label == null) {
@@ -521,7 +520,7 @@ class _LabelTableState extends State<LabelTable> {
               backgroundColor: MaterialStateProperty.all(Palette.buttonColor)
             ),
             // disabledColor: Color(0xff6989BF),
-            onPressed: () { 
+            onPressed: () {
               if (label == null) {
                 onCreateLabel();
               } else {
@@ -540,7 +539,7 @@ showConfirmDialog(context, labelId) {
   final token = Provider.of<Auth>(context, listen: false).token;
   final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
   final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
-  
+
   onDeleteLabel() {
     Provider.of<Channels>(context, listen: false).deleteAttribute(token, currentWorkspace["id"], currentChannel["id"], labelId, "label");
   }

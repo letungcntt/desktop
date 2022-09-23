@@ -3,17 +3,17 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_windows
   bitsdojo_window_windows
   connectivity_plus_windows
-  dart_vlc
-  flutter_native_view
   flutter_webrtc
   isar_flutter_libs
+  local_notifier
   objectbox_flutter_libs
   platform_device_id_windows
+  sentry_flutter
   syncfusion_pdfviewer_windows
   url_launcher_windows
-  window_manager
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

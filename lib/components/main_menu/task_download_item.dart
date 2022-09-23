@@ -3,13 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class TaskDownloadItem extends StatefulWidget{
   final att;
-  final showDownload; 
+  final showDownload;
   TaskDownloadItem({
     Key? key,
     @required this.att,
@@ -64,6 +63,7 @@ class _TaskDownloadItem extends State<TaskDownloadItem>{
     return AnimatedContainer(
       margin: widget.showDownload || show ? EdgeInsets.only(bottom: 8, left: 4, right: 4, top: 10) : EdgeInsets.zero,
       height: widget.showDownload || show ? 80 : 0,
+      width: 300,
       padding: EdgeInsets.all(8),
       decoration: BoxDecoration(
         border: Border.all(
@@ -116,7 +116,7 @@ class _TaskDownloadItem extends State<TaskDownloadItem>{
                     )
                   ),
                 ]
-              ) 
+              )
               : Container()
             ],
           ),

@@ -7,9 +7,8 @@ import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/io_client.dart';
-import 'package:provider/provider.dart';
 import 'package:html/parser.dart' show parse;
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:http/http.dart' as http;
 
 abstract class InfoBase {
@@ -107,10 +106,10 @@ class WebAnalyzer {
 
   static Future<InfoBase?> _getInfo(String url, bool multimedia) async {
     var response = await _requestUrl(url);
-  
+
     if (response != null) {
       return _getWebInfo(response, url, multimedia);
-    } else 
+    } else
       return null;
   }
 
@@ -300,7 +299,7 @@ class WebAnalyzer {
     } catch (e) {
       return null;
     }
-   
+
   }
 
   static InfoBase? _analyzeVideo(document, Uri uri) {
@@ -428,7 +427,7 @@ class LinkPreview extends StatefulWidget {
 
 class _LinkPreviewState extends State<LinkPreview> {
 
-  var _info; 
+  var _info;
   bool isExpanded = false;
   bool validImage = false;
 
@@ -496,7 +495,7 @@ class _LinkPreviewState extends State<LinkPreview> {
               "https://statics.pancake.vn/panchat-prod/2021/9/14/904ef09383d868b77e6304953370e52b256f1937.png",
               cacheHeight: 200,
             ) : ExtendedImage.network(
-              (_info is WebInfo && webInfo.image != null && WebAnalyzer.isNotEmpty(webInfo.image) && validImage) 
+              (_info is WebInfo && webInfo.image != null && WebAnalyzer.isNotEmpty(webInfo.image) && validImage)
                 ? webInfo.image
                 : "https://statics.pancake.vn/panchat-prod/2021/9/14/904ef09383d868b77e6304953370e52b256f1937.png",
               fit: BoxFit.cover,
@@ -522,7 +521,7 @@ class _LinkPreviewState extends State<LinkPreview> {
                       isAntiAlias: true
                     ),
                   );
-                } 
+                }
                 if (state.extendedImageLoadState == LoadState.failed) {
                   loadedImage = true;
                   return ExtendedImage.network(

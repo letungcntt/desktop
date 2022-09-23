@@ -6,12 +6,11 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/boardview/CardItem.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'AttachmentItem.dart';
 import 'ListMember.dart';
@@ -26,11 +25,11 @@ class TaskItem extends StatefulWidget {
   const TaskItem({
     Key? key,
     this.task,
-    this.onDeleteTask, 
+    this.onDeleteTask,
     this.index,
     this.checklist
   }) : super(key: key);
-  
+
   @override
   State<TaskItem> createState() => _TaskItemState();
 }
@@ -38,7 +37,7 @@ class TaskItem extends StatefulWidget {
 class _TaskItemState extends State<TaskItem> {
   TextEditingController controller = TextEditingController();
   bool onEditTask = false;
-  
+
   @override
   void initState() {
     controller.text = widget.task["title"];
@@ -58,10 +57,10 @@ class _TaskItemState extends State<TaskItem> {
     try {
       var myMultipleFiles = await Utils.openFilePicker([
         XTypeGroup(
-          extensions: ['jpg', 'jpeg', 'gif', 'png', 'xlsx', 'json', 'xls', 'zip', 'docs']
+          extensions: []
         )
       ]);
-      
+
       for (var e in myMultipleFiles) {
         Map newFile = {
           "filename": e["name"],
@@ -168,7 +167,7 @@ class _TaskItemState extends State<TaskItem> {
     final token = Provider.of<Auth>(context, listen: false).token;
     CardItem? card = Provider.of<Boards>(context, listen: false).selectedCard;
     if (card == null) return;
-    Provider.of<Boards>(context, listen: false).createOrChangeTask(token, card.workspaceId, card.channelId, card.boardId, card.listCardId, 
+    Provider.of<Boards>(context, listen: false).createOrChangeTask(token, card.workspaceId, card.channelId, card.boardId, card.listCardId,
       card.id, widget.checklist["id"], widget.task["title"], widget.task["is_checked"] ?? widget.task["value"] ?? false, widget.task["id"]);
   }
 
@@ -177,7 +176,8 @@ class _TaskItemState extends State<TaskItem> {
     final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     return Container(
-      width: 683,
+      padding: EdgeInsets.only(bottom: 6, top: 4),
+      width: 695,
       decoration: BoxDecoration(
         color: isDark ? Color(0xff444444) : Color(0xffF8F8F8),
         border: Border(
@@ -187,34 +187,39 @@ class _TaskItemState extends State<TaskItem> {
           )
         )
       ),
-      height: ((widget.task["attachments"] ?? []).length > 0) ? 130 : 40,
+      // height: ((widget.task["attachments"] ?? []).length > 0) ? 130 : 40,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                margin: EdgeInsets.only(top: 2),
+                margin: EdgeInsets.only(top: 4),
                 child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.start,
                   children: [
                     SizedBox(width: 5),
-                    Transform.scale(
-                      scale: 0.9,
-                      child: Checkbox(
-                        activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
-                        checkColor: Palette.defaultTextDark,
-                        value: widget.task["value"] ?? widget.task["is_checked"] ?? false,
-                        onChanged: (bool? value) {  
-                          onCheckTask(value);
-                        }
-                      )
+                    Container(
+                      width: 22,
+                      height: 22,
+                      child: Transform.scale(
+                        scale: 0.9,
+                        child: Checkbox(
+                          activeColor: isDark ? Palette.calendulaGold : Palette.dayBlue,
+                          checkColor: Palette.defaultTextDark,
+                          value: widget.task["value"] ?? widget.task["is_checked"] ?? false,
+                          onChanged: (bool? value) {
+                            onCheckTask(value);
+                          }
+                        )
+                      ),
                     ),
                     SizedBox(width: 4),
                     Container(
                       child: onEditTask ? Container(
+                        margin: EdgeInsets.only(top: 7),
                         width: 540,
                         child: Focus(
                           onFocusChange: (focus) {
@@ -225,7 +230,7 @@ class _TaskItemState extends State<TaskItem> {
                               if (controller.text.trim() != "") {
                                 onEditingTask(controller.text);
                               }
-                            } 
+                            }
                           },
                           child: TextField(
                             autofocus: true,
@@ -241,26 +246,34 @@ class _TaskItemState extends State<TaskItem> {
                         onTap: () {
                           this.setState(() { onEditTask = true; });
                         },
-                        child: Text(widget.task["title"])
+                        child: Container(
+                          padding: EdgeInsets.symmetric(vertical: 3),
+                          constraints: BoxConstraints(
+                            maxWidth: 540
+                          ),
+                          child: Text(widget.task["title"])
+                        )
                       )
                     )
                   ]
                 )
               ),
               Container(
+                margin: EdgeInsets.only(top: 4, bottom: 6),
                 height: 20,
                 child: Wrap(
                   children: [
                     InkWell(
                       onTap: () {
                         showPopover(
-                          context: context, 
-                          backgroundColor: Color(0xff2E2E2E),
+                          context: context,
+                          backgroundColor: isDark ? Color(0xff2E2E2E) : Colors.white,
                           transitionDuration: const Duration(milliseconds: 50),
                           direction: PopoverDirection.bottom,
                           barrierColor: Colors.transparent,
                           width: 300,
                           height: 400,
+                          arrowDyOffset: 0,
                           arrowHeight: 0,
                           arrowWidth: 0,
                           bodyBuilder: (context) => ListMember(members: widget.task["assignees"], addOrRemoveMember: addOrRemoveTaskMember)
@@ -296,8 +309,8 @@ class _TaskItemState extends State<TaskItem> {
                       ),
                     ),
                     ShowMoreTaskIcon(
-                      task: widget.task, 
-                      addOrRemoveTaskMember: addOrRemoveTaskMember, 
+                      task: widget.task,
+                      addOrRemoveTaskMember: addOrRemoveTaskMember,
                       onAddTaskAttachment: onAddTaskAttachment,
                       onDeleteTask: onDeleteTask
                     )

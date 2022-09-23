@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_search_bar.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class AddFriendUsername extends StatefulWidget {
   @override
@@ -18,7 +17,7 @@ class _AddFriendUsernameState extends State<AddFriendUsername> {
     _searchQuery.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
@@ -68,7 +67,7 @@ class _AddFriendUsernameState extends State<AddFriendUsername> {
                 });
                 // if (_debounce?.isActive ?? false) _debounce.cancel();
                 // _debounce = Timer(const Duration(milliseconds: 500), () {
-                  
+
                 // });
               },
             ),

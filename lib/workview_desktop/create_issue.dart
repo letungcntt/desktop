@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:better_selection/better_selection.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +9,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/channels/create_channel_desktop.dart';
 import 'package:workcake/common/cached_image.dart';
@@ -20,18 +18,19 @@ import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/drop_target.dart';
 import 'package:workcake/components/dropdown_overlay.dart';
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/generated/l10n.dart';
 import 'package:workcake/markdown/style_sheet.dart';
 import 'package:workcake/markdown/widget.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/service_locator.dart';
 import 'package:workcake/workview_desktop/history_issue.dart';
 import 'package:workcake/workview_desktop/select_attribute.dart';
 import 'package:workcake/workview_desktop/transfer_issue.dart';
-import '../components/message_item/attachments/attachments.dart';
 import 'comment_text_field.dart';
 import 'issue_timeline.dart';
+import 'markdown_attachment.dart';
 import 'markdown_checkbox.dart';
 import 'package:http/http.dart' as http;
 
@@ -87,6 +86,7 @@ class _CreateIssueState extends State<CreateIssue> {
   bool collapseDescription = true;
   var selectedWorkspace;
   int indexWorkspaceSelected = 0;
+  ScrollController issueScrollController = ScrollController();
 
   @override
   void initState() {
@@ -118,7 +118,7 @@ class _CreateIssueState extends State<CreateIssue> {
       description = widget.issue["description"];
       assignees = widget.issue["assignees"] ?? [];
       selectedLabels = widget.issue["labels"] ?? [];
-      selectedMilestone = widget.issue["milestone"] ?? [];
+      selectedMilestone = widget.issue["milestone"] is int ? [widget.issue["milestone"]] : widget.issue["milestone"] ?? [];
       // timelines = [];
     }
 
@@ -173,7 +173,7 @@ class _CreateIssueState extends State<CreateIssue> {
       updateIssue(dataIssue);
     });
   }
-  
+
   updateIssue(dataIssue) {
     var data = dataIssue["data"];
     final type = dataIssue["type"];
@@ -448,7 +448,11 @@ class _CreateIssueState extends State<CreateIssue> {
       var recentList = boxRecent.get("recent_channel");
       var infoChannel = [];
 
-      Provider.of<Channels>(context, listen: false).createIssue(token, workspaceId, channelId, issue);
+      Provider.of<Channels>(context, listen: false).createIssue(token, workspaceId, channelId, issue).then((res) {
+        if (res["success"] == true) {
+          box.delete(issue["id"] != null ? issue["id"].toString() : channelId.toString());
+        }
+      });
       Provider.of<Channels>(context, listen: false).onChangeOpenIssue(null);
 
       if (widget.issue["from_message"] ?? false) {
@@ -456,29 +460,21 @@ class _CreateIssueState extends State<CreateIssue> {
         Navigator.pop(context);
       }
       if(recentList != null) {
-        infoChannel = recentList;
-        var index = infoChannel.indexWhere((element) {
-          return element["channel_id"] == channelId && element["workspace_id"] == workspaceId;
-        });
-        
-        if(index != -1) {
-          infoChannel.removeAt(index);
-        }
-
+        infoChannel = recentList.where((element) {
+          return element["channel_id"].toString() != channelId.toString();
+        }).toList();
         infoChannel.insert(0, {"workspace_id": workspaceId, "channel_id": channelId, "name": channelName, "is_private": channelType});
       } else {
         infoChannel.add({"workspace_id": workspaceId, "channel_id": channelId, "name": channelName, "is_private": channelType});
       }
 
       boxRecent.put("recent_channel", infoChannel);
-
-      box.delete(issue["id"] != null ? issue["id"].toString() : channelId.toString());
     } else {
       showDialog(
         context: context,
         builder: (context) {
           return const AlertDialog(
-            content: Text("Title cannot be empty"),
+            content: TextWidget("Title cannot be empty"),
           );
         },
       );
@@ -539,7 +535,7 @@ class _CreateIssueState extends State<CreateIssue> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            content: Text(S.current.inputCannotEmpty),
+            content: TextWidget(S.current.inputCannotEmpty),
           );
         },
       );
@@ -590,9 +586,9 @@ class _CreateIssueState extends State<CreateIssue> {
     } else {
       list.add(label["id"]);
 
-      if (issue["id"] != null) { 
+      if (issue["id"] != null) {
         Provider.of<Channels>(context, listen: false).addAttribute(token, workspaceId, channelId, widget.issue["id"], "label", label["id"]);
-      } 
+      }
     }
 
     setState(() {
@@ -611,7 +607,7 @@ class _CreateIssueState extends State<CreateIssue> {
         selectedMilestone = [milestone["id"]];
       });
 
-      if (issue["id"] != null) { 
+      if (issue["id"] != null) {
         Provider.of<Channels>(context, listen: false).addAttribute(token, workspaceId, channelId, widget.issue["id"], "milestone", milestone["id"]);
       }
 
@@ -622,7 +618,7 @@ class _CreateIssueState extends State<CreateIssue> {
           selectedMilestone = [];
         });
 
-        if (issue["id"] != null) { 
+        if (issue["id"] != null) {
           Provider.of<Channels>(context, listen: false).removeAttribute(token, workspaceId, channelId, widget.issue["id"], "milestone", milestone["id"]);
         }
       } else {
@@ -630,7 +626,7 @@ class _CreateIssueState extends State<CreateIssue> {
           selectedMilestone = [milestone["id"]];
         });
 
-        if (issue["id"] != null) { 
+        if (issue["id"] != null) {
           Provider.of<Channels>(context, listen: false).addAttribute(token, workspaceId, channelId, widget.issue["id"], "milestone", milestone["id"]);
         }
 
@@ -709,7 +705,7 @@ class _CreateIssueState extends State<CreateIssue> {
       } else {
         String description = issue["description"];
         var startIndex = getStartIndex(description, elText);
-        int indexElText = description.indexOf(elText, startIndex);
+        int indexElText = description.indexOf(elText.trim(), startIndex);
         String subString = description.substring(0, indexElText);
         List listSubString = subString.split('');
         var index;
@@ -843,20 +839,14 @@ class _CreateIssueState extends State<CreateIssue> {
     final channelId = getCurrentChannel();
     var commentMention = value ? parseMention(comment, channelId) : comment;
     List list = commentMention.split("\n");
-    RegExp exp = RegExp(r"!(\[)[^\]]{0,}(\])((\()(https)[^\)]{0,}(\)))");
 
     if (list.isNotEmpty) {
       for (var i = 0; i < list.length; i++) {
         var item = list[i];
-
-        if (isDescription) {
-          try {
-            var matchs = exp.allMatches(item).toList();
-            if (matchs.isNotEmpty) {
-              list[i] = "\n";
-            }
-          } catch (e) {
-            print(e.toString());
+        if (i - 1 >= 0) {
+          if ((list[i-1].contains("- [ ]") || list[i-1].contains("- [x]")) && !(item.contains("- [ ]") || item.contains("- [x]"))) {
+            list[i-1] = list[i-1] + " " + item;
+            list[i] = "\n";
           }
         }
 
@@ -1024,7 +1014,7 @@ class _CreateIssueState extends State<CreateIssue> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(left: 16),
-                          child: Text(S.current.selectChannel, style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14, fontWeight: FontWeight.w600)),
+                          child: TextWidget(S.current.selectChannel, style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 14, fontWeight: FontWeight.w600)),
                         ),
                         Container(
                           padding: const EdgeInsets.only(right: 16),
@@ -1148,7 +1138,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                       ),
                                       color: isDark ? const Color(0xff4C4C4C) : const Color(0xffF8F8F8),
                                     ),
-                                    child: Text(S.current.recentChannel, style: TextStyle(color: isDark ? Colors.white :  const Color(0xff3D3D3D), fontWeight: FontWeight.w500, fontSize: 14))
+                                    child: TextWidget(S.current.recentChannel, style: TextStyle(color: isDark ? Colors.white :  const Color(0xff3D3D3D), fontWeight: FontWeight.w500, fontSize: 14))
                                   ),
                                   Expanded(
                                     child: Container(
@@ -1171,7 +1161,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                                       ? SvgPicture.asset('assets/icons/Locked.svg', color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D))
                                                       : SvgPicture.asset('assets/icons/iconNumber.svg', width: 13, color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D)),
                                                     const SizedBox(width: 8,),
-                                                    Text(recentListFilter[index]["name"] ?? "", overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D), fontSize: 14,)),
+                                                    TextWidget(recentListFilter[index]["name"] ?? "", overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D), fontSize: 14,)),
                                                   ],
                                                 ),
                                               ),
@@ -1207,7 +1197,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                         topRight: Radius.circular(3),
                                       )
                                     ),
-                                    child: Text(S.current.listChannel, style: TextStyle(color: isDark ? Colors.white :  const Color(0xff3D3D3D), fontWeight: FontWeight.w500, fontSize: 14))
+                                    child: TextWidget(S.current.listChannel, style: TextStyle(color: isDark ? Colors.white :  const Color(0xff3D3D3D), fontWeight: FontWeight.w500, fontSize: 14))
                                   ),
                                   Expanded(
                                     child: Container(
@@ -1236,7 +1226,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                                       ? SvgPicture.asset('assets/icons/Locked.svg', color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D))
                                                       : SvgPicture.asset('assets/icons/iconNumber.svg', width: 13, color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D)),
                                                     const SizedBox(width: 8,),
-                                                    Text(channelsFilter[index]['name'], overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D), fontSize: 14,),),
+                                                    TextWidget(channelsFilter[index]['name'], overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? const Color(0xffDBDBDB) : const Color(0xff3D3D3D), fontSize: 14,),),
                                                   ],
                                                 ),
                                               ),
@@ -1322,7 +1312,7 @@ class _CreateIssueState extends State<CreateIssue> {
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                                child: Text(
+                                child: TextWidget(
                                   'History edit',
                                   style: TextStyle(
                                     color: isDark ? Colors.white70 : Colors.grey[800]
@@ -1345,7 +1335,7 @@ class _CreateIssueState extends State<CreateIssue> {
                           child: ListView.builder(
                             itemCount: _histories.length,
                             itemBuilder: (BuildContext context, int index) {
-                        
+
                               final messageTime = DateFormat('Hm').format(DateTime.parse(_histories[index]['inserted_at']).add(Duration(hours: 7)));
                               final locale = auth.locale;
                               DateTime dateTime = DateTime.parse(_histories[index]['inserted_at']);
@@ -1377,14 +1367,19 @@ class _CreateIssueState extends State<CreateIssue> {
             );
           }
         );
+      } else {
+        print("onGetHistory: ${responseData['message']}");
       }
-    } catch (e) { }
+    } catch (e) {
+       print("onGetHistory: $e");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<Auth>(context, listen: false);
     final token = auth.token;
+    final directMessage = Provider.of<DirectMessage>(context, listen: true).directMessageSelected;
     final channelId = getCurrentChannel();
     final data = Provider.of<Channels>(context, listen: true).data;
     final index = data.indexWhere((e) => e["id"].toString() == (issue["id"] != null ? issue["channel_id"].toString() : channelId.toString()));
@@ -1393,7 +1388,6 @@ class _CreateIssueState extends State<CreateIssue> {
     var author = issue["id"] != null ? getMember(issue["author_id"]) : null;
     var editer = issue["id"] != null && issue["last_edit_id"] != null ? getMember(issue["last_edit_id"]) : null;
     final isDark = auth.theme == ThemeType.DARK;
-    List imagesInDescription = getImageUrl(issue["description"] ?? "");
     final comments = issue["id"] != null ? issue["comments"] : [];
     List commentsAndTimelines = (widget.fromMentions != null && widget.fromMentions ? issue["comments"] : comments) + (issue["timelines"] ?? []);
     commentsAndTimelines.sort((a, b) => a["inserted_at"].compareTo(b["inserted_at"]));
@@ -1422,144 +1416,143 @@ class _CreateIssueState extends State<CreateIssue> {
           }
         }
 
-        return SelectableScope(
-        child: Scaffold(
-            body: Column(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Palette.backgroundRightSiderDark,
-                    border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Colors.transparent))),
-                  padding: const EdgeInsets.all(11.5),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(right: 12, left: 12),
-                        decoration: const BoxDecoration(
-                          color: Color(0xff2E2E2E),
-                          borderRadius: BorderRadius.all(Radius.circular(2))),
-                        height: 32,
-                        width: 90,
-                        child: InkWell(
-                          onTap: () {
-                            widget.fromMentions != null && widget.fromMentions ? Navigator.of(context, rootNavigator: true) .pop("Discard") : Provider.of<Channels>(context, listen: false).onChangeOpenIssue(null);
-                          },
-                          child: HoverItem(
-                            colorHover: Colors.white.withOpacity(0.15),
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  SvgPicture.asset('assets/icons/backDark.svg', color: Palette.defaultTextDark),
-                                  const SizedBox(width: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text(S.current.back, style: TextStyle(color: Colors.white))
-                                  )
-                                ],
-                              ),
-                            ),
-                          )
-                        )
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            (editTitle && issue["id"] != null) ? Expanded(
-                              child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 1 / 5),
-                                      color: Palette.darkTextField,
-                                      height: 32,
-                                      child: TextFormField(
-                                        autofocus: true,
-                                        decoration: InputDecoration(
-                                          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                                          enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Palette.darkTextField)),
-                                          focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Palette.darkTextField)),
-                                          hintText: widget.issue["title"]),
-                                        focusNode: focusNode,
-                                        controller: _titleController,
-                                        style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w500)
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    InkWell(
-                                      onTap: () {
-                                        onUpdateIssue(_titleController.text, issue["description"], false);
-                                        setState(() {
-                                          editTitle = false;
-                                        });
-                                      },
-                                      child: Container(
-                                        height: 32,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(color: Palette.buttonColor,
-                                            borderRadius: BorderRadius.circular(4)),
-                                        child: Text(S.current.save),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          editTitle = false;
-                                        });
-                                      },
-                                      child: Container(
-                                        height: 32,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(2), border: Border.all(color: const Color(0xffFF7875))),
-                                        child: Text(S.current.cancel, style: TextStyle(color: Color(0xffFF7875)))
-                                      )
-                                    )
-                                  ]
-                              ),
-                            ) : (issue["id"] != null && !editTitle) ? Row(
-                              children: [
-                                InkWell(
-                                  onTap: () {
-                                    Clipboard.setData(ClipboardData(text: "${issue["title"]} #${issue["unique_id"]}"));
-                                  },
-                                  child: Tooltip(
-                                    message: S.current.copyToClipboard,
-                                    child: Text("${issue["title"]} #${issue["unique_id"]}",
-                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,)),
-                                  ),
-                                ),
-                                const SizedBox(width: 10,),
-                                HoverItem(
-                                  colorHover: Palette.hoverColorDefault,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    child: InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          editTitle = true;
-                                        });
-                                      },
-                                      child: Icon(Icons.edit, color: isDark ? Colors.white : Colors.white, size: 17)
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ) : Text(S.current.newIssue, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+        return Scaffold(
+          body: Column(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Palette.backgroundRightSiderDark,
+                  border: Border(bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Colors.transparent))
                 ),
-                Expanded(
-                  child: LayoutBuilder(builder: (context, cts) {
+                padding: const EdgeInsets.all(11.5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 12, left: 12),
+                      decoration: const BoxDecoration(
+                        color: Color(0xff2E2E2E),
+                        borderRadius: BorderRadius.all(Radius.circular(2))),
+                      height: 32,
+                      width: 90,
+                      child: InkWell(
+                        onTap: () {
+                          widget.fromMentions != null && widget.fromMentions ? Navigator.of(context, rootNavigator: true) .pop("Discard") : Provider.of<Channels>(context, listen: false).onChangeOpenIssue(null);
+                        },
+                        child: HoverItem(
+                          colorHover: Colors.white.withOpacity(0.15),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                SvgPicture.asset('assets/icons/backDark.svg', color: Palette.defaultTextDark),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  child: TextWidget(S.current.back, style: TextStyle(color: Colors.white))
+                                )
+                              ],
+                            ),
+                          ),
+                        )
+                      )
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          (editTitle && issue["id"] != null) ? Expanded(
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 1 / 5),
+                                    color: Palette.darkTextField,
+                                    height: 32,
+                                    child: TextFormField(
+                                      autofocus: true,
+                                      decoration: InputDecoration(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Palette.darkTextField)),
+                                        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Palette.darkTextField)),
+                                        hintText: widget.issue["title"]),
+                                      focusNode: focusNode,
+                                      controller: _titleController,
+                                      style: const TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w500)
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  InkWell(
+                                    onTap: () {
+                                      onUpdateIssue(_titleController.text, issue["description"], false);
+                                      setState(() {
+                                        editTitle = false;
+                                      });
+                                    },
+                                    child: Container(
+                                      height: 32,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(color: Palette.buttonColor,
+                                          borderRadius: BorderRadius.circular(4)),
+                                      child: TextWidget(S.current.save),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        editTitle = false;
+                                      });
+                                    },
+                                    child: Container(
+                                      height: 32,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(2), border: Border.all(color: const Color(0xffFF7875))),
+                                      child: TextWidget(S.current.cancel, style: TextStyle(color: Color(0xffFF7875)))
+                                    )
+                                  )
+                                ]
+                            ),
+                          ) : (issue["id"] != null && !editTitle) ? Row(
+                            children: [
+                              InkWell(
+                                onTap: () => Clipboard.setData(ClipboardData(text: "${issue["title"]} #${issue["unique_id"]}")),
+                                child: Tooltip(
+                                  message: S.current.copyToClipboard,
+                                  child: TextWidget("${issue["title"]} #${issue["unique_id"]}",
+                                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,)),
+                                ),
+                              ),
+                              const SizedBox(width: 10,),
+                              HoverItem(
+                                colorHover: Palette.hoverColorDefault,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        editTitle = true;
+                                      });
+                                    },
+                                    child: Icon(Icons.edit, color: isDark ? Colors.white : Colors.white, size: 17)
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ) : TextWidget(S.current.newIssue, style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold,)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, cts) {
                     var collapse = false;
                     String text = S.current.selectChannel;
                     if (cts.maxWidth < 650) {
@@ -1578,6 +1571,7 @@ class _CreateIssueState extends State<CreateIssue> {
                       maxWidth: collapse ? double.infinity : cts.maxWidth > 800 ? 300 : cts.maxWidth * 0.38
                       ),
                       child: SingleChildScrollView(
+                        controller: issueScrollController,
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           child: Column(
@@ -1631,7 +1625,52 @@ class _CreateIssueState extends State<CreateIssue> {
                                   fromMessage: issue["from_message"]
                                 )
                               ),
-                              issue["id"] != null ? TransferIssue(issue: issue) : const SizedBox()
+                              issue["id"] != null ? TransferIssue(issue: issue) : InkWell(
+                                onTap: () {
+                                  Map draftIssue = {
+                                    'id': channelId,
+                                    'type': 'create',
+                                    'description': '',
+                                    'title': '',
+                                    'is_closed': false,
+                                    'assignees': [],
+                                    'labels': [],
+                                    'milestone': []
+                                  };
+
+                                  _titleController.clear();
+                                  _textFieldKey.currentState?.key.currentState?.controller?.clear();
+
+                                  setState(() {
+                                    assignees = [];
+                                    selectedLabels = [];
+                                    selectedMilestone = [];
+                                  });
+
+                                  box.put(channelId.toString(), draftIssue);
+                                },
+                                child: Container(
+                                  height: 32,
+                                  padding: EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Color(0xffFF7875)),
+                                    borderRadius: BorderRadius.all(Radius.circular(4))
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      TextWidget(
+                                        'Clear issue',
+                                        style: TextStyle(
+                                          color: Color(0xffFF7875), fontSize: 14
+                                        )
+                                      ),
+                                      SizedBox(width: 4),
+                                      Icon(PhosphorIcons.trash, color: Color(0xffFF7875), size: 16)
+                                    ],
+                                  )
+                                )
+                              ),
                             ],
                           ),
                         ),
@@ -1653,75 +1692,65 @@ class _CreateIssueState extends State<CreateIssue> {
                                     child: Column(
                                       mainAxisSize: MainAxisSize.max,
                                       children: [
-                                        if (issue["id"] == null)
-                                          Container(
-                                            height: 48,
-                                            color: isDark ? Palette.backgroundTheardDark : Colors.white,
-                                            child: TextFormField(
-                                              focusNode: _titleNode,
-                                              autofocus: true,
-                                              controller: _titleController,
-                                              decoration: InputDecoration(
-                                                hintText: (widget.issue["from_message"] != null && widget.issue["title"] != null && widget.issue["title"] != "") ? widget.issue["title"] .length > 47 ? (widget.issue["title"].substring(0, 47) + "...") : widget .issue["title"] : "Title",
-                                                hintStyle: TextStyle(
-                                                  color: isDark ? Color(0xff9AA5B1) : Color.fromRGBO(0, 0, 0, 0.65),
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w300),
-                                                contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-                                                enabledBorder: OutlineInputBorder(
-                                                  borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight),
-                                                  borderRadius: const BorderRadius.all(Radius.circular(2))
-                                                ),
-                                                focusedBorder: OutlineInputBorder(
-                                                  borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight),
-                                                  borderRadius: const BorderRadius.all(Radius.circular(2))
-                                                ),
+                                        if(issue["id"] == null) Container(
+                                          height: 48,
+                                          color: isDark ? Palette.backgroundTheardDark : Colors.white,
+                                          child: TextFormField(
+                                            focusNode: _titleNode,
+                                            autofocus: true,
+                                            controller: _titleController,
+                                            decoration: InputDecoration(
+                                              hintText: (widget.issue["from_message"] != null && widget.issue["title"] != null && widget.issue["title"] != "") ? widget.issue["title"] .length > 47 ? (widget.issue["title"].substring(0, 47) + "...") : widget .issue["title"] : "Title",
+                                              hintStyle: TextStyle(
+                                                color: isDark ? Color(0xff9AA5B1) : Color.fromRGBO(0, 0, 0, 0.65),
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w300),
+                                              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight),
+                                                borderRadius: const BorderRadius.all(Radius.circular(2))
                                               ),
-                                              style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO( 0, 0, 0, 0.65), fontSize: 15, fontWeight: FontWeight.normal),
-                                              onChanged: (value) {
-                                                onSaveDraftIssue(channelId);
-                                              },
+                                              focusedBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight),
+                                                borderRadius: const BorderRadius.all(Radius.circular(2))
+                                              ),
                                             ),
+                                            style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO( 0, 0, 0, 0.65), fontSize: 15, fontWeight: FontWeight.normal),
+                                            onChanged: (value) {
+                                              onSaveDraftIssue(channelId);
+                                            },
                                           ),
-                                        if (issue["id"] != null)
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            children: [
-                                              Container(padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                                                decoration: BoxDecoration(
-                                                  color: (issue["is_closed"] != null && issue["is_closed"]) ? const Color(0xff27AE60) : Palette.buttonColor,
-                                                  borderRadius: BorderRadius.circular(20)),
-                                                child: Row(children: [
-                                                  Icon(
-                                                    (issue["is_closed"] != null && issue["is_closed"]) ? Icons.check_circle_outline: Icons.info_outline, color: Colors.white, size: 17),
-                                                  const SizedBox(width: 4),
-                                                  Text((issue["is_closed"] != null && issue["is_closed"]) ? S.current.tClosed : S.current.tOpen, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-                                                ])
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Wrap(
+                                        ),
+                                        if(issue["id"] != null) Row(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                              decoration: BoxDecoration(
+                                                color: (issue["is_closed"] != null && issue["is_closed"]) ? const Color(0xff27AE60) : Palette.buttonColor,
+                                                borderRadius: BorderRadius.circular(20)),
+                                              child: Row(children: [
+                                                Icon(
+                                                  (issue["is_closed"] != null && issue["is_closed"]) ? Icons.check_circle_outline: Icons.info_outline, color: Colors.white, size: 17),
+                                                const SizedBox(width: 4),
+                                                TextWidget((issue["is_closed"] != null && issue["is_closed"]) ? S.current.tClosed : S.current.tOpen, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                                              ])
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: RichText(
+                                                text: TextSpan(
+                                                  style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65)),
                                                   children: [
-                                                    Text("${getMember(issue["author_id"])["full_name"]}"),
-                                                    const SizedBox(width: 4),
-                                                    Text(S.current.openThisIssue(parseDatetime(issue["inserted_at"])), style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
-                                                    if (comments.length > 0)
-                                                      Text.rich(TextSpan(
-                                                        style: TextStyle(
-                                                          color: isDark ? Colors .white : const Color.fromRGBO( 0, 0, 0, 0.65)
-                                                        ),
-                                                        children: [
-                                                          TextSpan(
-                                                            text: S.current.countComments(comments.length)
-                                                          )
-                                                        ]
-                                                      )
-                                                    )
+                                                    TextSpan(text: "${getMember(issue["author_id"])["full_name"]} "),
+                                                    TextSpan(text: S.current.openThisIssue(parseDatetime(issue["inserted_at"]))),
+                                                    TextSpan(text: S.current.countComments(comments.length)) 
                                                   ]
-                                                ),
+                                                )
                                               )
-                                            ]
-                                          ),
+                                            )
+                                          ]
+                                        ),
                                         const SizedBox(height: 24),
                                         author == null ? Container() : Container(
                                           margin: const EdgeInsets.only(bottom: 12),
@@ -1752,35 +1781,54 @@ class _CreateIssueState extends State<CreateIssue> {
                                                           name: author["full_name"],
                                                         ),
                                                         const SizedBox(width: 4),
-                                                        Text(
-                                                          "${author["full_name"]}",
-                                                          style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))
-                                                        ),
-                                                        const SizedBox(width: 4),
-                                                        Text(S.current.commented(parseDatetime(issue["inserted_at"])), style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
-                                                        InkWell(
-                                                          onTap: () => onGetHistory(null),
-                                                          child: Text.rich(
-                                                            TextSpan(
-                                                              children: [
-                                                                WidgetSpan(child: SizedBox(width: 6)),
-                                                                TextSpan(
-                                                                  text: issue["last_edit_description"] != null
-                                                                    ? editer != null
-                                                                      ? S.current.editedBy
-                                                                      : S.current.edited
-                                                                    : '',
-                                                                ),
-                                                                TextSpan(
-                                                                  text: editer != null ? " ${editer["full_name"]}" : "",
-                                                                  style: TextStyle(fontWeight: FontWeight.w700)
+                                                        RichText(
+                                                          text: TextSpan(
+                                                            children: [
+                                                              TextSpan(
+                                                                text: "${author["full_name"]}",
+                                                                style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))
+                                                              ),
+                                                              WidgetSpan(child: SizedBox(width: 4)),
+                                                              TextSpan(
+                                                                text: S.current.commented(parseDatetime(issue["inserted_at"])),
+                                                                style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))
+                                                              ),
+                                                              WidgetSpan(child: SizedBox(width: 6)),
+                                                              WidgetSpan(
+                                                                child: InkWell(
+                                                                  onTap: () => onGetHistory(null),
+                                                                  child: RichText(
+                                                                    text: TextSpan(
+                                                                      children: [
+                                                                        TextSpan(
+                                                                          text: issue["last_edit_description"] != null
+                                                                            ? editer != null
+                                                                              ? S.current.editedBy
+                                                                              : S.current.edited
+                                                                            : '',
+                                                                        ),
+                                                                        TextSpan(
+                                                                          text: editer != null ? " ${editer["full_name"]}" : "",
+                                                                          style: TextStyle(fontWeight: FontWeight.w700)
+                                                                        ),
+                                                                      ],
+                                                                      style: TextStyle(
+                                                                        color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 13.5
+                                                                      ),
+                                                                    ),
+                                                                  ),
                                                                 )
-                                                              ],
-                                                              style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue),
-                                                            )
-                                                          ),
+                                                              ),
+                                                              WidgetSpan(child: SizedBox(width: 6)),
+                                                              TextSpan(
+                                                                text: issue["last_edit_description"] != null ? " ${parseDatetime(issue["last_edit_description"])}" : '',
+                                                                style: TextStyle(
+                                                                  fontSize: 13, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65)
+                                                                )
+                                                              ),
+                                                            ]
+                                                          )
                                                         ),
-                                                        issue["last_edit_description"] != null ? Text(" ${parseDatetime(issue["last_edit_description"])}", style: TextStyle(fontSize: 13, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))) : const Text(""),
                                                       ],
                                                     ),
                                                   ),
@@ -1821,20 +1869,21 @@ class _CreateIssueState extends State<CreateIssue> {
                                                     issue: issue,
                                                     isDescription: true,
                                                     onUpdateComment: onUpdateIssue,
-                                                    onChangeText: (value) { 
+                                                    onChangeText: (value) {
                                                       description = value;
                                                       onSaveDraftIssue(channelId);
-                                                    }
+                                                    },
+                                                    dataDirectMessage: directMessage,
                                                   );
                                                 }
                                               )
-                                            )
-                                            : Column(children: [
+                                            ) : Column(
+                                              children: [
                                                 Markdown(
                                                   softLineBreak: true,
                                                   physics: const NeverScrollableScrollPhysics(),
                                                   imageBuilder: (uri, title, alt) {
-                                                    return Container();
+                                                    return MarkdownAttachment(alt: alt, uri: uri);
                                                   },
                                                   shrinkWrap: true,
                                                   styleSheet: MarkdownStyleSheet(
@@ -1856,65 +1905,14 @@ class _CreateIssueState extends State<CreateIssue> {
                                                   },
                                                   selectable: true,
                                                   checkboxBuilder: (value, variable) {
-                                                    return MarkdownCheckbox( value: value, variable: variable, onChangeCheckBox: onChangeCheckBox, isDark: isDark,);
+                                                    return MarkdownCheckbox( value: value, variable: variable, onChangeCheckBox: onChangeCheckBox, isDark: isDark);
                                                   },
                                                   data: (issue["description"] != null && issue["description"] != "") ? parseComment(issue["description"], false, true) : S.current.noDescriptionProvided,
                                                 ),
-                                                if (imagesInDescription.isNotEmpty) Container(
-                                                  decoration: BoxDecoration(
-                                                    color: isDark ? const Color(0xff2E2E2E) : const Color(0xffEDEDED),
-                                                    borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(4.0), bottomRight: Radius.circular(4.0),)
-                                                  ),
-                                                  padding: const EdgeInsets.only(bottom: 18, left: 14, right: 16,),
-                                                  child: Column(
-                                                    children: [
-                                                      Container(
-                                                        height: 1,
-                                                        color: isDark ? const Color(0xff5E5E5E) : const Color(0xffCBD2D9),
-                                                      ),
-                                                      Row(
-                                                        mainAxisAlignment: MainAxisAlignment.start,
-                                                          children: [
-                                                            TextButton(
-                                                              onPressed: () {
-                                                                setState(() {
-                                                                  collapseDescription = !collapseDescription;
-                                                                });
-                                                              },
-                                                              style: ButtonStyle(padding: MaterialStateProperty.all(const EdgeInsets.all(0)), overlayColor: MaterialStateProperty.all(Colors.transparent)),
-                                                              child: Wrap(crossAxisAlignment: WrapCrossAlignment.center,
-                                                                children: [
-                                                                  Transform.rotate(
-                                                                    angle: 30.6,
-                                                                    child: Icon(
-                                                                      Icons.attachment_sharp,
-                                                                      color: isDark ? Palette.calendulaGold : Palette.dayBlue,
-                                                                      size: 18,
-                                                                    )),
-                                                                  const SizedBox(width: 8),
-                                                                  Text(S.current.attachments, style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w400, color: isDark ? Palette.calendulaGold : Palette.dayBlue, height: 1.2)),
-                                                                  const SizedBox(width: 2),
-                                                                  Icon(collapseDescription ? Icons.arrow_drop_down : Icons.arrow_right, color: isDark ? Palette.calendulaGold : Palette.dayBlue, size: 24)
-                                                                ]
-                                                              )
-                                                            )
-                                                          ]
-                                                        ),
-                                                      if (collapseDescription)
-                                                        ImagesGallery(
-                                                          isChildMessage: false, att: {"data": imagesInDescription},
-                                                          isThread: false,
-                                                          fromIssue: true,
-                                                          isConversation: false,
-                                                        )
-                                                    ]
-                                                  )
-                                                )
                                               ]
                                             )
                                           ]
-                                        )
-                                        ),
+                                        )),
                                         if (message != null && issue['id'] != null) IssueTimeline(
                                           timelines: [
                                             {
@@ -1963,6 +1961,8 @@ class _CreateIssueState extends State<CreateIssue> {
                                           if (e["comment"] != null) {
                                             var comment = e;
                                             var author = getMember(comment["author_id"]);
+                                            var lastEditedUser = comment["last_edited_id"] != null ? getMember(comment["last_edited_id"]) : null;
+
                                             return Container(
                                               margin: const EdgeInsets.symmetric(vertical: 12),
                                               decoration: BoxDecoration(
@@ -1995,27 +1995,58 @@ class _CreateIssueState extends State<CreateIssue> {
                                                                   radius: 50,
                                                                   name: author["full_name"],
                                                                 ),
-                                                                const SizedBox(width: 4),
-                                                                Text("${author["full_name"]}", style: TextStyle(fontWeight: FontWeight.w500, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
-                                                                const SizedBox(width: 4),
-                                                                Text(S.current.commented(parseDatetime(comment["inserted_at"])), style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))),
-                                                                comment["last_edited_id"] != null ? InkWell(
-                                                                  onTap: () => onGetHistory(comment['id']),
-                                                                  child: Text.rich(
-                                                                    TextSpan(
-                                                                      children: [
-                                                                        WidgetSpan(child: SizedBox(width: 6)),
-                                                                        TextSpan(
-                                                                          text: S.current.editedTime(parseDatetime(comment["updated_at"])),
+                                                                SizedBox(width: 4),
+                                                                RichText(
+                                                                  text: TextSpan(
+                                                                    children: [
+                                                                      TextSpan(
+                                                                        text: "${author["full_name"]}",
+                                                                        style: TextStyle(fontWeight: FontWeight.w700, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))
+                                                                      ),
+                                                                      WidgetSpan(child: SizedBox(width: 4)),
+                                                                      TextSpan(
+                                                                        text: S.current.commented(parseDatetime(comment["inserted_at"])),
+                                                                        style: TextStyle(color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65))
+                                                                      ),
+                                                                      WidgetSpan(child: SizedBox(width: 6)),
+                                                                      WidgetSpan(
+                                                                        child: InkWell(
+                                                                          onTap: () => onGetHistory(comment['id']),
+                                                                          child: RichText(
+                                                                            text: TextSpan(
+                                                                              children: [
+                                                                                TextSpan(
+                                                                                  text: comment["last_edited_id"] != null
+                                                                                    ? lastEditedUser != null
+                                                                                      ? S.current.editedBy
+                                                                                      : S.current.edited
+                                                                                    : '',
+                                                                                ),
+                                                                                TextSpan(
+                                                                                  text: lastEditedUser != null ? " ${lastEditedUser["full_name"]}" : "",
+                                                                                  style: TextStyle(fontWeight: FontWeight.w700)
+                                                                                ),
+                                                                              ],
+                                                                              style: TextStyle(
+                                                                                color: isDark ? Palette.calendulaGold : Palette.dayBlue, fontSize: 13.5
+                                                                              ),
+                                                                            ),
+                                                                          ),
                                                                         )
-                                                                      ],
-                                                                      style: TextStyle(color: isDark ? Palette.calendulaGold : Palette.dayBlue)
-                                                                    )
+                                                                      ),
+                                                                      WidgetSpan(child: SizedBox(width: 6)),
+                                                                      TextSpan(
+                                                                        text: comment["last_edited_id"] != null ? " ${parseDatetime(comment["updated_at"])}" : '',
+                                                                        style: TextStyle(
+                                                                          fontSize: 13, color: isDark ? Colors.white : const Color.fromRGBO(0, 0, 0, 0.65)
+                                                                        )
+                                                                      ),
+                                                                    ]
                                                                   )
-                                                                ) : const Text("")
-                                                              ],
-                                                            ),
-                                                          ),
+                                                                ),
+                                                              ]
+                                                            )
+                                                          )
                                                         ),
                                                         comment["author_id"] == auth.userId ? Row(
                                                           children: [
@@ -2062,7 +2093,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                                                         height: 94,
                                                                         child: Column(
                                                                           children: [
-                                                                            Text(S.current.deleteComment),
+                                                                            TextWidget(S.current.deleteComment),
                                                                             const SizedBox(height: 6),
                                                                             const Divider(),
                                                                             Row(
@@ -2072,14 +2103,14 @@ class _CreateIssueState extends State<CreateIssue> {
                                                                                   onPressed: () {
                                                                                     Navigator.of(context, rootNavigator: true).pop("Discard");
                                                                                   },
-                                                                                  child: Text(S.current.cancel),
+                                                                                  child: TextWidget(S.current.cancel),
                                                                                 ),
                                                                                 TextButton(
                                                                                   onPressed: () {
                                                                                     Provider.of<Channels>(context, listen: false).deleteComment(token, widget.issue["workspace_id"], widget.issue["channel_id"], comment["id"], issue["id"]);
                                                                                     Navigator.of(context, rootNavigator: true).pop("Discard");
                                                                                   },
-                                                                                  child: Text(S.current.delete, style: TextStyle(color: Colors.redAccent)),
+                                                                                  child: TextWidget(S.current.delete, style: TextStyle(color: Colors.redAccent)),
                                                                                 )
                                                                               ],
                                                                             )
@@ -2111,41 +2142,14 @@ class _CreateIssueState extends State<CreateIssue> {
                                                       onUpdateComment: onUpdateComment,
                                                       onChangeText: (value) {
                                                         _commentController.text = value;
-                                                      }
+                                                      },
+                                                      dataDirectMessage: directMessage,
                                                     ),
-                                                  )
-                                                  : Markdown(
+                                                  ) : Markdown(
+                                                    physics: NeverScrollableScrollPhysics(),
                                                     softLineBreak: true,
                                                     imageBuilder: (uri, title, alt) {
-                                                      var tag = Utils.getRandomString(30);
-                                                      return GestureDetector(
-                                                        onTap: () {
-                                                          Navigator.push(
-                                                            context,
-                                                            PageRouteBuilder(
-                                                              barrierDismissible: true,
-                                                              barrierLabel: '',
-                                                              opaque: false,
-                                                              barrierColor: Colors.black.withOpacity(1.0),
-                                                              pageBuilder: (context, _, __) => ImageDetail(url: "$uri", id: tag, full: true, tag: tag)
-                                                            )
-                                                          );
-                                                        },
-                                                        child: Container(
-                                                          constraints: const BoxConstraints(
-                                                            maxHeight: 400,
-                                                            maxWidth: 750
-                                                          ),
-                                                          child: ImageItem(
-                                                            tag: uri,
-                                                            img: {
-                                                              'content_url': uri.toString(),
-                                                              'name': alt
-                                                            }, previewComment: true,
-                                                            isConversation: false,
-                                                          ),
-                                                        )
-                                                      );
+                                                      return MarkdownAttachment(alt: alt, uri: uri);
                                                     },
                                                     shrinkWrap: true,
                                                     styleSheet: MarkdownStyleSheet(
@@ -2155,7 +2159,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                                       codeblockDecoration: BoxDecoration(
                                                         color: Colors.red
                                                       )),
-                                                      
+                                                  
                                                     onTapLink: (link, url, uri) async {
                                                       if (await canLaunch(url ?? "")) {
                                                         await launch(url ?? "");
@@ -2174,7 +2178,7 @@ class _CreateIssueState extends State<CreateIssue> {
                                                       );
                                                     },
                                                     data: parseComment(comment["comment"], false, false),
-                                                  ) 
+                                                  )
                                                 ],
                                               )
                                             );
@@ -2209,8 +2213,9 @@ class _CreateIssueState extends State<CreateIssue> {
                                             isDescription: widget.issue["id"] == null,
                                             onSubmitNewIssue: onSubmitNewIssue,
                                             onCommentIssue: onCommentIssue,
+                                            dataDirectMessage: directMessage,
                                           ),
-                                        )
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -2223,10 +2228,10 @@ class _CreateIssueState extends State<CreateIssue> {
                         ],
                       ),
                     );
-                  }),
-                )
-              ],
-            ),
+                  }
+                ),
+              )
+            ],
           ),
         );
       }
@@ -2269,7 +2274,7 @@ class _HighLightButtonState extends State<HighLightButton> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(widget.channelName),
+            TextWidget(widget.channelName),
             Icon(PhosphorIcons.gear,
               color: isDark ? const Color(0xffFAAD14) : Utils.getPrimaryColor(), size: 18)
           ],
@@ -2299,7 +2304,7 @@ class WorkspaceItem extends StatelessWidget {
         children: [
           CachedImage(imageUrl, name: workspaceName, width: 24, height: 24, radius: 4),
           const SizedBox(width: 8,),
-          isSelected ? Text("$workspaceName  ", style: TextStyle(color: isDark ? Colors.white : const Color(0xff3D3D3D), fontSize: 14, fontWeight: FontWeight.w500)) : const SizedBox()
+          isSelected ? TextWidget("$workspaceName  ", style: TextStyle(color: isDark ? Colors.white : const Color(0xff3D3D3D), fontSize: 14, fontWeight: FontWeight.w500)) : const SizedBox()
         ],
       )
     );

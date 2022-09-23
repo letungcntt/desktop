@@ -320,6 +320,9 @@ class BoardViewState extends State<BoardView> with AutomaticKeepAliveClientMixin
       itemBuilder: (BuildContext context, int index) {
         if (widget.lists![index].boardView == null) {
           widget.lists![index] = BoardList(
+            listId: widget.lists![index].listId,
+            selectedListToAdd: widget.lists![index].selectedListToAdd,
+            selectList: widget.lists![index].selectList,
             items: widget.lists![index].items,
             headerBackgroundColor: widget.lists![index].headerBackgroundColor,
             backgroundColor: widget.lists![index].backgroundColor,
@@ -334,6 +337,9 @@ class BoardViewState extends State<BoardView> with AutomaticKeepAliveClientMixin
         }
         if (widget.lists![index].index != index) {
           widget.lists![index] = BoardList(
+            listId: widget.lists![index].listId,
+            selectedListToAdd: widget.lists![index].selectedListToAdd,
+            selectList: widget.lists![index].selectList,
             items: widget.lists![index].items,
             headerBackgroundColor: widget.lists![index].headerBackgroundColor,
             backgroundColor: widget.lists![index].backgroundColor,
@@ -433,12 +439,18 @@ class BoardViewState extends State<BoardView> with AutomaticKeepAliveClientMixin
             }
           }
           if (0 <= draggedListIndex! - 1 && dx! < leftListX!) {
-            //move left
-            moveLeft();
+            try {
+              moveLeft();
+            } catch (e) {
+
+            }
           }
           if (widget.lists!.length > draggedListIndex! + 1 && dx! > rightListX!) {
-            //move right
-            moveRight();
+            try {
+              moveRight();
+            } catch (e) {
+
+            }
           }
           if (dy! < topListY! + 70) {
             //scroll up

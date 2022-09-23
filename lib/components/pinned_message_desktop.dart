@@ -1,16 +1,15 @@
-import 'package:better_selection/better_selection.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:hive/hive.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/styles.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/profile/user_profile_desktop.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'message_item/attachment_card_desktop.dart';
 import 'message_item/message_card_desktop.dart';
@@ -50,6 +49,8 @@ class _PinnedMessageState extends State<PinnedMessage> {
     final pinnedMessages = Provider.of<Channels>(context, listen: true).pinnedMessages;
     final showChannelPinned = Provider.of<Channels>(context, listen: true).showChannelPinned;
     final workspaceId = Provider.of<Workspaces>(context, listen: true).currentWorkspace["id"];
+    final auth = Provider.of<Auth>(context);
+    final isDark = auth.theme == ThemeType.DARK;
     return Column(
       children: [
         Expanded(
@@ -80,7 +81,7 @@ class _PinnedMessageState extends State<PinnedMessage> {
                       padding: const EdgeInsets.only(left: 2),
                       onPressed:(){
                         Provider.of<Channels>(context, listen: false).openChannelPinned(!showChannelPinned);
-                      }, 
+                      },
                       icon: SvgPicture.asset('assets/icons/newX.svg', height: 14.13)
                     )
                   ]
@@ -88,6 +89,7 @@ class _PinnedMessageState extends State<PinnedMessage> {
               ),
               Expanded(
                 child: Container(
+                  color: isDark ? Color(0xFF2e2e2e) : Color(0xFFF3F3F3),
                   child: (pinnedMessages.isEmpty) ? Container(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -142,7 +144,7 @@ class _PinnedMessageState extends State<PinnedMessage> {
                         final newListBlockCode = listBlockCode.where((e) => e["id"] == item["id"]).toList();
                         final snippet = newSnippet.isNotEmpty ? newSnippet[0]["snippet"] : "";
                         final newBlockCode = newListBlockCode.isNotEmpty ? newListBlockCode[0]["block_code"] : "";
-                        
+
                         final message = {
                           'id': item['id'],
                           "avatarUrl": item["avatar_url"] ?? "",
@@ -152,7 +154,7 @@ class _PinnedMessageState extends State<PinnedMessage> {
                           'inserted_at': item['inserted_at'],
                           'current_time': item['current_time'] ?? DateTime.parse(item['inserted_at']).toUtc().microsecondsSinceEpoch
                         };
-                          
+
                         return InkWell(
                           onTap: () {
                             onSelectMessage(message);
@@ -209,7 +211,7 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
     _onTapTextSpan = TapGestureRecognizer();
     super.initState();
   }
-  
+
   @override
   void dispose() {
     _onTapTextSpan.dispose();
@@ -222,6 +224,18 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
     final workspaceId = Provider.of<Workspaces>(context, listen: true).currentWorkspace["id"];
     final currentUser = Provider.of<User>(context, listen: true).currentUser;
     final customColor = currentUser["custom_color"];
+    final Map message = {
+      "id": widget.item['id'],
+      "message": widget.item,
+      "avatarUrl": widget.item['avatar_url'],
+      "insertedAt": widget.item['inserted_at'],
+      "fullName": widget.item['full_name'],
+      "attachments": widget.item['attachments'],
+      "userId": widget.item['user_id'],
+      "channelId": channelId,
+      "workspaceId": workspaceId,
+      "isChildMessage": widget.item['isChildMessage'],
+    };
     return MouseRegion(
       onEnter: (event) {
         setState(() {
@@ -267,12 +281,12 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
                       children: [
                         Row(
                           children: [
-                            Text(widget.item["full_name"], 
+                            Text(widget.item["full_name"],
                               style: TextStyle(
-                                fontWeight: FontWeight.w700, 
+                                fontWeight: FontWeight.w700,
                                 color: widget.item["user_id"] == currentUser["id"] && (customColor != "default" && customColor != null)
-                                  ? Color(int.parse("0xFF$customColor")) 
-                                  : Constants.checkColorRole(getUser(widget.item["user_id"])["role_id"], widget.isDark), 
+                                  ? Color(int.parse("0xFF$customColor"))
+                                  : Constants.checkColorRole(getUser(widget.item["user_id"])["role_id"], widget.isDark),
                                 fontSize: 14)),
                             SizedBox(width: 5),
                             Padding(
@@ -284,23 +298,23 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
                         isShowCloseButton
                         ? InkWell(
                           onTap:() {
-                            Provider.of<Channels>(context, listen: false).pinMessage(token, workspaceId, channelId, widget.item["id"], false);
+                            Provider.of<Channels>(context, listen: false).pinMessage(token, workspaceId, channelId, widget.item["id"]);
                           },
                           child: SvgPicture.asset('assets/icons/CloseCircle.svg', color: widget.isDark ? Palette.topicTile : Colors.grey[700], height: 18),
                         ) : const SizedBox(height: 18),
                       ],
                     ),
                     const SizedBox(height: 2.5),
-                    widget.item["message"] != "" ? SelectableScope(
+                    widget.item["message"] != "" ? CustomSelectionArea(
                       child: SizedBox(
                         width: double.infinity,
                         child: MessageCardDesktop(
-                          id: widget.item["id"], 
+                          id: widget.item["id"],
                           message: widget.item["message"]
                         ),
                       ),
                     ) : const SizedBox(),
-                    SelectableScope(
+                    CustomSelectionArea(
                       child: AttachmentCardDesktop(
                         id: widget.item["id"],
                         attachments: widget.item["attachments"],
@@ -308,8 +322,10 @@ class _PinnedMessageTileState extends State<PinnedMessageTile> {
                         isChildMessage: false,
                         userId: widget.item["user_id"],
                         snippet: widget.snippet,
+                        message: message,
                         blockCode: widget.newBlockCode,
                         isThread: true,
+                        isPinnedMessage: true,
                       ),
                     ),
                   ],

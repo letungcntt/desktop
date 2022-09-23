@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ChannelMemberBottom extends StatefulWidget {
   final isDelete;
@@ -9,7 +8,7 @@ class ChannelMemberBottom extends StatefulWidget {
 
   ChannelMemberBottom({
     Key? key,
-    this.isDelete, 
+    this.isDelete,
     this.checkboxs
   }) : super(key: key);
 

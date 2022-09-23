@@ -3,30 +3,30 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:math';
 import 'package:context_menus/context_menus.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'package:device_info/device_info.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/progress.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/call_center/room.dart';
 import 'package:workcake/components/create_direct_message.dart';
 import 'package:workcake/components/modal_invite_desktop.dart';
 import 'package:workcake/components/option_notification_mode.dart';
-import 'package:workcake/generated/l10n.dart';
+import 'package:workcake/data_channel_webrtc/device_socket.dart';
 import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/media_conversation/drive_api.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/services/sync_data.dart';
 
+import '../components/call_center/room.dart';
+import '../generated/l10n.dart';
+import '../media_conversation/drive_api.dart';
 import 'create_DMs_MacOS.dart';
 import 'dm_input_shared.dart';
 
@@ -54,7 +54,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
     initData();
     deviceInfo = DeviceInfoPlugin();
     scrollController.addListener(() {
-    if (scrollController.position.extentAfter < 50) 
+    if (scrollController.position.extentAfter < 50)
       Provider.of<DirectMessage>(context, listen: false).getDataDirectMessage(Provider.of<Auth>(context, listen: false).token, Provider.of<Auth>(context, listen: false).userId, isLoadMore: true);
     });
   }
@@ -75,64 +75,6 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
     );
   }
 
-  String getTextAtt(int video, int other ,int image, int callterminated, int attachment, int inviied,) {
-    if (video == 1 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentAVideo;
-    if (video > 1 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentVideos(video);
-    if (video == 0 && other == 1 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentAFile;
-    if (video == 0 && other > 1 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentFiles(other);
-    if (video == 0 && other == 0 && image == 1 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentAnImage;
-    if (video == 0 && other == 0 && image > 1 && callterminated == 0 && attachment == 0 && inviied == 0) return S.current.sentImages(image);
-    if (video == 0 && other == 0 && image == 0 && callterminated == 1 && attachment == 0 && inviied == 0) return S.current.theVideoCallEnded;
-    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 1 && inviied == 0) return S.current.sentAttachments;
-    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 1) return "";
-    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return "";
-    return S.current.sentAttachments;
-  }
-
-  String renderSnippet(List att, dm) {   
-   Map t = getType(att, dm);
-    return  getTextAtt(t['video'], t['other'], t['image'],t['call_terminated'],t['attachment'],t['inviied'],) + t['mention'];
-  }
-
-  Map getType(List att, dm) {
-     Map t ={
-      'image':0, 
-      'video':0,
-      'other':0,
-      'call_terminated':0,
-      'attachment':0,
-      'inviied':0,
-      'mention':''
-    };
-    for (int i =0; i< att.length; i++) {
-      
-      String? mime= att[i]['mime_type']?? '';
-      
-      if (mime == null) continue;
-      if (mime=='image'||mime=='jpg') {
-        t['image'] += 1;
-      } else {
-        if (mime=="mov"||mime=="mp4"||mime=="video") {
-          t['video']+=1;
-        } else if(att[0]['type']=='call_terminated') {
-          t['call_terminated']+=1;
-        } else if(att[0]['type'] == 'device_info' || att[0]['type'] == 'action_button' || att[0]['type'] == 'assign' || att[0]['type'] == 'close_issue' || att[0]['type'] == 'invite') {
-          t['attachment']+=1;
-        } else if(att[0]['type']=='invite_direct') {
-          t['inviied']+=1;
-        } else if (att[0]["type"] == "mention"){
-          t['mention']+= att[0]["data"].map((e) {
-            if (e["type"] == "text" ) return e["value"];
-            return "${e["trigger"] ?? "@"}${e["name"] ?? ""} ";
-          }).toList().join();
-        } else {
-          t['other']+=1;
-        }
-      }
-    }
-    return t;
-  }
-  
   sendRequestSync(channel, auth, String type) async{
     // get channel.
     showDialog(
@@ -155,7 +97,8 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
       inspect(device);
       LazyBox box  = Hive.lazyBox('pairKey');
       Map data  =  {
-        "deviceId": await box.get("deviceId")
+        "deviceId": await box.get("deviceId"),
+        "flow": "file"
       };
       channel.push(
         event: "request_conversation_sync",
@@ -165,7 +108,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
           "device_name": device["name"],
           "device_ip": device["ip"]
         }
-      );      
+      );
     }
   }
 
@@ -175,7 +118,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
 
     if (directMessage.user.length < 3)
       return showDialog(
-        context: context, 
+        context: context,
         builder: (BuildContext context){
           return AlertDialog(
             contentPadding: EdgeInsets.zero,
@@ -295,7 +238,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                   showDialog(
                     context: context,
                     builder: (BuildContext b) => DialogBackUp()
-                  );                               
+                  );
                   MessageConversationServices.makeBackUpMessageJsonV1(Provider.of<Auth>(context, listen: false).userId);
                 },
               ),
@@ -307,7 +250,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                     showDialog(
                       context: context,
                       builder: (BuildContext b) => DialogRestore()
-                    );                               
+                    );
                     MessageConversationServices.reStoreBackUpFile(Provider.of<Auth>(context, listen: false).userId);
                 },
               ),
@@ -360,7 +303,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                                 color: !isDark ? Color(0xFF1890FF) : Color(0xFFFAAD14)
                               ))
                             ]
-                          ) 
+                          )
                         ),
                       ),
                       Container(
@@ -400,7 +343,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                                 color: !isDark ? Color(0xFF1890FF) : Color(0xFFFAAD14)
                               ))
                             ]
-                          ) 
+                          )
                         ),
                       ),
                       Container(
@@ -414,7 +357,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                     ],
                   )
                 )
-                
+
               : Container(
                 padding:EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -446,16 +389,16 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                           final indexUser = directMessage.user.indexWhere((e) => e["user_id"] == directMessage.snippet["user_id"]);
                           userSnippet = indexUser != -1 ? directMessage.user[indexUser] : null;
 
-                          messageSnippet = (directMessage.snippet["attachments"] != null && directMessage.snippet["attachments"].length > 0
-                            ? renderSnippet(directMessage.snippet["attachments"], directMessage)
-                            : directMessage.snippet["message"]);
-                          numberType  = getType(directMessage.snippet["attachments"] ?? [], directMessage);
+                          messageSnippet = directMessage.snippet["attachments"] != null && directMessage.snippet["attachments"].length > 0
+                            ? MessageConversationServices.renderSnippet(directMessage.snippet["attachments"], directMessage, false)
+                            : directMessage.snippet["message"];
+                            numberType  = MessageConversationServices.getType(directMessage.snippet["attachments"] ?? [], directMessage);
                         } else {
                           // messageSnippet = "";
                           // userSnippet = "";
                         }
 
-                        var index = list.indexWhere((e) => e.id == item.id); 
+                        var index = list.indexWhere((e) => e.id == item.id);
                         if (indexConverMessage != -1) {
                           userRead = directMessage.userRead["data"] ?? [];
                           currentTime = directMessage.userRead["current_time"] ?? 0;
@@ -501,7 +444,7 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
                                   showDialog(
                                     context: context,
                                     builder: (BuildContext context) => NotificationDM(
-                                      conversationId: directMessage.id, 
+                                      conversationId: directMessage.id,
                                       onSave: Provider.of<DirectMessage>(context, listen: false).updateSettingConversationMember
                                     )
                                   );
@@ -544,8 +487,39 @@ class _DirectMessagesViewMacOSState extends State<DirectMessagesViewMacOS> {
               Positioned(
                 left: 0, 
                 bottom: 0,
-                child: StreamSyncData.instance.render(context)
-              )
+                child: Row(
+                  children: [
+                    StreamSyncData.instance.render(context),
+                    StreamBuilder(
+                      initialData: StatusSync( -1, "No thing"),
+                      stream: MessageConversationServices.statusSync,
+                      builder: (BuildContext c, AsyncSnapshot s){
+                        StatusSync t = s.data ?? StatusSync( -1, "No thing");
+                        if (t.statusCode == -1) return Container();
+                        return Container(
+                          padding: EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                          color: Colors.white54.withOpacity(0.5),
+                          child: Text(t.status, style: TextStyle(color: Colors.black54, fontSize: 9)),
+                        );
+                      }
+                    ),
+                    StreamBuilder(
+                      stream: DeviceSocket.instance.syncDataWebrtcStreamController.stream,
+                      initialData: DataWebrtcStreamStatus("", "", "", "",),
+                      builder: (BuildContext c, AsyncSnapshot s){
+                        DataWebrtcStreamStatus status = (s.data as DataWebrtcStreamStatus?) ??  DataWebrtcStreamStatus("", "", "", "",);
+                        if (status.status == "") return Container();
+                        return  Container(
+                          padding: EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                          color: Colors.white54.withOpacity(0.5),
+                          child: Text(status.status, style: TextStyle(color: Colors.black54, fontSize: 9)),
+                        );
+                      },
+                    )
+
+                  ],
+                )
+              ) 
             ],
           )
         )
@@ -720,7 +694,7 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                       : Container(
                         // margin: EdgeInsets.all(4),
                         child: CachedAvatar(
-                          directMessage.avatarUrl != null ? directMessage.avatarUrl : getAvatarUrl(directMessage.user, widget.userId),
+                           directMessage.avatarUrl != null ? directMessage.avatarUrl : getAvatarUrl(directMessage.user, widget.userId),
                           height: 32, width: 32, radius: 16,
                           isRound: true,
                           name: directMessage.displayName,
@@ -733,13 +707,13 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                           height: 14, width: 14,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(7),
-                            color: directMessage.user.where((element) => element["user_id"] != widget.userId && (element["is_online"] ?? false)).toList().length > 0 
+                            color: directMessage.user.where((element) => element["user_id"] != widget.userId && (element["is_online"] ?? false)).toList().length > 0
                               ? (currentDirectMessage.id == directMessage.id && !selectedFriend && !selectedMention)
                                 ? Palette.selectChannelColor
-                                : isHover 
-                                  ? Palette.backgroundRightSiderDark 
-                                  : Color(0xff2e2e2e) 
-                              : Colors.transparent
+                                : isHover
+                              ? Palette.backgroundRightSiderDark
+                              : Color(0xff2e2e2e)
+                            : Colors.transparent
                           ),
                         )
                       ),
@@ -765,7 +739,7 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                       )
                   ],
                 ),
-                          
+
                 SizedBox(width:8),
                 Expanded(
                   child: Column(
@@ -785,7 +759,7 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                               children: <TextSpan>[
                                 TextSpan(
                                   text: directMessage.name != "" ? directMessage.name : directMessage.displayName,
-                                  
+
                                 ),
                                 TextSpan(
                                   text: directMessage.user.length == 1 ? " (me)" : "",
@@ -801,21 +775,21 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                           ? Container()
                           : Row(
                             children: [
-                              userSnippet["user_id"] == widget.userId 
+                              userSnippet["user_id"] == widget.userId
                               ? Container(
                                 margin: EdgeInsets.only(right: 2, top: 3.5),
                                 child: Icon(
-                                  Icons.subdirectory_arrow_right,
-                                  color: color,
-                                  size: 11,
-                                ),
+                                    Icons.subdirectory_arrow_right,
+                                    color: color,
+                                    size: 11,
+                                  ),
                               )
-                              : directMessage.user.length == 2 
+                              : directMessage.user.length == 2
                                 ? Container()
-                                : Container(
-                                  margin: EdgeInsets.only(right: 0,top: 4),
+                                : Utils.checkedTypeEmpty(widget.numberType["avatar"]) ?  SizedBox() : Container(
+                                  margin: EdgeInsets.only(right: 1,top: 4),
                                   child: Text(
-                                    userSnippet["full_name"] + ": ",
+                                    userSnippet["full_name"] + " :",
                                     style: TextStyle(
                                       // tin chuwa doc snippet mau trang,
                                       color: color,
@@ -823,40 +797,59 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                                       fontWeight: fontWeight
                                     ),
                                   ),
-                                ),
+                                ) ,
                                 Expanded(
-                                  child: Utils.checkedTypeEmpty(widget.numberType["mention"]) 
+                                  child: Utils.checkedTypeEmpty(widget.numberType["mention"])
                                     ? Padding(
-                                      padding: const EdgeInsets.only(top: 3.6),
+                                      padding: const EdgeInsets.only(top: 4),
                                       child: Row(
                                         children: [
-                                          Text(
-                                            widget.numberType["mention"] ?? directMessage.snippet["message"],
-                                            style: TextStyle(color: color,  fontSize: 11,)
+                                          Expanded(
+                                            child: Text(
+                                              widget.numberType["mention"] ?? directMessage.snippet["message"],
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(color: color,  fontSize: 11,)
+                                            ),
                                           ),
                                         ],
                                       ),
-                                    ) 
+                                    )
                                     : Row(
                                     crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
+                                      Utils.checkedTypeEmpty(widget.numberType["share"] ?? widget.numberType["shareforwar"]) ? 
+                                      Container():
                                       Padding(
                                         padding: const EdgeInsets.only(top: 4),
                                         child: rendericon(
-                                          widget.numberType["video"], 
-                                          widget.numberType["other"], 
-                                          widget.numberType["image"], 
-                                          widget.numberType["call_terminated"], 
-                                          widget.numberType["attachment"], 
-                                          widget.numberType["inviied"], color),
+                                          widget.numberType["video"],
+                                          widget.numberType["other"],
+                                          widget.numberType["image"],
+                                          widget.numberType["attachment"],  color),
                                       ),
-                                      SizedBox(width: 4,),
+                                      Utils.checkedTypeEmpty(widget.numberType["share"] ?? widget.numberType["shareforwar"]) ?
+                                      Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(top: 4),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  widget.numberType["share"] ?? widget.numberType["shareforwar"] ?? directMessage.snippet["message"],
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(color: color,  fontSize: 11,)
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ):
                                       Expanded(
                                         child: Text(
                                           "${messageSnippet.split("\n")[0]}",
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            // tin chuwa doc snippet mau trang, 
+                                            // tin chuwa doc snippet mau trang,
                                             color: color,
                                             fontSize: 11,
                                             height: 1.56,
@@ -868,14 +861,13 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                                     ],
                                   ),
                                 ),
-                              ],
-                            )           
-                          ) : Container()
-                        ],
-                      ),
-                    )
-                  ]
-               ),
+                            ],
+                          )
+                      ) : Container()
+                    ],
+                  ),
+                )]
+              ),
             ),
             if (widget.roomIsActive) RoomActiveButton(),
             Container(
@@ -886,8 +878,8 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                 children: [
                   renderUserRead(
                     directMessage.seen,
-                    directMessage.user, 
-                    widget.userId, 
+                    directMessage.user,
+                    widget.userId,
                     userRead,
                     "$currentTime",
                     directMessage.userRead["last_user_id_send_message"] ?? ""
@@ -896,32 +888,51 @@ class _DirectMessageItemState extends State<DirectMessageItem>{
                     // margin: EdgeInsets.only(bottom: userRead.length == 0 ? -5 : 0),
                     child: ShowTime(time: currentTime, color: color),
                   )
-                  
+
                 ],
               ),
             ),
           ],
         ),
-          
+
         decoration: (currentDirectMessage.id == directMessage.id && !selectedFriend && !selectedMention)
-          ? BoxDecoration(color: Palette.selectChannelColor)
-          : isHover
-            ? BoxDecoration(color: Palette.backgroundRightSiderDark)
-            : BoxDecoration(),
+        ? BoxDecoration(color: Palette.selectChannelColor)
+        : isHover
+          ? BoxDecoration(color: Palette.backgroundRightSiderDark)
+          : BoxDecoration(),
       )
     );
   }
-  
-  Widget rendericon(int video, int other ,int image, int callterminated, int attachment, int inviied, Color color) {
-    if (video >= 1 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.youtubeLogo, size: 13, color: color,);
-    if (video == 0 && other >= 1 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.folderOpen,size: 13, color: color,);
-    if (video == 0 && other == 0 && image >= 1 && callterminated == 0 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.image,size: 13, color: color,);
-    if (video == 0 && other == 0 && image == 0 && callterminated >= 1 && attachment == 0 && inviied == 0) return Icon(PhosphorIcons.phoneCall,size: 13, color: color,);
-    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment >= 1 && inviied == 0) return Icon(PhosphorIcons.chatCenteredDots,size: 13, color: color,);
-    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied >= 1) return Container();
-    if (video == 0 && other == 0 && image == 0 && callterminated == 0 && attachment == 0 && inviied == 0) return Container();
+  Widget rendericon(int video, int other ,int image, int attachment , Color color) {
+    if (video >= 1 && other == 0 && image == 0 && attachment == 0 ){
+      return Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Icon(PhosphorIcons.youtubeLogo, size: 13, color: color,),
+      );
+    }
+    if (video == 0 && other >= 1 && image == 0 && attachment == 0 ){
+      return Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Icon(PhosphorIcons.folderOpen,size: 13, color: color,),
+      );
+    }
+    if (video == 0 && other == 0 && image >= 1 && attachment == 0 ){
+      return Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Icon(PhosphorIcons.image,size: 13, color: color,),
+      );
+    }
+    if (video == 0 && other == 0 && image == 0 && attachment >= 1 )
+     return Padding(
+        padding: const EdgeInsets.only(right: 4),
+        child: Icon(PhosphorIcons.chatCenteredDots,size: 13, color: color,),
+      );
+    if (video == 0 && other == 0 && image == 0 && attachment == 0 ) return Container();
 
-    return Icon(PhosphorIcons.folderOpen,size: 13);
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Icon(PhosphorIcons.folderOpen,size: 13 , color: color,),
+    );
   }
 }
 
@@ -955,7 +966,7 @@ class ShowTime extends StatefulWidget{
     required this.color
   });
 
-  @override 
+  @override
   _ShowTime createState() => _ShowTime();
 }
 
@@ -1089,7 +1100,7 @@ renderUserRead(bool seen, List users, String userId, List userRead, currentTime,
                 margin: EdgeInsets.only(left: 3),
                 child: CachedAvatar(e["avatar_url"], width: 11, height: 11, radius: 5, name: e["name"], fontSize: 5,))).toList(),
             ),
-            renderUserAvatarUrl.length < otherUserAvatarUrl.length ? 
+            renderUserAvatarUrl.length < otherUserAvatarUrl.length ?
             Container(
               margin: EdgeInsets.only(left: 3),
               width: 11, height: 11,
@@ -1167,4 +1178,3 @@ class _DialogRestoreState extends State<DialogRestore> {
     );
   }
 }
-

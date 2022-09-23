@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:popover/popover.dart';
-import 'package:provider/provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/common/palette.dart';
+import 'package:workcake/providers/providers.dart';
 
 import 'ListMember.dart';
 
@@ -34,12 +34,14 @@ class _SelectTaskAssigneeState extends State<SelectTaskAssignee> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
+
     return InkWell(
       onTap: () {
         Navigator.pop(context);
         showPopover(
-          context: context, 
-          backgroundColor: Color(0xff2E2E2E),
+          context: context,
+          backgroundColor: isDark ? Color(0xff2E2E2E) : Colors.white,
           transitionDuration: const Duration(milliseconds: 50),
           direction: PopoverDirection.bottom,
           barrierColor: Colors.transparent,
@@ -55,9 +57,9 @@ class _SelectTaskAssigneeState extends State<SelectTaskAssignee> {
         padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: Row(
           children: [
-            Icon(PhosphorIcons.userPlus, size: 17),
+            Icon(PhosphorIcons.userPlus, size: 17, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
             SizedBox(width: 14),
-            Text("Assignee", style: TextStyle(fontSize: 14))
+            Text("Assignee", style: TextStyle(fontSize: 14, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight))
           ]
         )
       )

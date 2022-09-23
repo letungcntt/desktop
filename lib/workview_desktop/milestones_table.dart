@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:phoenix_wings/phoenix_wings.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class MilestonesTable extends StatefulWidget {
   MilestonesTable({
@@ -30,7 +29,7 @@ class MilestonesTable extends StatefulWidget {
 class _MilestonesTableState extends State<MilestonesTable> {
   TextEditingController _titleController = TextEditingController();
   TextEditingController _descriptionController = TextEditingController();
-  
+
   var selectedMilestone;
   PhoenixChannel? channel;
   DateTime dateTime = DateTime.now();
@@ -132,7 +131,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
     _titleController.clear();
     _descriptionController.clear();
     widget.closeTable();
-    
+
     this.setState(() {
       selectedMilestone = null;
     });
@@ -231,7 +230,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                                         border: Border.all(color: isDark ? Color(0xff52606D) : Color(0xffCBD2D9))
                                       ),
                                       child: InkWell(
-                                        onTap: () {  
+                                        onTap: () {
                                           _selectDate(context);
                                         },
                                         child: Container(
@@ -240,7 +239,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                                             crossAxisAlignment: CrossAxisAlignment.center,
                                             children: [
                                               Text(
-                                                dateString, 
+                                                dateString,
                                                 style: TextStyle(color: isDark ? Colors.white.withOpacity(0.85) : Color(0xff1F2933), fontSize: 13.0, fontWeight: FontWeight.w300)
                                               ),
                                               Icon(Icons.calendar_today_outlined, size: 18.0, color: isDark ? Colors.white.withOpacity(0.85) : Color(0xff1F2933))
@@ -295,7 +294,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                   SizedBox(width: 16.0,),
                   Container(
                     padding: EdgeInsets.only(left: 16.0),
-              
+
                     constraints: BoxConstraints(maxWidth: 360.0),
                     height: 116,
                     decoration: BoxDecoration(
@@ -324,7 +323,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                               _titleController.clear();
                               _descriptionController.clear();
                               widget.closeTable();
-            
+
                               setState(() => selectedMilestone = null);
                             },
                             child: Text(S.current.cancel, style: TextStyle(color: Color(0xffFF7875)),),
@@ -350,7 +349,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                                 updateMilestone();
                               }
                             },
-                            child: Text(selectedMilestone == null ? S.current.createMilestone : S.current.milestones, style: TextStyle(color: Colors.white))
+                            child: Text(selectedMilestone == null ? S.current.createMilestone : S.current.saveChanges, style: TextStyle(color: Colors.white))
                           ),
                         ),
                       ],
@@ -426,7 +425,7 @@ class _MilestonesTableState extends State<MilestonesTable> {
                     shrinkWrap: true,
                     controller: ScrollController(),
                     itemCount: tab == 1 ? openMilestones.length : closedMilestones.length,
-                    itemBuilder: (BuildContext context, int index) {  
+                    itemBuilder: (BuildContext context, int index) {
                       var milestone = tab == 1 ? openMilestones[index] : closedMilestones[index];
 
                       return Container(
@@ -540,7 +539,7 @@ class _MilestoneProgressState extends State<MilestoneProgress> {
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
 
     Provider.of<Channels>(context, listen: false).closeMilestone(token, currentWorkspace["id"], currentChannel["id"], widget.milestone["id"], !widget.milestone["is_closed"]);
-  } 
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -605,7 +604,7 @@ class _MilestoneProgressState extends State<MilestoneProgress> {
                       onTap: () {
                         onCloseMilestone();
                       },
-                      child: Text(!widget.milestone["is_closed"] ? S.current.tClosed : S.current.reopen, style: TextStyle(color: Colors.blue))),
+                      child: Text(!widget.milestone["is_closed"] ? S.current.tClose : S.current.reopen, style: TextStyle(color: Colors.blue))),
                     SizedBox(width: 18),
                     InkWell(
                       splashColor: Colors.transparent,
@@ -654,14 +653,14 @@ class MilestoneDetail extends StatelessWidget {
     final DateFormat formatter = DateFormat('yyyy-MM-dd');
     final formatted = formatter. format(now);
     final isPast = (milestone["due_date"].compareTo(formatted) < 0);
-    
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           height: 22,
           child: Icon(
-            isPast ? Icons.warning_amber_outlined : Icons.calendar_today_outlined, 
+            isPast ? Icons.warning_amber_outlined : Icons.calendar_today_outlined,
             size: 18.0,
             color: isPast ? Color(0xffEB5757) : isDark ? Color(0xffBFBFBF) : Color(0xff615E7C)
           )
@@ -693,7 +692,7 @@ showConfirmDialog(context, labelId) {
   final token = Provider.of<Auth>(context, listen: false).token;
   final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
   final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
-  
+
   onDeleteLabel() {
     Provider.of<Channels>(context, listen: false).deleteAttribute(token, currentWorkspace["id"], currentChannel["id"], labelId, "milestone");
   }

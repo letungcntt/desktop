@@ -1,12 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/service_locator.dart';
 import 'package:workcake/services/sharedprefsutil.dart';
 
@@ -31,7 +30,7 @@ class _AddAppMacOSState extends State<AddAppMacOS> {
       techAcc = vl;
     });
   }
-  
+
   getListApps(token)async {
     String url = "${Utils.apiUrl}app?token=$token";
     try {
@@ -45,7 +44,7 @@ class _AddAppMacOSState extends State<AddAppMacOS> {
       // sl.get<Auth>().showErrorDialog(e.toString());
     }
   }
-    
+
 
   handelApp(installed, appId, token, channelId, workspaceId, type)async{
     try {
@@ -125,78 +124,78 @@ class _AddAppMacOSState extends State<AddAppMacOS> {
             ],
           ),
         ),
-          apps.length > 0 ? Container(
-            child: Expanded(
-              child: ListView.builder(
-                itemCount: apps.length,
-                itemBuilder: (context, index) {
-                  var installed  = appInChannels.where((element) {return element["app_id"] == apps[index]["id"];}).toList().length > 0;
-                  return HoverItem(
-                    colorHover: Palette.hoverColorDefault,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: Row(
-                        children: [
-                          CachedImage(
-                            apps[index]["avatar"],
-                            width: 36,
-                            height: 36,
-                            radius: 18,
-                            name: apps[index]["name"].substring(0,1),
-                            fontSize: 20
-                          ),
-                          Expanded(
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(apps[index]["name"]),
-                                  Text(
-                                    apps[index]['name'] == 'BizBanking'
-                                      ? techAcc != ''
-                                        ? '***$newString' : 'Not logged in.'
-                                      : apps[index]['type'] == 'pos_app'
-                                        ? 'Kết nối ứng dụng POS đến kênh này'
-                                        : '',
-                                    style: TextStyle(fontSize: 13),
-                                  )
-                                ],
-                              ),
-                            )
-                          ),
-                          Container(
-                            child: TextButton(
-                              style: ButtonStyle(
-                                shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(5),
-                                  side: BorderSide(color:isDark ? !installed ? Color(0xffEAE8E8) : Color(0xff828282) : installed ? Color(0xffB7B7B7):Color(0xff5E5E5E)),
-                                ))
-                              ),
-                              onPressed: (apps[index]['name'] == 'BizBanking' && techAcc == '')
-                                ? null
-                                : () {
-                                  handelApp(installed, apps[index]["id"], auth.token, currentChannel["id"], currentWorkspace["id"], apps[index]['type']);
-                                },
-                              child: Text(
-                                installed ? "Uninstall" : "Install",
-                                style: TextStyle(
-                                  color: isDark ? installed ? Color(0xff828282):Color(0xffEAE8E8): installed ? Color(0xffB7B7B7):Color(0xff5E5E5E)
+        apps.length > 0 ? Container(
+          child: Expanded(
+            child: ListView.builder(
+              itemCount: apps.length,
+              itemBuilder: (context, index) {
+                var installed  = appInChannels.where((element) {return element["app_id"] == apps[index]["id"];}).toList().length > 0;
+                return HoverItem(
+                  colorHover: Palette.hoverColorDefault,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      children: [
+                        CachedImage(
+                          apps[index]["avatar"],
+                          width: 36,
+                          height: 36,
+                          radius: 18,
+                          name: apps[index]["name"].substring(0,1),
+                          fontSize: 20
+                        ),
+                        Expanded(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(apps[index]["name"]),
+                                Text(
+                                  apps[index]['type'] == 'banking'
+                                    ? techAcc != ''
+                                      ? '***$newString' : 'Not logged in.'
+                                    : apps[index]['type'] == 'pos_app'
+                                      ? 'Kết nối ứng dụng POS đến kênh này'
+                                      : '',
+                                  style: TextStyle(fontSize: 13),
                                 )
-                              ),
-                            )
+                              ],
+                            ),
                           )
-                        ],
-                      ),
+                        ),
+                        Container(
+                          child: TextButton(
+                            style: ButtonStyle(
+                              shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(5),
+                                side: BorderSide(color:isDark ? !installed ? Color(0xffEAE8E8) : Color(0xff828282) : installed ? Color(0xffB7B7B7):Color(0xff5E5E5E)),
+                              ))
+                            ),
+                            onPressed: (apps[index]['name'] == 'BizBanking' && techAcc == '')
+                              ? null
+                              : () {
+                                handelApp(installed, apps[index]["id"], auth.token, currentChannel["id"], currentWorkspace["id"], apps[index]['type']);
+                              },
+                            child: Text(
+                              installed ? "Uninstall" : "Install",
+                              style: TextStyle(
+                                color: isDark ? installed ? Color(0xff828282):Color(0xffEAE8E8): installed ? Color(0xffB7B7B7):Color(0xff5E5E5E)
+                              )
+                            ),
+                          )
+                        )
+                      ],
                     ),
-                  );
-                }
-              )
+                  ),
+                );
+              }
             )
-          ) : Container(
-            child: Text("Can't find App Commands")
-          ),
-                    Container(
+          )
+        ) : Container(
+          child: Text("Can't find App Commands")
+        ),
+        Container(
           margin: EdgeInsets.only(bottom: 10),
           height: 1,
           color: isDark? Color(0xFF5E5E5E): Color(0xFFDBDBDB)

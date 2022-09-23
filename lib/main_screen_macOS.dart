@@ -11,13 +11,15 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:lottie/lottie.dart';
-import 'package:provider/provider.dart';
+import 'package:simple_tooltip/simple_tooltip.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/update_services.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/apps/app_screen_macOS.dart';
+import 'package:workcake/components/call_center/p2p_manager.dart';
+import 'package:workcake/components/custom_dialog.dart';
 import 'package:workcake/components/main_menu/file.dart';
 import 'package:workcake/components/main_menu/task_download.dart';
 import 'package:workcake/components/message_item/attachments/text_file.dart';
@@ -25,7 +27,11 @@ import 'package:workcake/components/responsesizebar_widget.dart';
 import 'package:workcake/components/right_sider.dart';
 import 'package:workcake/components/saved_items/saved_messages.dart';
 import 'package:workcake/components/search_bar_navigation.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/components/transitions/fade_scale_transition.dart';
+import 'package:workcake/components/transitions/modal.dart';
+import 'package:workcake/hive/direct/direct.model.dart';
+import 'package:workcake/isar/message_conversation/service.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/services/socket.dart';
 import 'components/notification_macOS.dart';
 import 'components/notify_focus_app.dart';
@@ -48,6 +54,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
   @override
   void initState() {
     super.initState();
+    Utils.globalMaterialContext = context;
     Timer.run(() async {
       final token = Provider.of<Auth>(context, listen: false).token;
       Provider.of<User>(context, listen: false).fetchUserMentionInDirect(token);
@@ -75,31 +82,34 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
       subscriptionNetwork = Connectivity().onConnectivityChanged.listen(_handleChangeConnect);
     });
     FocusInputStream.instance.initObject();
+    P2PManager.setCallContext(context);
     socketListener();
   }
 
-  static String keySend = Utils.getRandomString(16);
-  static String? keyReieve;
-  int retries = 0;
+  static int sendCount = 0;
+  static int receiveCount = 0;
   static bool lostConnect = false;
 
   socketListener() {
     try {
-      keyReieve = keySend;
       Timer(const Duration(seconds: 5), () {
         if (!mounted) return;
-        final listChannelMember = Provider.of<Channels>(context, listen: false).listChannelMember;
-        final index = listChannelMember.indexWhere((e) => e["id"].toString() == "1487");
-        if (index == -1) return;
-        final members = listChannelMember[index]["members"];
+        List userIds = [
+          'f70d3820-bcc9-4a95-8137-cc22ab4e001f',
+          '9b2ead87-ca88-4b77-87eb-aa558af0b5e4',
+          'b0df54ac-03f5-4110-b17c-29ef7c34d530',
+          '773a8131-86d6-416f-918b-dc680b5c2084',
+          '70bf28a9-5be4-4c57-a563-9cad1085b1c5 '
+        ];
         final userId = Provider.of<Auth>(context, listen: false).userId;
-        if (members.indexWhere((e) => e["id"] == userId) == -1)  return;
+        final index = userIds.indexWhere((e) => e == userId);
+        if (index == -1) return;
 
         final auth = Provider.of<Auth>(context, listen: false);
         final channel = auth.channel;
         if (channel == null) return;
 
-        Timer.periodic(new Duration(seconds: 10), (timer) async {
+        Timer.periodic(new Duration(seconds: 6), (timer) async {
           if (lostConnect) {
             try {
               final url = Utils.apiUrl + 'users/me?token=${auth.token}';
@@ -118,41 +128,39 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                 socket?.disconnect();
                 channel.leave();
                 Timer(const Duration(seconds: 2), () {
+                  print("reconnect socket..........");
+                  sendCount = 0;
+                  receiveCount = 0;
                   Phoenix.rebirth(context);
                 });
                 return;
               } else {
-                print("get socket failed");
+                print("check socket via api failed");
               }
-            } catch (e) { 
+            } catch (e) {
               print("${e.toString()} socket error");
               // sl.get<Auth>().showErrorDialog(e.toString());
             }
           } else {
             if (!mounted) return;
-            if (keyReieve != keySend) {
-              if (retries == 5) {
-                lostConnect = true;
-                return;
-              } else {
-                retries += 1;
-              }
+            if (sendCount - receiveCount > 15) {
+              lostConnect = true;
             } else {
-              keySend = Utils.getRandomString(16);
               final channel = auth.channel;
               final userId = auth.userId;
 
               channel.push(event: "ping", payload: {
-                "user_id": userId,
-                "key": keySend
+                "user_id": userId
               });
-              retries = 0;
+              sendCount +=1;
             }
           }
         });
 
         channel.on("ping", (data, a, b) {
-          keyReieve = data?["key"];
+          if (receiveCount < sendCount) {
+            receiveCount +=1;
+          }
         });
       });
     } catch (e) {
@@ -219,36 +227,74 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
       _scaffoldKey.currentState!.openEndDrawer();
     }
   }
+  onChangeUsernameDialog(value) async {
+    if(RegExp(r'[^a-zA-Z0-9\_\.\-]').hasMatch("$value") == false && value.length > 2) {
+      final auth = Provider.of<Auth>(context, listen: false);
+      final currentUser = Provider.of<User>(context, listen: false).currentUser;
+      currentUser["username"] = value;
+      var res = await Provider.of<User>(context, listen: false).changeProfileInfo(auth.token, currentUser);
+      if(res["success"] == true) {
+        Navigator.pop(context);
+        openEditProfileDialog();
+      }
+      else if (res["success"] == false) {
+        print(res);
+        showDialog(
+          context: context,
+          builder: (BuildContext context) => CupertinoAlertDialog(
+            title: Icon(Icons.report, size: 25),
+            content: Text("This user name and tag already exist !!!")
+          )
+        );
+      }
+      else {
+        print(res);
+        showDialog(
+          context: context,
+          builder: (BuildContext context) => CupertinoAlertDialog(
+            title: Icon(Icons.report, size: 25),
+            content: Text("Server Error !!!")
+          )
+        );
+      }
+    }
+    else {
+      print("Tên chứa ký tự đặc biệt hoặc ít hơn 2 ký tự");
+      showDialog(
+        context: context,
+        builder: (BuildContext context) => CupertinoAlertDialog(
+          title: Icon(Icons.report, size: 25),
+          content: Text("User name must be more than 2 characters and contains no special characters !!!")
+        )
+      );
 
-  openDialog(context) {
-    showGeneralDialog(
-      transitionDuration: Duration(milliseconds: 210),
-      context: context, 
-      pageBuilder: (context, ani1, ani2) {
-        return AlertDialog(
+    }
+  }
+
+  openEditProfileDialog() {
+     final currentUser = Provider.of<User>(context, listen: false).currentUser;
+    showModal(
+      configuration: FadeScaleOutTransitionConfiguration(
+        barrierDismissible: true,
+        reverseTransitionDuration: Duration(milliseconds: 100)
+      ),
+      context: context,
+      builder: (context) {
+        return currentUser["username"] != null
+        ?
+        AlertDialog(
           content: EditProfileDialog(),
           contentPadding: EdgeInsets.fromLTRB(0, 0, 0, 0),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.0)),
+        )
+        : 
+        CustomDialog(
+          title: "Validation", 
+          displayText: "", 
+          onSaveString: onChangeUsernameDialog,
+          titleField: "You need a user name before viewing and changing profiles"
         );
       },
-      barrierLabel: '',
-      barrierColor: Colors.black.withOpacity(0.5),
-      barrierDismissible: true, 
-      transitionBuilder: (context, a1, a2, widget) {
-        var begin = 1.3;
-        var end = 1.0;
-        var curve = Cubic(0.175, 0.885, 0.62, 1.275);
-        var curveTween = CurveTween(curve: curve);
-        var tween = Tween(begin: begin, end: end).chain(curveTween);
-        var offsetAnimation = a1.drive(tween);
-        return ScaleTransition(
-          scale: offsetAnimation,
-          child: FadeTransition(
-            opacity: a1.drive(Tween(begin: 0.4, end: 1.0)),
-            child: widget
-          ),
-        );
-      }, 
     );
   }
 
@@ -285,7 +331,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                     )
                   )
                 ),
-               
+
                 onPressed: () {
                   Provider.of<Auth>(context, listen: false).logout();
                 },
@@ -298,7 +344,7 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                     color: Color(0xFFFFFFFF),
                   ),
                 ),
-              ) 
+              )
             )
           ],
         )
@@ -344,6 +390,62 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
+                         Tooltip(
+                          message: "Contact support",
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5),
+                            gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                          ),
+                          padding: const EdgeInsets.all(8.0),
+                          preferBelow: false,
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                          ),
+                          child: Container(
+                            height: 28, width: 30,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.all(Radius.circular(4)),
+                              color: Color(0xff2E2E2E),
+                            ),
+                            child: ListAction(
+                              action: "", isDark: isDark,
+                              colorHover: Palette.hoverColorDefault,
+                              child: InkWell(
+                                onTap: () async {
+                                  Map user = {
+                                    "user_id": "9e702ec5-7a22-42ed-a289-3c8c55692523",
+                                    "full_name": "Pancake Chat Support",
+                                    "is_online": true
+                                  };
+                                  final currentUser = Provider.of<User>(context, listen: false).currentUser;
+                                  var convId = user["conversation_id"];
+                                  if (convId == null){
+                                    convId = MessageConversationServices.shaString([currentUser["id"], user["user_id"] ?? user["id"]]);
+                                  }
+
+                                  bool hasConv = await Provider.of<DirectMessage>(context, listen: false).getInfoDirectMessage(Provider.of<Auth>(context, listen: false).token, convId);
+                                  var dm;
+                                  if (hasConv){
+                                    dm = Provider.of<DirectMessage>(context, listen: false).getModelConversation(convId);
+                                  } else {
+                                    dm = DirectModel(
+                                      "",
+                                      [
+                                        {"user_id": currentUser["id"],"full_name": currentUser["full_name"], "avatar_url": currentUser["avatar_url"], "is_online": true},
+                                        {"user_id": user["user_id"] ?? user["id"], "avatar_url": user["avatar_url"],  "full_name": user["full_name"] ?? user["name"], "is_online": user["is_online"]}
+                                      ],
+                                      "", false, 0, {}, false, 0, {}, user["full_name"] ?? user["name"], null
+                                    );
+                                  }
+                                  Provider.of<DirectMessage>(context, listen: false).setSelectedDM(dm, "");
+                                  Provider.of<Workspaces>(context, listen: false).setTab(0);
+                                },
+                                child: Icon(CupertinoIcons.question_circle, color: Colors.white, size: 16),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 6),
                         Stack(
                           children: [
                             Container(
@@ -352,16 +454,28 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                                 borderRadius: BorderRadius.all(Radius.circular(4)),
                                 color: Color(0xff2E2E2E),
                               ),
-                              child: ListAction(
-                                action: "Friends", isDark: isDark,
-                                colorHover: Palette.hoverColorDefault,
-                                child: InkWell(
-                                  onTap: () {
-                                    Provider.of<Channels>(context, listen: false).openFriends(!showFriends);
-                                    Provider.of<Messages>(context, listen: false).changeOpenThread(false);
-                                    Provider.of<DirectMessage>(context, listen: false).openDirectSetting(false);
-                                  }, 
-                                  child: Icon(CupertinoIcons.person_2, color: Colors.white, size: 16),
+                              child: Tooltip(
+                                message: "Friends",
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(5),
+                                  gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                                ),
+                                padding: const EdgeInsets.all(8.0),
+                                preferBelow: false,
+                                textStyle: const TextStyle(
+                                  fontSize: 12,
+                                ),
+                                child: ListAction(
+                                  action: "", isDark: isDark,
+                                  colorHover: Palette.hoverColorDefault,
+                                  child: InkWell(
+                                    onTap: () {
+                                      Provider.of<Channels>(context, listen: false).openFriends(!showFriends);
+                                      Provider.of<Messages>(context, listen: false).changeOpenThread(false);
+                                      Provider.of<DirectMessage>(context, listen: false).openDirectSetting(false);
+                                    },
+                                    child: Icon(CupertinoIcons.person_2, color: Colors.white, size: 16),
+                                  ),
                                 ),
                               ),
                             ),
@@ -380,31 +494,55 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                           ],
                         ),
                         SizedBox(width: 6),
-                        Container(
-                          height: 28, width: 30,
+                        Tooltip(
+                          message: "Saved Messages",
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.all(Radius.circular(4)),
-                            color: Color(0xff2E2E2E),
+                            borderRadius: BorderRadius.circular(5),
+                            gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
                           ),
-                          child: ListAction(
-                            action: "", isDark: isDark,
-                            colorHover: Palette.hoverColorDefault,
-                            child: InkWell(
-                              onTap: () async {
-                                openDrawer("savedMessages");
-                              },
-                              child: Icon(CupertinoIcons.bookmark, color: Colors.white, size: 16),
+                          padding: const EdgeInsets.all(8.0),
+                          preferBelow: false,
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                          ),
+                          child: Container(
+                            height: 28, width: 30,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.all(Radius.circular(4)),
+                              color: Color(0xff2E2E2E),
+                            ),
+                            child: ListAction(
+                              action: "", isDark: isDark,
+                              colorHover: Palette.hoverColorDefault,
+                              child: InkWell(
+                                onTap: () async {
+                                  openDrawer("savedMessages");
+                                },
+                                child: Icon(CupertinoIcons.bookmark, color: Colors.white, size: 16),
+                              ),
                             ),
                           ),
                         ),
                         SizedBox(width: 6),
-                        InkWell(
-                          onTap: () => openDialog(context),
-                          child: CachedImage(
-                            currentUser['avatar_url'],
-                            height: 28, width: 30,
-                            radius: 4,
-                            name: currentUser["full_name"]
+                        Tooltip(
+                          message: "Profile",
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5),
+                            gradient:LinearGradient(colors: isDark ? <Color>[Color(0xff2E2E2E), Color(0xff2E2E2E)] : <Color>[Color(0xffF3F3F3), Color(0xffF3F3F3)]),
+                          ),
+                          padding: const EdgeInsets.all(8.0),
+                          preferBelow: false,
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                          ),
+                          child: InkWell(
+                            onTap: () => openEditProfileDialog(),
+                            child: CachedImage(
+                              currentUser['avatar_url'],
+                              height: 28, width: 30,
+                              radius: 4,
+                              name: currentUser["full_name"]
+                            ),
                           ),
                         ),
                         SizedBox(width: 6),
@@ -456,65 +594,57 @@ class _MainScreenMacOSState extends State<MainScreenMacOS> with SingleTickerProv
                                         endIndent: 9.0,
                                         color: Color(0xff5E5E5E),
                                       ),
-                                      TextButton(
-                                        style: ButtonStyle(
-                                          overlayColor: MaterialStateProperty.all(Palette.hoverColorDefault),
-                                          padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
+                                      ListAction(
+                                        action: 'Update version',
+                                        isDark: isDark,
+                                        tooltipDirection: TooltipDirection.right,
+                                        colorTooltip: isDark ? Color(0xFF1c1c1c): Colors.white,
+                                        child: TextButton(
+                                          style: ButtonStyle(
+                                            overlayColor: MaterialStateProperty.all(Colors.transparent),
+                                            padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
+                                          ),
+                                          child: SvgPicture.asset('assets/icons/ArchiveBox.svg'),
+                                          onPressed: () => UpdateServices.checkForUpdate()
                                         ),
-                                        child: SvgPicture.asset('assets/icons/ArchiveBox.svg'),
-                                        onPressed: () => UpdateServices.checkForUpdate()
                                       ),
-                                      // TextButton(
-                                      //   style: ButtonStyle(
-                                      //     overlayColor: MaterialStateProperty.all(Palette.hoverColorDefault),
-                                      //     padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
-                                      //   ),
-                                      //   child: Icon(CupertinoIcons.bookmark, color: Colors.grey),
-                                      //   onPressed: () async {
-                                      //     openDrawer("savedMessages");
-                                      //   }
-                                      // ),
-                                      TextButton(
-                                        style: ButtonStyle(
-                                          overlayColor: MaterialStateProperty.all(Palette.hoverColorDefault),
-                                          padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
+                                      ListAction(
+                                        action: 'Files',
+                                        isDark: isDark,
+                                        tooltipDirection: TooltipDirection.right,
+                                        colorTooltip: isDark ? Color(0xFF1c1c1c): Colors.white,
+                                        child: TextButton(
+                                          style: ButtonStyle(
+                                            overlayColor: MaterialStateProperty.all(Colors.transparent),
+                                            padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
+                                          ),
+                                          child: SvgPicture.asset('assets/icons/FM1.svg'),
+                                          onPressed: () async {
+                                            openDrawer("file");
+                                          }
                                         ),
-                                        child: SvgPicture.asset('assets/icons/FM1.svg'),
-                                        onPressed: () async {
-                                          openDrawer("file");
-                                        }
                                       ),
-                                      TextButton(
-                                        style: ButtonStyle(
-                                          overlayColor: MaterialStateProperty.all(Palette.hoverColorDefault),
-                                          padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
+                                      ListAction(
+                                        action: 'Apps command',
+                                        isDark: isDark,
+                                        tooltipDirection: TooltipDirection.right,
+                                        colorTooltip: isDark ? Color(0xFF1c1c1c): Colors.white,
+                                        child: TextButton(
+                                          style: ButtonStyle(
+                                            overlayColor: MaterialStateProperty.all(Colors.transparent),
+                                            padding: MaterialStateProperty.all(EdgeInsets.symmetric(vertical: 22)),
+                                          ),
+                                          child: SvgPicture.asset('assets/icons/app_command.svg'),
+                                          onPressed: () async {
+                                            Navigator.push(context,
+                                              MaterialPageRoute(
+                                                builder: (context) {
+                                                  return AppsScreenMacOS();
+                                                }
+                                              )
+                                            );
+                                          },
                                         ),
-                                        child: SvgPicture.asset('assets/icons/app_command.svg'),
-                                        onPressed: () async {
-                                          Navigator.push(
-                                            context,
-                                            PageRouteBuilder(
-                                              transitionDuration: Duration(milliseconds: 220),
-                                              reverseTransitionDuration: Duration(milliseconds: 275),
-                                              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                                                var begin = 1.2;
-                                                var end = 1.0;
-                                                var curve = Curves.easeOutCirc;
-                                                var curveTween = CurveTween(curve: curve);
-                                                var tween = Tween(begin: begin, end: end).chain(curveTween);
-                                                var offsetAnimation = animation.drive(tween);
-                                                return ScaleTransition(
-                                                  scale: offsetAnimation,
-                                                  child: child,
-                                                );
-                                              },
-                                              pageBuilder: (context, a1, a2) {
-                
-                                                return AppsScreenMacOS();
-                                              }
-                                            )
-                                          );
-                                        },
                                       ),
                                       SizedBox(height: 4)
                                     ]
@@ -575,7 +705,7 @@ class _WindowButtonsState extends State<WindowButtons> {
              appWindow.maximizeOrRestore();
            }),
           )
-          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]), 
+          : MaximizeWindowButton(colors: WindowButtonColors(iconNormal: Colors.green[300], mouseOver: Colors.grey[400]),
             onPressed: () => setState(() {
               appWindow.maximizeOrRestore();
             }))
@@ -589,7 +719,7 @@ class _WindowButtonsState extends State<WindowButtons> {
 class LeftSider extends StatefulWidget {
   const LeftSider({
     Key? key,
-   
+
   }) : super(key: key);
 
   @override
@@ -598,9 +728,9 @@ class LeftSider extends StatefulWidget {
 
 class _LeftSiderState extends State<LeftSider> {
   bool hoverFriendTab = false;
-
+  bool setLoadMore =false;
   @override
-  void initState() { 
+  void initState() {
     super.initState();
     RawKeyboard.instance.addListener(handleKey);
     Timer.run(() {
@@ -748,17 +878,19 @@ class _LeftSiderState extends State<LeftSider> {
     Utils.updateBadge(context);
   }
 
-  onSelectWorkspace(workspaceId, channelId) async {
+
+  onSelectWorkspace(workspaceId, channelId,) async {
+    
+    if (Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id != ""){
+      Provider.of<DirectMessage>(context, listen: false).removeMarkNewMessage(Provider.of<DirectMessage>(context, listen: false).directMessageSelected.id);
+    }
+
     final auth = Provider.of<Auth>(context, listen: false);
     Provider.of<Workspaces>(context, listen: false).setTab(workspaceId);
     Provider.of<Workspaces>(context, listen: false).selectWorkspace(auth.token, workspaceId, context);
     Provider.of<Workspaces>(context, listen: false).getInfoWorkspace(auth.token, workspaceId, context);
-    Provider.of<Workspaces>(context, listen: false).getMentions(auth.token, workspaceId, false);
+    Provider.of<Workspaces>(context, listen: false).getMentions(auth.token, workspaceId, false, (v) {setState(() {setLoadMore = v; });});
     Provider.of<DirectMessage>(context, listen: false).openDirectSetting(false);
-    final selectedMentionWorkspace = Provider.of<Workspaces>(context, listen: false).selectMentionWorkspace;
-    if (selectedMentionWorkspace) {
-      auth.channel.push(event: "read_workspace_mentions", payload: {"workspace_id": workspaceId});
-    }
 
     if (channelId != null) {
       onSelectedChannel(workspaceId, channelId);
@@ -835,7 +967,7 @@ class _LeftSiderState extends State<LeftSider> {
 
   snapshotReorderWorkspace(data) async {
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
-    var snapshot = await Hive.openBox("snapshotData:${currentUser["id"]}");
+    var snapshot = await Hive.openBox("snapshotData_${currentUser["id"]}");
     snapshot.put("workspaces", data);
   }
 
@@ -898,13 +1030,14 @@ class _LeftSiderState extends State<LeftSider> {
           SizedBox(height: 6),
           ReorderableListView(
             buildDefaultDragHandles: false,
+            physics: NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             children: data.map(
               (item) {
                 final index = data.indexOf(item);
                 final newBadgeCount = checkWorkspaceStatus(item["id"]);
                 final newMessage = checkNewMessage(item["id"]);
-          
+
                 return ReorderableDragStartListener(
                   key: Key('$index'),
                   index: index,
@@ -921,15 +1054,19 @@ class _LeftSiderState extends State<LeftSider> {
                 );
               }
             ).toList(),
-            onReorder: (int oldIndex, int newIndex) {
-              setState(() {
-                if (oldIndex < newIndex) {
-                  newIndex -= 1;
-                }
-                final item = data.removeAt(oldIndex);
-                data.insert(newIndex, item);
+            onReorder: (int oldIndex, int newIndex) async {
+              final auth = Provider.of<Auth>(context, listen: false);
+              if (oldIndex < newIndex) {
+                newIndex -= 1;
+              }
+              final item = data.removeAt(oldIndex);
+              data.insert(newIndex, item);
+              final listId = data.map((e) => e["id"]).toList();
+              setState(() {});
+              final res = await Provider.of<User>(context, listen: false).changePositionWsp(listId, auth.token);
+              if(res["success"] == true) { 
                 snapshotReorderWorkspace(data);
-              });
+              }
             }, 
           ),
           SizedBox(height: 10,),

@@ -5,11 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/E2EE/e2ee.dart';
 import 'package:workcake/isar/message_conversation/service.dart';
-import 'package:workcake/models/device_provider.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import '../common/utils.dart';
 import 'device_socket.dart';
 
@@ -41,7 +39,7 @@ class _ListDevicesState extends State<ListDevices> {
       });
       if(res.data["success"]){
         DeviceSocket.instance.channel!.push(event: "get_list_device");
-      } 
+      }
     } catch(e){
       // sl.get<Auth>().showErrorDialog(e.toString());
     }
@@ -97,7 +95,7 @@ class _ListDevicesState extends State<ListDevices> {
                       )),
                       InkWell(
                         onTap: () async {
-                            
+
                           },
                         child: Container(
                           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),

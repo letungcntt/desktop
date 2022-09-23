@@ -1,12 +1,10 @@
 import 'dart:async';
 
-
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/cached_image.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/http_exception.dart';
@@ -17,7 +15,7 @@ import 'package:workcake/components/apps/biz_banking_app.dart';
 import 'package:workcake/components/create_command_view.dart';
 import 'package:workcake/components/custom_confirm_dialog.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class AppsScreenMacOS extends StatefulWidget {
   AppsScreenMacOS();
@@ -234,66 +232,65 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                 spacing: 20.0, runSpacing: 20.0,
                 children: dataApps.map<Widget>((ele) {
                   return InkWell(
-                    onTap: ele["type"] != "custom" ? null : () async {
-                      if(ele["id"] == "1889cc30-53cb-4a98-8dba-ca33f8bed6ef") {
-                        List<Map> bankingList = [
-                          {"name": "TechcomBank", "avatar": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Techcombank_logo.png"},
-                          {"name": "TPBank", "avatar": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Logo-TPB.png"},
-                          {"name": "VietinBank", "avatar": "https://ficombank.com.vn/wp-content/uploads/2021/09/logo-vietinbank.jpg"}
-                        ];
-                        
-                        showDialog(
-                          context: context,
-                          builder: (BuildContext context) {
-                            return AlertDialog(
-                              backgroundColor: Colors.white,
-                              content: Container(
-                                width: 300,
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(4),
-                                      child: Text(
-                                        "List Banking",
-                                        style: TextStyle(
-                                          fontSize: 18, color: Colors.black87,
-                                          fontWeight: FontWeight.w600
-                                        )
-                                      ),
-                                    ),
-                                    Column(
-                                      children: bankingList.map((e) {
-                                        return InkWell(
-                                          onTap: e["name"] != "TechcomBank" ? null : onTapBanking,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              border: e["name"] == "TPBank" ? Border(
-                                                bottom: BorderSide(color: Colors.grey[600]!, width: 0.15),
-                                                top: BorderSide(color: Colors.grey[600]!, width: 0.15)
-                                              ) : Border()
-                                            ),
-                                            padding: EdgeInsets.all(16),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                              children: [
-                                                CachedImage(
-                                                  e["avatar"],
-                                                  width: 110,
-                                                  height: 40,
-                        
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }).toList()
-                                    ),
-                                  ],
-                                )
-                              ),
-                            );
-                          }
-                        );
+                    onTap: ele["type"] == "pos_app" ? null : () async {
+                      if (ele["type"] == "banking") {
+                        // List<Map> bankingList = [
+                        //   {"name": "TechcomBank", "avatar": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Techcombank_logo.png"},
+                        //   {"name": "TPBank", "avatar": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Logo-TPB.png"},
+                        //   {"name": "VietinBank", "avatar": "https://ficombank.com.vn/wp-content/uploads/2021/09/logo-vietinbank.jpg"}
+                        // ];
+
+                        // showDialog(
+                        //   context: context,
+                        //   builder: (BuildContext context) {
+                        //     return AlertDialog(
+                        //       backgroundColor: Colors.white,
+                        //       content: Container(
+                        //         width: 300,
+                        //         child: Column(
+                        //           children: [
+                        //             Container(
+                        //               padding: EdgeInsets.all(4),
+                        //               child: Text(
+                        //                 "List Banking",
+                        //                 style: TextStyle(
+                        //                   fontSize: 18, color: Colors.black87,
+                        //                   fontWeight: FontWeight.w600
+                        //                 )
+                        //               ),
+                        //             ),
+                        //             Column(
+                        //               children: bankingList.map((e) {
+                        //                 return InkWell(
+                        //                   onTap: e["name"] != "TechcomBank" ? null : onTapBanking,
+                        //                   child: Container(
+                        //                     decoration: BoxDecoration(
+                        //                       border: e["name"] == "TPBank" ? Border(
+                        //                         bottom: BorderSide(color: Colors.grey[600]!, width: 0.15),
+                        //                         top: BorderSide(color: Colors.grey[600]!, width: 0.15)
+                        //                       ) : Border()
+                        //                     ),
+                        //                     padding: EdgeInsets.all(16),
+                        //                     child: Row(
+                        //                       mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        //                       children: [
+                        //                         CachedImage(
+                        //                           e["avatar"],
+                        //                           width: 110,
+                        //                           height: 40,
+                        //                         ),
+                        //                       ],
+                        //                     ),
+                        //                   ),
+                        //                 );
+                        //               }).toList()
+                        //             ),
+                        //           ],
+                        //         )
+                        //       ),
+                        //     );
+                        //   }
+                        // );
                       } else {
                         setState(() {
                           stateView = 2;
@@ -381,7 +378,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                 ),
                 TextButton(
                   style: ButtonStyle(
-                    backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor()) , 
+                    backgroundColor: MaterialStateProperty.all(Utils.getPrimaryColor()) ,
                     shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(2.0))),
                     padding: MaterialStateProperty.all(
                     EdgeInsets.symmetric(vertical: 18, horizontal: 16)
@@ -523,7 +520,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                             Text("${DateFormatter().renderTime(DateTime.parse(dataApp["app"]["create_time"]), type: "dd-MM-yyyy")}")
                           ],
                         )
-                        : Text("Time create:   Not set"), 
+                        : Text("Time create:   Not set"),
                     ),
                     SizedBox(height: 10),
                     RichText(
@@ -574,7 +571,7 @@ class _AppsScreenMacOSState extends State<AppsScreenMacOS>{
                 focusColor: Colors.transparent,
                 splashColor: Colors.transparent,
                 child: Container(
-                  child: Icon(CupertinoIcons.xmark_circle, color: Colors.white, size: 20,)  
+                  child: Icon(CupertinoIcons.xmark_circle, color: Colors.white, size: 20,)
                 ),
                 onTap: () {
                   Navigator.pop(context);

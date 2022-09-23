@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/emoji/emoji.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class ListArchived extends StatefulWidget {
   @override
@@ -20,7 +19,7 @@ class _ListArchivedState extends State<ListArchived>{
   List messages = [];
   List dataMessageAll = [];
   int contactsLength = 3;
-  
+
 
   onSelectChannel(channelId, workspaceId) async {
     final auth = Provider.of<Auth>(context, listen: false);
@@ -35,7 +34,7 @@ class _ListArchivedState extends State<ListArchived>{
       payload: {"channel_id": channelId, "workspace_id": workspaceId}
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final currentWorkspace = Provider.of<Workspaces>(context, listen: true).currentWorkspace;

@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:better_selection/better_selection.dart';
+import 'package:dio/dio.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:hive/hive.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
+import 'package:just_the_tooltip/just_the_tooltip.dart';
 import 'package:workcake/common/cache_avatar.dart';
 import 'package:workcake/common/date_formatter.dart';
 import 'package:workcake/common/palette.dart';
@@ -15,10 +16,12 @@ import 'package:workcake/common/utils.dart';
 import 'package:workcake/common/validators.dart';
 import 'package:workcake/components/check_verify_phone_number.dart';
 import 'package:workcake/components/crop_image_dialog.dart';
+import 'package:workcake/components/transitions/modal.dart';
 import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class EditProfileDialog extends StatefulWidget {
   EditProfileDialog({Key? key}) : super(key: key);
@@ -36,12 +39,13 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   var dateTime;
   var body;
   var _themesType;
-  var customIdError ="";
-  var fullNameError ="";
-  var phoneError = "";
+  String customIdError = "";
+  String fullNameError = "";
+  String phoneError = "";
   String tagNameInput = "";
+  bool isTooltip = false;
 
-  
+
   @override
   void initState() {
     super.initState();
@@ -50,8 +54,8 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     sliderPosition = currentUser['position'];
     final isDark = auth.theme == ThemeType.DARK;
     body = new Map.from(currentUser);
-    nameColor = body["custom_color"] == "default" 
-    ? isDark 
+    nameColor = body["custom_color"] == "default"
+    ? isDark
       ? Color(0xffF5F7FA)
       : Color(0xff243B53)
     : Color(int.parse("0xff${body["custom_color"]}"));
@@ -59,7 +63,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     dateTime = Utils.checkedTypeEmpty(currentUser["date_of_birth"]) ? DateFormatter().renderTime(DateTime.parse(currentUser["date_of_birth"]), type: "yMMMd") : "--/--/--";
     var theme = Provider.of<Auth>(context, listen: false).theme;
     bool isAutoTheme = Provider.of<Auth>(context, listen: false).isAutoTheme;
-  
+
     if(isAutoTheme == true) {
       _themesType = Themes.Auto;
     } else {
@@ -129,7 +133,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
   openFileSelector(workspaceId) async {
     List resultList = [];
     final auth = Provider.of<Auth>(context, listen: false);
-    
+
     try {
 
       var myMultipleFiles =  await Utils.openFilePicker([
@@ -176,7 +180,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     if (customIdError == "" && tagNameInput != "") {
         body["custom_id"] = tagNameInput;
     }
-    
+
     if (body["custom_id"].runtimeType == String) {
       body["custom_id"] = int.parse(body["custom_id"]);
     }
@@ -195,7 +199,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
     if (response == null) return;
     if (response["success"] && mounted) {
       Provider.of<User>(context, listen: false).onChangeSliderPosition(sliderPosition);
-      S.load(Locale(body["locale"]));
+      S.load(Locale(body["locale"] ?? "en"));
       Provider.of<Auth>(context, listen: false).locale = body['locale'];
       Navigator.pop(context);
     } else {
@@ -222,7 +226,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
         color: isDark ? Palette.backgroundRightSiderDark :  Palette.backgroundRightSiderLight,
       ),
       width: 798,
-      height: 570,
+      height: 572,
       child: Column(
         children: [
           Container(
@@ -242,21 +246,19 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                   child: Text(S.current.userProfile, style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight, fontSize: 16, fontWeight: FontWeight.w500)),
                 ),
                 Container(
-                  padding: EdgeInsets.only(right: 12),
-                  alignment: Alignment.centerRight,
-                  child: HoverItem(
-                    colorHover: isDark ? Color(0xff828282) : Color(0xffDBDBDB),
-                    child: IconButton(
-                      onPressed: (){
-                        Navigator.of(context).pop();
-                      },
-                      icon: Icon(
-                        PhosphorIcons.xCircle,
-                        size: 20.0,
-                      ),
-                    )
+                  width: 20,
+                  height: 20,
+                  margin: EdgeInsets.only(right: 16),
+                  child: TextButton(
+                    style: ButtonStyle(
+                      padding: MaterialStateProperty.all(EdgeInsets.all(0)),
+                      overlayColor: MaterialStateProperty.all(isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15)),
+                      shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+                    ),
+                    child: Icon(CupertinoIcons.xmark, size: 16, color: isDark ? Colors.white70 : Colors.black54),
+                    onPressed: () => Navigator.of(context).pop()
                   )
-                ),
+                )
               ],
             ),
           ),
@@ -269,7 +271,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 19),
+                      padding: const EdgeInsets.only(top: 16),
                       child: Stack(
                         children: [
                           Container(
@@ -320,7 +322,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                                   ColorPicker(
                                     initValue: nameColor,
                                     position: sliderPosition,
-                                    width: 303, height: 24, 
+                                    width: 303, height: 24,
                                     onChanged: (Map data) {
                                       setState(() {
                                         nameColor = data["currentColor"];
@@ -341,7 +343,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                          padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
                           child: Text("Theme", style: labelStyle),
                         ),
                         Row(
@@ -408,7 +410,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                               ),
                               child: HoverItem(
                                 colorHover: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
-                                child: InkWell( // bọc InkWell. 
+                                child: InkWell( // bọc InkWell.
                                   onTap: (){
                                     setState(() {
                                       _themesType = Themes.Light;
@@ -510,7 +512,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                          padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
                           child: Text("Languages", style: labelStyle),
                         ),
                         Row(
@@ -606,10 +608,117 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                         ),
                       ],
                     ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0, top: 10.0),
+                          child: Text("Gender", style: labelStyle),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              height: 40,
+                              width: 171,
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
+                                borderRadius: BorderRadius.all(Radius.circular(4)),
+                                border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                              ),
+                              child: HoverItem(
+                                colorHover: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
+                                child: InkWell(
+                                  onTap: (){
+                                    setState(() {
+                                      body["gender"] = "Male";
+                                    });
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: <Widget>[
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                                        child: Text("Male", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700], fontSize: 16)),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(3),
+                                        child: Transform.scale(
+                                          scale: 0.8,
+                                          child: Radio(
+                                            overlayColor: MaterialStateProperty.all(Colors.transparent),
+                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            activeColor: isDark ? Color(0xffFAAD14) : Colors.blue,
+                                            value: "Male",
+                                            groupValue: body["gender"],
+                                            onChanged: (value) {
+                                              setState(() {
+                                                body["gender"] = "Male";
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ]
+                                  ),
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 9),
+                            Container(
+                              height: 40,
+                              width: 171,
+                              decoration: BoxDecoration(
+                                color: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
+                                borderRadius: BorderRadius.all(Radius.circular(4)),
+                                border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                              ),
+                              child: HoverItem(
+                                colorHover: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
+                                child: InkWell(
+                                  onTap: (){
+                                    setState(() {
+                                      body["gender"] = "Female";
+                                    });
+                                  },
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: <Widget>[
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                                        child: Text("Female", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700], fontSize: 16)),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(3),
+                                        child: Transform.scale(
+                                          scale: 0.8,
+                                          child: Radio(
+                                            overlayColor: MaterialStateProperty.all(Colors.transparent),
+                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            activeColor: isDark ? Color(0xffFAAD14) : Colors.blue,
+                                            value: "Female",
+                                            groupValue: body["gender"],
+                                            onChanged: (value) {
+                                              setState(() {
+                                                body["gender"] = "Female";
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                    ]
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 15,)
                   ]
                 ),
                 Container(
-                  padding: EdgeInsets.symmetric(vertical: 28, horizontal: 28),
+                  padding: EdgeInsets.only(top: 30, left: 28,right: 28),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -620,7 +729,31 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                             children: [
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
-                                child: Text("Your name", style: labelStyle),
+                                child: Row(
+                                  children: [
+                                    Text("Username", style: labelStyle),
+                                    SizedBox(width: 3),
+                                    JustTheTooltip(
+                                      triggerMode: TooltipTriggerMode.tap,
+                                      preferredDirection: AxisDirection.up,
+                                      backgroundColor: isDark ? Color(0xFF1c1c1c): Colors.white,
+                                      offset: 8,
+                                      tailLength: 10,
+                                      tailBaseWidth: 10,
+                                      fadeOutDuration: Duration(milliseconds: 10),
+                                      content: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Material(child: Text("Username cùng Tag name của mỗi người dùng là duy nhất. Không thể trùng đồng thời với bất cứ người dùng nào"), color: Colors.transparent,),
+                                      ),
+                                      child: InkWell(
+                                        onHover: (hover) => setState(() {
+                                          isTooltip = hover;
+                                        }),
+                                        child: Icon(CupertinoIcons.exclamationmark_circle, size: 12, color: Palette.calendulaGold),
+                                      ),
+                                    )
+                                  ],
+                                ),
                               ),
                               Container(
                                 height: 40,
@@ -628,19 +761,23 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                                 child: TextFormField(
                                   style: TextStyle(
                                     color: nameColor,
-                                    fontSize: 14 
+                                    fontSize: 14
                                     ),
-                                  initialValue: currentUser["full_name"],
+                                  initialValue: currentUser["username"],
                                   onChanged: (value) {
-                                    body["full_name"] = value;
+                                    body["username"] = value;
                                     bool isError = value.length < 2 || value.length > 32 ? true : false;
                                     if(isError) {
                                       setState(() {
-                                        fullNameError = "Full name is not valid";
+                                        customIdError = "Username is not valid";
+                                      });
+                                    } else if(RegExp(r'[^a-zA-Z0-9\_\.\-]').hasMatch("$value") && value.length > 0 ){
+                                       setState(() {
+                                        customIdError = "Tên không được chứa kí tự đặc biệt";
                                       });
                                     } else {
                                       setState(() {
-                                        fullNameError = "";
+                                        customIdError = "";
                                       });
                                     }
                                   },
@@ -714,11 +851,67 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                           )
                         ],
                       ),
-                      Container(
-                        padding: EdgeInsets.only(top: 2),
-                        height: 15, 
-                        child: Text(customIdError, style: TextStyle(fontSize: 11, color: Colors.red))
+                      !Utils.checkedTypeEmpty(body["username"]) ?
+                          Utils.checkedTypeEmpty(currentUser["username"])
+                              ? Container(
+                                padding: EdgeInsets.only(top: 4,left: 2),
+                                height: 15,)
+                              : Container(
+                                padding: EdgeInsets.only(top: 4,left: 2),
+                                height: 15,
+                                child: Text("Username là bắt buộc ", style: TextStyle(fontSize: 11, color: Palette.errorColor))
+                              )
+                          :Container(
+                            height: 15,
+                            padding: EdgeInsets.only(top: 4,left: 2),
+                            child: Text(customIdError, style: TextStyle(fontSize: 11, color: Colors.red))
+                          ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                            child: Text("Display name", style: labelStyle),
+                          ),
+                          Container(
+                            height: 40,
+                            width: 351,
+                            child: TextFormField(
+                              style: TextStyle(
+                                color: nameColor,
+                                fontSize: 14
+                              ),
+                              initialValue: currentUser["full_name"],
+                              onChanged: (value) {
+                                body["full_name"] = value;
+                                bool isError = value.length < 2 || value.length > 32 ? true : false;
+                                if(isError) {
+                                  setState(() {
+                                    fullNameError = "Full name is not valid";
+                                  });
+                                } else {
+                                  setState(() {
+                                    fullNameError = "";
+                                  });
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hoverColor: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
+                                contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                                filled: true,
+                                fillColor: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
+                                enabledBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                                  borderRadius: BorderRadius.all(Radius.circular(4))),
+                                focusedBorder: OutlineInputBorder(
+                                  borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                                  borderRadius: BorderRadius.all(Radius.circular(4)))
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      SizedBox(height: 6,),
                       FormInput(
                         labelStyle: labelStyle,
                         isDark: isDark,
@@ -755,7 +948,7 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
+                            padding: const EdgeInsets.only(bottom: 8.0, top: 16.0),
                             child: Text("Date of birth", style: labelStyle),
                           ),
                           Container(
@@ -781,9 +974,11 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.all(6.0),
-                                    child: SelectableScope(
-                                      child: TextWidget(
-                                        dateTime, style: TextStyle(color: isDark ? Color(0xffF5F7FA) : Color(0xff243B53), fontSize: 14, fontWeight: FontWeight.w400)
+                                    child: CustomSelectionArea(
+                                      child: RichTextWidget(
+                                        TextSpan(
+                                          text: dateTime, style: TextStyle(color: isDark ? Color(0xffF5F7FA) : Color(0xff243B53), fontSize: 14, fontWeight: FontWeight.w400)
+                                        )
                                       ),
                                     )
                                   ),
@@ -797,113 +992,6 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 15),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0, top: 8.0),
-                            child: Text("Gender", style: labelStyle),
-                          ),
-                          Row(
-                            children: [
-                              Container(
-                                height: 40,
-                                width: 171,
-                                decoration: BoxDecoration(
-                                  color: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
-                                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                                  border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
-                                ),
-                                child: HoverItem(
-                                  colorHover: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
-                                  child: InkWell(
-                                    onTap: (){
-                                      setState(() {
-                                        body["gender"] = "Male";
-                                      });
-                                    },
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: <Widget>[
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                                          child: Text("Male", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700], fontSize: 16)),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(3),
-                                          child: Transform.scale(
-                                            scale: 0.8,
-                                            child: Radio(
-                                              overlayColor: MaterialStateProperty.all(Colors.transparent),
-                                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                              activeColor: isDark ? Color(0xffFAAD14) : Colors.blue,
-                                              value: "Male",
-                                              groupValue: body["gender"],
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  body["gender"] = "Male";
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ]
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: 9),
-                              Container(
-                                height: 40,
-                                width: 171,
-                                decoration: BoxDecoration(
-                                  color: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
-                                  borderRadius: BorderRadius.all(Radius.circular(4)),
-                                  border: Border.all(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
-                                ),
-                                child: HoverItem(
-                                  colorHover: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
-                                  child: InkWell(
-                                    onTap: (){
-                                      setState(() {
-                                        body["gender"] = "Female";
-                                      });
-                                    },
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: <Widget>[
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                                          child: Text("Female", style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700], fontSize: 16)),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(3),
-                                          child: Transform.scale(
-                                            scale: 0.8,
-                                            child: Radio(
-                                              overlayColor: MaterialStateProperty.all(Colors.transparent),
-                                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                              activeColor: isDark ? Color(0xffFAAD14) : Colors.blue,
-                                              value: "Female",
-                                              groupValue: body["gender"],
-                                              onChanged: (value) {
-                                                setState(() {
-                                                  body["gender"] = "Female";
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        ),
-                                      ]
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      )
                     ],
                   ),
                 ),
@@ -915,61 +1003,73 @@ class _EditProfileDialogState extends State<EditProfileDialog> {
             padding: EdgeInsets.symmetric(vertical: 10),
             alignment: Alignment.centerRight,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Platform.isWindows ? SystemToTray() : SizedBox(),
-                SizedBox(width: 393),
-                HoverItem(
-                  colorHover: Color(0xffFF7875).withOpacity(0.2),
-                  child: TextButton(
-                    style: ButtonStyle(
-                      // overlayColor: MaterialStateProperty.all(Colors.red[100]),
-                      padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
-                      shape: MaterialStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          side: BorderSide(width: 1, color: Colors.red, style: BorderStyle.solid)
+                Row(
+                  children: [
+                    HoverItem(
+                      colorHover: Color(0xffFF7875).withOpacity(0.2),
+                      child: TextButton(
+                        style: ButtonStyle(
+                          // overlayColor: MaterialStateProperty.all(Colors.red[100]),
+                          padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                              side: BorderSide(width: 1, color: Colors.red, style: BorderStyle.solid)
+                            ),
+                          ),
                         ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await Provider.of<Auth>(context, listen: false).logout();
+                          await Provider.of<Workspaces>(context, listen: false).resetData();
+                          await Provider.of<DirectMessage>(context, listen: false).resetData();
+                          await Provider.of<Channels>(context, listen: false).openChannelSetting(false);
+                        },
+                        child:Text("Logout", style: TextStyle(color: Colors.red))
                       ),
                     ),
-                    onPressed: () async {
-                      // try {
-                        Navigator.pop(context);
-                        await Provider.of<Auth>(context, listen: false).logout();
-                        await Provider.of<Workspaces>(context, listen: false).resetData();
-                        await Provider.of<DirectMessage>(context, listen: false).resetData();
-                        await Provider.of<Channels>(context, listen: false).openChannelSetting(false);
-                        // await Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //     builder: (context) => LoginMacOS()
-                        //   ));
-                      // } catch (e) {
-                      //   print(e);
-                      // }
-                    },
-                    child:Text("Logout", style: TextStyle(color: Colors.red))
-                  ),
-                ),
-                SizedBox(width: 7),
-                HoverItem(
-                  child: TextButton(
-                    style: ButtonStyle(
-                      backgroundColor: MaterialStateProperty.all(isInfoValidated ? Colors.blue : Colors.grey),
-                      overlayColor: MaterialStateProperty.all(Colors.blue[400]),
-                      padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
-                      shape: MaterialStateProperty.all(
-                        RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          side: BorderSide(width: 1, color: isInfoValidated ? Colors.blue : Colors.grey, style: BorderStyle.solid)
+                    SizedBox(width: 7),
+                    HoverItem(
+                      colorHover: Color(0xffFF7875).withOpacity(0.2),
+                      child: TextButton(
+                        style: ButtonStyle(
+                          // overlayColor: MaterialStateProperty.all(Colors.red[100]),
+                          padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                              side: BorderSide(width: 1, color: Colors.red, style: BorderStyle.solid)
+                            ),
+                          ),
                         ),
+                        onPressed: () => showChangePassword(context),
+                        child:Text("Đổi mật khẩu", style: TextStyle(color: Colors.red))
                       ),
                     ),
-                    // onPressed: fullNameError.length > 0 || customIdError.length > 0 || phoneError.length > 0 ? null : _updateUserInfo,
-                    onPressed: isInfoValidated ? _updateUserInfo : null,
-                    child: Text("Save", style: TextStyle(color: Colors.white))
-                  ),
+                    SizedBox(width: 7),
+                    HoverItem(
+                      child: TextButton(
+                        style: ButtonStyle(
+                          backgroundColor: MaterialStateProperty.all(isInfoValidated ? isDark ? Palette.calendulaGold : Colors.blue : Colors.grey),
+                          // overlayColor: MaterialStateProperty.all(isDark ? Palette.calendulaGold : Colors.blue[400]),
+                          padding: MaterialStateProperty.all(EdgeInsets.symmetric(horizontal: 16, vertical: 16)),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                              side: BorderSide(width: 1, color: isInfoValidated ? isDark ? Palette.calendulaGold : Colors.blue : Colors.grey, style: BorderStyle.solid)
+                            ),
+                          ),
+                        ),
+                        // onPressed: fullNameError.length > 0 || customIdError.length > 0 || phoneError.length > 0 ? null : _updateUserInfo,
+                        onPressed: isInfoValidated ? _updateUserInfo : null,
+                        child: Text("Save", style: TextStyle(color: Colors.white))
+                      ),
+                    ),
+                  ],
                 ),
               ],
             )
@@ -1000,12 +1100,12 @@ class _UploadIconState extends State<UploadIcon> {
   openFileSelector(workspaceId) async {
     List resultList = [];
     final auth = Provider.of<Auth>(context, listen: false);
-    
+
     try {
 
       var myMultipleFiles =  await Utils.openFilePicker([
         XTypeGroup(
-          extensions: ['jpg', 'jpeg', 'png'],
+          extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'],
         )
       ]);
       for (var e in myMultipleFiles) {
@@ -1020,7 +1120,7 @@ class _UploadIconState extends State<UploadIcon> {
       if(resultList.length > 0) {
         final image = resultList[0];
         showDialog(
-          context: context, 
+          context: context,
           builder: (BuildContext context){
             return Dialog(
               child: CropImageDialog(
@@ -1043,15 +1143,15 @@ class _UploadIconState extends State<UploadIcon> {
     final currentWorkspace = Provider.of<Workspaces>(context).currentWorkspace;
     final data = Provider.of<Workspaces>(context).data;
     final workspaceId = currentWorkspace["id"] ?? (data.length > 0 ? data[0]["id"] : "");
-    
+
     return MouseRegion(
       onEnter: (event) => setState(() => isHovered = true),
       onExit: (event) => setState(() => isHovered = false),
       child: Container(
         width: 36,
         decoration: BoxDecoration(
-          color: widget.isDark 
-            ? isHovered ? Color(0xff828282) : Palette.borderSideColorDark  
+          color: widget.isDark
+            ? isHovered ? Color(0xff828282) : Palette.borderSideColorDark
             : isHovered ? Color(0xffDBDBDB) : Color(0xffEDEDED),
           shape: BoxShape.circle,
         ),
@@ -1079,7 +1179,7 @@ class FormInput extends StatefulWidget {
     this.readOnly = false,
     this.isError = false,
     this.errorMessage = ""
-    
+
   }) : super(key: key);
 
   final TextStyle labelStyle;
@@ -1131,7 +1231,7 @@ class _FormInputState extends State<FormInput> {
                 : InkWell(
                   onTap: () {
                     _showAlert(context);
-                  }, 
+                  },
                   child: Transform.scale(scale: 0.35, child: SvgPicture.asset('assets/icons/verified_icon.svg', color: Colors.grey))
                 ),
               filled: true,
@@ -1151,13 +1251,13 @@ class _FormInputState extends State<FormInput> {
             ),
             child: HoverItem(
               colorHover: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
-              child: SelectableScope(
+              child: CustomSelectionArea(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      TextWidget(widget.initialValue, style: textInputStyle),
+                      RichTextWidget(TextSpan(text: widget.initialValue, style: textInputStyle)),
                       SvgPicture.asset('assets/icons/verified_icon.svg')
                     ],
                   ),
@@ -1181,7 +1281,7 @@ class _FormInputState extends State<FormInput> {
           ? Container(
             padding: EdgeInsets.only(top: 2),
             child: Text(
-              widget.isError ? widget.errorMessage : 
+              widget.isError ? widget.errorMessage :
               "Số điện thoại chưa được xác thực",
               style: TextStyle(
                 fontSize: 11,
@@ -1189,17 +1289,20 @@ class _FormInputState extends State<FormInput> {
               )
             )
           )
-          : Container(child: Text("", style: TextStyle(fontSize: 12))),      
+          : Container(child: Text("", style: TextStyle(fontSize: 12))),
       ],
     );
   }
   void _showAlert(BuildContext context) {
     final currentUser = Provider.of<User>(context, listen: false).currentUser;
+    final isDark = Provider.of<Auth>(context, listen: false).theme == ThemeType.DARK;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Enter verification code."),
+        backgroundColor: isDark ? Color(0xff3D3D3D) :Palette.backgroundTheardLight,
+        contentPadding: EdgeInsets.zero,
+        title: Text("Enter verification code"),
         content: CheckVerifyPhoneNumber(
           verificationType: widget.verifyType,
           type: widget.verifyType == "email"
@@ -1335,7 +1438,7 @@ class ColorPickerState extends State<ColorPicker> {
     if (position < 0) {
       position = 0;
     }
-    
+
     setState(() {
       colorSliderPosition = position;
       currentColor = _calculateSelectedColor(colorSliderPosition);
@@ -1344,16 +1447,16 @@ class ColorPickerState extends State<ColorPicker> {
     try {
       widget.onChanged.call({
         "currentColor": currentColor,
-        "colorSliderPosition": colorSliderPosition 
+        "colorSliderPosition": colorSliderPosition
       });
     } catch (err) {
       print(err);
     }
   }
-  
+
   @override
-  Widget build(BuildContext context) { 
-    
+  Widget build(BuildContext context) {
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onHorizontalDragStart: (DragStartDetails details) {
@@ -1389,7 +1492,7 @@ class _SliderIndicatorPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     var topTrianglePath = Path();
     var bottomTrianglePath = Path();
- 
+
     topTrianglePath.moveTo(position, 0);
     topTrianglePath.lineTo(position - 5, -8);
     topTrianglePath.lineTo(position + 5, -8);
@@ -1399,12 +1502,192 @@ class _SliderIndicatorPainter extends CustomPainter {
     bottomTrianglePath.lineTo(position - 5, height + 8);
     bottomTrianglePath.lineTo(position + 5, height + 8);
     bottomTrianglePath.close();
- 
+
     canvas.drawPath(topTrianglePath, Paint()..color = const Color(0xFFC9C9C9));
     canvas.drawPath(bottomTrianglePath, Paint()..color = const Color(0xFFC9C9C9));
   }
   @override
   bool shouldRepaint(_SliderIndicatorPainter old) {
     return true;
+  }
+}
+
+showChangePassword(context) {
+  showModal(
+    context: context,
+    builder: (BuildContext context) {
+      return ChangePassword();
+    }
+  );
+}
+
+class ChangePassword extends StatefulWidget {
+  ChangePassword({Key? key}) : super(key: key);
+
+  @override
+  State<ChangePassword> createState() => _ChangePasswordState();
+}
+
+class _ChangePasswordState extends State<ChangePassword> {
+  bool isLoading = false;
+  String password = "";
+  String newPassword = "";
+  String renewPassword = "";
+
+  Future<dynamic> _changePassword(token) async {
+    setState(() => isLoading = true);
+
+    final url = Utils.apiUrl + "users/change_password?token=$token";
+    try {
+      final data = {
+        "password": password,
+        "new_password": newPassword,
+        "renew_password": renewPassword
+      };
+      final response = await Dio().post(url, data: json.encode(data));
+      if (response.data["success"]) {
+        Navigator.of(context, rootNavigator: true).pop("Discard");
+      } else {
+        showModal(
+          context: context,
+          builder: (_) => SimpleDialog(
+          children: <Widget>[
+              new Center(child: new Container(child: new Text(response.data["message"])))
+          ])
+        );
+      }
+      setState(() => isLoading = false);
+    } catch (e, trace) {
+      setState(() => isLoading = false);
+      print("$e\n$trace");
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.read<Auth>();
+    final isDark = auth.theme == ThemeType.DARK;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(4.0)),
+      titlePadding: const EdgeInsets.all(0),
+      backgroundColor: isDark ? Palette.backgroundTheardDark : Colors.white,
+      contentPadding: EdgeInsets.all(16),
+      content: Container(
+        width: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              child: Text(
+                "Tạo mật khẩu mới",
+              )
+            ),
+            Container(
+              height: 40,
+              margin: EdgeInsets.symmetric(vertical: 10),
+              child: TextFormField(
+                obscureText: true,
+                onChanged: (value) => setState(() => password = value),
+                style: TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: "Mật khẩu hiện tại",
+                  hoverColor: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
+                  contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                  filled: true,
+                  fillColor: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                    borderRadius: BorderRadius.all(Radius.circular(4))),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                    borderRadius: BorderRadius.all(Radius.circular(4)))
+                ),
+              ),
+            ),
+            Container(
+              height: 40,
+              margin: EdgeInsets.symmetric(vertical: 10),
+              child: TextFormField(
+                obscureText: true,
+                onChanged: (value) => setState(() => newPassword = value),
+                style: TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: "Mật khẩu mới",
+                  hoverColor: isDark ?Color(0xff5E5E5E) : Color(0xffEDEDED),
+                  contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                  filled: true,
+                  fillColor: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                    borderRadius: BorderRadius.all(Radius.circular(4))),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                    borderRadius: BorderRadius.all(Radius.circular(4)))
+                ),
+              ),
+            ),
+            Container(
+              height: 40,
+              margin: EdgeInsets.symmetric(vertical: 10),
+              child: TextFormField(
+                obscureText: true,
+                onChanged: (value) => setState(() => renewPassword = value),
+                style: TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: "Nhập lại mật khẩu mới",
+                  hoverColor: isDark ? Color(0xff5E5E5E) : Color(0xffEDEDED),
+                  contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                  filled: true,
+                  fillColor: isDark ? Color(0xFF353535) : Color(0xffFAFAFA),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                    borderRadius: BorderRadius.all(Radius.circular(4))),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? Color(0xff5E5E5E) : Color(0xffC9C9C9)),
+                    borderRadius: BorderRadius.all(Radius.circular(4)))
+                ),
+              ),
+            ),
+            if (newPassword != renewPassword) Container(
+              child: Text(
+                "Mật khẩu mới chưa trùng khớp",
+                style: TextStyle(fontSize: 11, color: Palette.errorColor)
+              )
+            ),
+            Container(
+              margin: EdgeInsets.only(top: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    height: 32,
+                    margin: EdgeInsets.only(right: 12),
+                    child: OutlinedButton(
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all((newPassword == "" || renewPassword == "" || newPassword != renewPassword) ? Colors.grey :Palette.calendulaGold),
+                      ),
+                      onPressed: (newPassword == "" || renewPassword == "" || newPassword != renewPassword)
+                        ? null
+                        : () => _changePassword(auth.token),
+                      child: isLoading
+                        ? Center(
+                            child: SpinKitFadingCircle(
+                              color: isDark ? Colors.white60 : Color(0xff096DD9),
+                              size: 15,
+                            ))
+                        : Text(
+                            'Cập nhật',
+                            style: TextStyle(color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),)
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )
+    );
   }
 }

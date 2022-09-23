@@ -1,12 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:workcake/components/bottom_sheet_server.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class CustomConfirmDialog extends StatefulWidget {
   final title;
@@ -61,15 +60,15 @@ class _CustomConfirmDialogState extends State<CustomConfirmDialog> {
               padding: EdgeInsets.only(left: 16, top: 16, right: 16),
               height: 96,
               child: Text(
-                widget.subtitle, 
+                widget.subtitle,
                 style: TextStyle(
-                  color: isDark ? Color(0xffF5F7FA) : Colors.grey[800], 
-                  height: 1.4, 
+                  color: isDark ? Color(0xffF5F7FA) : Colors.grey[800],
+                  height: 1.4,
                   fontSize: 14
                 )
               )
             ),
-            Divider(height: 1, thickness: 1),
+            Divider(height: 1, thickness: 1, color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight),
             Container(
               color: isDark ? Color(0xff3D3D3D) : null,
               height: 59,
@@ -86,7 +85,7 @@ class _CustomConfirmDialogState extends State<CustomConfirmDialog> {
                     ),
                     width: 80,
                     child: TextButton(
-                      onPressed: () { 
+                      onPressed: () {
                         Navigator.of(context, rootNavigator: true).pop("Discard");
                         if(widget.onCancel != null) widget.onCancel();
                       },
@@ -171,7 +170,7 @@ class _CustomDialogWsState extends State<CustomDialogWs> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  "Create a workspace", 
+                  "Create a workspace",
                   style: TextStyle(
                     fontSize: 18,
                     color: isDark ? Colors.white70 : Color(0xff6B6B6B),
@@ -180,12 +179,12 @@ class _CustomDialogWsState extends State<CustomDialogWs> {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  "Your workspace is where you and your friends hang out. Make yours and start talking", 
+                  "Your workspace is where you and your friends hang out. Make yours and start talking",
                   style: TextStyle(
                     color: isDark ? Colors.white : Color(0xff6B6B6B),
                     fontSize: 14,
                     fontWeight: FontWeight.w200
-                  ), 
+                  ),
                   textAlign: TextAlign.center
                 ),
                 SizedBox(height: 12),
@@ -197,7 +196,7 @@ class _CustomDialogWsState extends State<CustomDialogWs> {
                     ),
                     onPressed: () {
                       showBottomSheet(context, "Create workspace");
-                    }, 
+                    },
                     child: Text(
                       "Create a workspace",
                       style: TextStyle(color: Colors.white)
@@ -224,7 +223,7 @@ class _CustomDialogWsState extends State<CustomDialogWs> {
                     ),
                     onPressed: () {
                       showBottomSheet(context, "Join workspace");
-                    }, 
+                    },
                     child: Text(
                       "Join a workspace",
                       style: TextStyle(color: Colors.white)
@@ -233,7 +232,7 @@ class _CustomDialogWsState extends State<CustomDialogWs> {
                 ),
               ],
             ),
-          ) 
+          )
 
           //Dialog Input
           : Column(

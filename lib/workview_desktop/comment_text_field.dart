@@ -2,27 +2,28 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:dio/dio.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:workcake/components/widget_text.dart';
 import 'package:workcake/emoji/emoji.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/generated/l10n.dart';
+import 'package:workcake/hive/direct/direct.model.dart';
 import 'package:workcake/markdown/style_sheet.dart';
 import 'package:workcake/markdown/widget.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
+import 'package:workcake/workview_desktop/markdown_attachment.dart';
 
-import '../components/message_item/attachments/attachments.dart';
 import 'list_icons_comment.dart';
 import 'markdown_checkbox.dart';
 
@@ -40,6 +41,7 @@ class CommentTextField extends StatefulWidget {
     this.isDescription,
     this.isThread = false,
     this.handleOpenAssigneeDropdown,
+    required this.dataDirectMessage,
   }) : super(key: key);
 
   final issue;
@@ -53,6 +55,7 @@ class CommentTextField extends StatefulWidget {
   final isDescription;
   final isThread;
   final handleOpenAssigneeDropdown;
+  final DirectModel dataDirectMessage;
 
   @override
   CommentTextFieldState createState() => CommentTextFieldState();
@@ -71,9 +74,13 @@ class CommentTextFieldState extends State<CommentTextField> {
   int lastCursorPosition = 0;
   bool fromPreview = false;
   bool highlightDropfile = false;
+  bool isSend = false;
+  Timer? _debounce;
+  List fileItems = [];
+  bool isUpdate = false;
 
   @override
-  void initState() { 
+  void initState() {
     super.initState();
 
     if (widget.initialValue != null) {
@@ -140,7 +147,7 @@ class CommentTextFieldState extends State<CommentTextField> {
 
       if (offset == stringLength + i) {
         currentLine = i;
-        
+
         break;
       }
     }
@@ -159,7 +166,7 @@ class CommentTextFieldState extends State<CommentTextField> {
           listText[currentLine] = "";
         } else {
           Iterable<RegExpMatch> matches = exp.allMatches(listText[currentLine]);
-          
+
           if (matches.length > 0) {
             if (listText[currentLine].substring(0, 1) != "@") {
               int subString = int.parse(listText[currentLine].substring(0, 1));
@@ -225,7 +232,7 @@ class CommentTextFieldState extends State<CommentTextField> {
       key.currentState!.controller!.value = TextEditingValue(text: text);
       key.currentState!.controller!.value = key.currentState!.controller!.value.copyWith(selection: TextSelection.collapsed(offset: newOffset));
       if(Platform.isWindows && key.currentState!.scrollController.offset != 0) key.currentState!.scrollController.jumpTo(key.currentState!.scrollController.offset + 18);
-      
+
       return KeyEventResult.handled;
     } else {
       return KeyEventResult.ignored;
@@ -260,16 +267,16 @@ class CommentTextFieldState extends State<CommentTextField> {
         for (var i = 0; i < listTextLine.length; i++) {
           if (listTextLine[i].trim() != "") {
             if (type == "listDash") {
-              listTextLine[i] = "- " + listTextLine[i]; 
+              listTextLine[i] = "- " + listTextLine[i];
             } else if (type == "listNumber") {
-              listTextLine[i] = "${(i+1)}. " + listTextLine[i]; 
+              listTextLine[i] = "${(i+1)}. " + listTextLine[i];
             } else {
-              listTextLine[i] = "- [ ] " + listTextLine[i]; 
+              listTextLine[i] = "- [ ] " + listTextLine[i];
             }
           }
         }
 
-        newTextValue = before + listTextLine.join("\n") + after; 
+        newTextValue = before + listTextLine.join("\n") + after;
         offset = newTextValue.length;
       } else {
         newTextValue = (before.trim() != "" ? before + '\n' : "") + '$left$middle$right' + (after.trim() != "" ? '\n' + after : "");
@@ -304,20 +311,20 @@ class CommentTextFieldState extends State<CommentTextField> {
         check = false;
       }
     }
-  
+
     return check;
   }
 
   handleKeyEvent(event) {
     var keyDown = event is RawKeyDownEvent;
 
-    if (keyDown) { 
+    if (keyDown) {
       var keyPresed = event.logicalKey.debugName == "Space";
 
       if (keyPresed) {
         this.setState(() {
           spaceKey = spaceKey + 1;
-        }); 
+        });
       } else {
         this.setState(() {
           spaceKey = 0;
@@ -362,7 +369,7 @@ class CommentTextFieldState extends State<CommentTextField> {
       } else {
         _textController.text = currentTextValue;
       }
-    
+
       widget.onChangeText!(currentTextValue);
     }
   }
@@ -391,7 +398,7 @@ class CommentTextFieldState extends State<CommentTextField> {
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
     int indexComment = widget.issue["comments"].indexWhere((e) => e["id"] == commentId);
-    
+
     if (indexComment != -1) {
       var issueComment = widget.issue["comments"][indexComment];
       String comment = widget.issue["comments"][indexComment]["comment"];
@@ -435,6 +442,7 @@ class CommentTextFieldState extends State<CommentTextField> {
 
     return suggestionMentions;
   }
+
   convertVideoFile(file) async {
     var pathOther = await getTemporaryDirectory();
     var bytesFile;
@@ -473,93 +481,21 @@ class CommentTextFieldState extends State<CommentTextField> {
     final selection = key.currentState!.controller!.selection;
     final before = selection.baseOffset == -1 ? "" : selection.textBefore(currentTextValue);
     final after = selection.baseOffset == -1 ? "" : selection.textAfter(currentTextValue);
-    
+
     try {
-      var myMultipleFiles = await Utils.openFilePicker([
-        // XTypeGroup(
-        //   extensions: ['jpg', 'jpeg', 'gif', 'png', 'mov', 'mp4'],
-        // )
-      ]);
+      var myMultipleFiles = await Utils.openFilePicker([]);
       for (var e in myMultipleFiles) {
         Map newFile = {
-          "filename": e["name"],
-          "path": e["mime_type"].toString().toLowerCase() == "mov" ? await convertVideoFile(e) : base64.encode(e["file"])
+          "path": e["path"],
+          "name": e["name"],
+          "type": e["type"],
+          "mime_type": e['mime_type'],
+          "file": e["file"],
+          "uploading": true
         };
         resultList.add(newFile);
         text.add("\n![Uploading ${e["name"]}...]()");
-      }
-
-      String newText = before + text.join("\n") + after;
-
-      key.currentState!.controller!.value = key.currentState!.controller!.value.copyWith(
-        text: newText,
-        selection: TextSelection.collapsed(
-          offset: newText.length
-        ),
-      );
-
-     for (var i = 0; i < resultList.length; i++) {
-        var file = resultList[i];
-        
-        final url = Utils.apiUrl + 'workspaces/${currentWorkspace["id"]}/contents?token=$token';
-        final body = {
-          "file": file,
-          "content_type": "image",
-          "mime_type": "image",
-          "filename": file["filename"]
-        };
-        Dio().post(url, data: json.encode(body)).then((response) {
-          final responseData = response.data;
-          final fileName = file["filename"];
-          String text = key.currentState!.controller!.text;
-          text = text.replaceAll("[Uploading $fileName...", "[$fileName");
-          int index = text.indexOf(fileName);
-
-          if (index != -1) {
-            var first = index + fileName.length;
-            var last = index + fileName.length;
-            text = text.replaceRange(int.parse(first.toString()) + 2, int.parse(last.toString()) + 2, Uri.parse(responseData["content_url"]).toString());
-
-            key.currentState!.controller!.value = key.currentState!.controller!.value.copyWith(
-              text: text,
-              selection: TextSelection.collapsed(
-                offset: text.length - after.length
-              )
-            );
-          }
-        });
-      }
-
-      StreamDropzone.instance.initDrop();
-    } on Exception catch (e) {
-      print("$e Cancel");
-    }
-  }
-
-  onPasteImage(listFiles) async {
-    
-    final token = Provider.of<Auth>(context, listen: false).token;
-    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
-    List resultList = [];
-    List text = [];
-
-    final currentTextValue = key.currentState!.controller!.text;
-    final selection = key.currentState!.controller!.selection;
-    final before = selection.baseOffset == -1 ? "" : selection.textBefore(currentTextValue);
-    final after = selection.baseOffset == -1 ? "" : selection.textAfter(currentTextValue);
-    try { 
-      for (var e in listFiles) {
-        Map newFile = {
-          "filename": e["name"],
-          "mime_type": "image",
-          "path": (e["mime_type"].toString().toLowerCase() == "mov" && !Platform.isWindows) ? await convertVideoFile(e) : base64.encode(e["file"])
-        };
-
-        var existed = resultList.indexWhere((element) => element["path"] == newFile["path"]);
-        if(existed == -1) {
-          resultList.add(newFile);
-          text.add("\n![Uploading ${e["name"]}...]()");
-        }
+        this.setState(() {});
       }
 
       String newText = before + text.join("\n") + after;
@@ -573,17 +509,102 @@ class CommentTextFieldState extends State<CommentTextField> {
 
       for (var i = 0; i < resultList.length; i++) {
         var file = resultList[i];
-        final url = Utils.apiUrl + 'workspaces/${currentWorkspace["id"]}/contents?token=$token';
-        final body = {
-          "file": file,
-          "content_type": "image",
-          "mime_type": "image",
-          "filename": file["filename"]
-        };
+        var dataUpload = await Provider.of<Work>(context, listen: false).getUploadData(file);
+        var response = await Provider.of<Work>(context, listen: false).uploadImage(token, currentWorkspace["id"], dataUpload, dataUpload["mime_type"], (t) {});
 
-        Dio().post(url, data: json.encode(body)).then((response) {
-          final responseData = response.data;
-          final fileName = file["filename"];
+        final fileName = file["name"];
+        String text = key.currentState!.controller!.text;
+        text = text.replaceAll("[Uploading $fileName...", "[$fileName");
+        int index = text.indexOf(fileName);
+
+        if (index != -1) {
+          var first = index + fileName.length;
+          var last = index + fileName.length;
+          text = text.replaceRange(int.parse(first.toString()) + 2, int.parse(last.toString()) + 2, Uri.parse(response["content_url"]).toString());
+
+          key.currentState!.controller!.value = key.currentState!.controller!.value.copyWith(
+            text: text,
+            selection: TextSelection.collapsed(
+              offset: text.length - after.length
+            )
+          );
+          this.setState(() {});
+        }
+      }
+
+      StreamDropzone.instance.initDrop();
+    } on Exception catch (e) {
+      print("$e Cancel");
+    }
+  }
+
+  handleMessageToAttachments(String message) {
+    String name = Utils.suffixNameFile('message', fileItems);
+    List<int> bytes = utf8.encode(message);
+
+    onPasteImage([{
+      "name": '$name.txt',
+      "mime_type": 'txt',
+      'type': 'txt',
+      "path": '',
+      "file": bytes
+    }]);
+  }
+
+  List resultList = [];
+
+  onPasteImage(listFiles) async {
+    Timer.run(() async{ 
+      final token = Provider.of<Auth>(context, listen: false).token;
+      final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+      List text = [];
+
+      final currentTextValue = key.currentState!.controller!.text;
+      final selection = key.currentState!.controller!.selection;
+      final before = selection.baseOffset == -1 ? "" : selection.textBefore(currentTextValue);
+      final after = selection.baseOffset == -1 ? "" : selection.textAfter(currentTextValue);
+      try {
+        for (var e in listFiles) {
+          String preview = '';
+          try {
+            String message = utf8.decode((e['file'] as List<int>));
+            preview = message.length >= 1000 ? message.substring(0, 1000) + ' ...'  : message;
+          } catch (err) {}
+
+          Map newFile = {
+            "path": e["path"],
+            "name": e["name"],
+            "type": e["type"],
+            "mime_type": e['mime_type'],
+            "file": e["file"],
+            "uploading": true,
+            "preiew": preview,
+          };
+
+          var existed = resultList.indexWhere((element) => element["path"] == newFile["path"]);
+          if(existed == -1) {
+            
+            resultList.add(newFile);
+            text.add("\n![Uploading ${e["name"]}...]()");
+            this.setState(() {});
+          }
+        }
+
+        String newText = before + text.join("\n") + after;
+
+        key.currentState!.controller!.value = key.currentState!.controller!.value.copyWith(
+          text: newText,
+          selection: TextSelection.collapsed(
+            offset: newText.length
+          ),
+        );
+
+        for (var i = 0; i < resultList.length; i++) {
+          var file = resultList[i];
+          var dataUpload = await Provider.of<Work>(context, listen: false).getUploadData(file);
+          var response = await Provider.of<Work>(context, listen: false).uploadImage(token, currentWorkspace["id"], dataUpload, dataUpload["mime_type"], (t) {});
+
+          final fileName = file["name"];
           String text = key.currentState!.controller!.text;
           text = text.replaceAll("[Uploading $fileName...", "[$fileName");
           int index = text.indexOf(fileName);
@@ -591,7 +612,7 @@ class CommentTextFieldState extends State<CommentTextField> {
           if (index != -1) {
             var first = index + fileName.length;
             var last = index + fileName.length;
-            text = text.replaceRange(int.parse(first.toString()) + 2, int.parse(last.toString()) + 2, Uri.parse(responseData["content_url"]).toString());
+            text = text.replaceRange(int.parse(first.toString()) + 2, int.parse(last.toString()) + 2, Uri.parse(response["content_url"]).toString());
 
             key.currentState!.controller!.value = key.currentState!.controller!.value.copyWith(
               text: text,
@@ -599,15 +620,52 @@ class CommentTextFieldState extends State<CommentTextField> {
                 offset: text.length - after.length
               )
             );
+            this.setState(() {});
           }
+        }
+        resultList = [];
+      } catch (e, t) {
+        resultList = [];
+        print("${e.toString()} $t");
+      }
+    });
+  }
+
+  saveChangesToHive(str) async {
+    var box = await Hive.openBox('drafts');
+    var lastEdited = box.get('lastEdited');
+    List changes;
+
+    if (lastEdited == null) {
+      changes = [{
+        "id": widget.dataDirectMessage.id,
+        "text": str,
+      }];
+    } else {
+      changes = List.from(lastEdited);
+      final index = changes.indexWhere((e) => e["id"] == widget.dataDirectMessage.id);
+
+      if (index != -1) {
+        changes[index] = {
+          "id": widget.dataDirectMessage.id,
+          "text": str,
+        };
+      } else {
+        changes.add({
+          "id": widget.dataDirectMessage.id,
+          "text": str,
         });
       }
-    } catch (e) {
-      print(e.toString());
     }
+
+    box.put('lastEdited', changes);
   }
 
   pasteImageFromParent(files) {
+    if(files != null && files.data.length > 0 && files.data[0]['type'] == 'text') {
+      key.currentState!.setMarkUpText(files.data[0]['text']);
+      return ;
+    }
     List listFiles = [];
     if (files.data != null && files.data.length > 0) {
       for (var item in files.data) {
@@ -628,7 +686,7 @@ class CommentTextFieldState extends State<CommentTextField> {
         );
         onPasteImage(listFiles);
       }
-    
+
       listFiles = [];
       StreamDropzone.instance.initDrop();
     }
@@ -645,7 +703,7 @@ class CommentTextFieldState extends State<CommentTextField> {
         if (i - 1 >= 0) {
           if ((list[i-1].contains("- [ ]") || list[i-1].contains("- [x]")) && !(item.contains("- [ ]") || item.contains("- [x]"))) {
             list[i-1] = list[i-1] + " " + item;
-            list[i] = "\n"; 
+            list[i] = "\n";
           }
         }
 
@@ -692,11 +750,53 @@ class CommentTextFieldState extends State<CommentTextField> {
       key.currentState!.focusNode.requestFocus();
     }
   }
-  
+
+  onCloseIssue() async {
+    final auth = Provider.of<Auth>(context, listen: false);
+    final token = auth.token;
+    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+
+    if (widget.editComment) {
+      if (widget.comment != null) {
+        widget.onUpdateComment(widget.comment, widget.comment["comment"]);
+      } else {
+        widget.onUpdateComment(widget.issue["title"], widget.issue["description"], true);
+      }
+    } else {
+      var text = (key.currentState != null && key.currentState!.controller!.markupText != "") ? key.currentState!.controller!.markupText : "";
+
+      if (text != "") {
+        var result = Provider.of<Messages>(context, listen: false).checkMentions(text);
+        var listMentionsNew = result["success"] ? result["data"].where((e) => e["type"] == "user").toList().map((e) => e["value"]).toList() : [];
+        var dataComment = {
+          "comment": text,
+          "channel_id":  currentChannel["id"],
+          "workspace_id": currentWorkspace["id"],
+          "user_id": auth.userId,
+          "from_issue_id": widget.issue["id"],
+          "list_mentions_old": [],
+          "list_mentions_new": listMentionsNew
+        };
+
+        await Provider.of<Channels>(context, listen: false).submitComment(token, dataComment);
+        key.currentState!.controller!.clear();
+      }
+
+      var isClosed = !widget.issue["is_closed"];
+      this.setState(() {
+        widget.issue["is_closed"] = isClosed;
+      });
+
+      final issueClosedTab = Provider.of<Work>(context, listen: false).issueClosedTab;
+      await Provider.of<Channels>(context, listen: false).closeIssue(token, currentWorkspace["id"], widget.issue["channel_id"], widget.issue["id"], isClosed, issueClosedTab);
+    }
+    FocusScope.of(context).unfocus();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final token = Provider.of<Auth>(context, listen: false).token;
-    final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final currentUser = Provider.of<User>(context, listen: true).currentUser;
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
     final auth = Provider.of<Auth>(context, listen: true);
     final isDark = auth.theme == ThemeType.DARK;
@@ -739,7 +839,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                               color: onEdit ? (isDark ? Palette.backgroundTheardDark : Color(0xffEDEDED)) : Colors.transparent,
                             ),
                             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Text(
+                            child: TextWidget(
                               widget.isDescription ? S.current.description : S.current.editComment,
                               style: TextStyle(
                                 color: onEdit ? (!isDark ? Color.fromRGBO(0, 0, 0, 0.65) : Colors.white70) : (!isDark ? Color.fromRGBO(0, 0, 0, 0.55) : Colors.grey[400]),
@@ -767,7 +867,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                                 borderRadius: BorderRadius.circular(2),
                               ),
                               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Text(
+                              child: TextWidget(
                                 widget.isDescription ? S.current.preview : S.current.previewComment,
                                 style: TextStyle(
                                   color: !onEdit ? (!isDark ? Color.fromRGBO(0, 0, 0, 0.65) : Colors.white70) : (!isDark ? Color.fromRGBO(0, 0, 0, 0.55) : Colors.grey[400]),
@@ -803,21 +903,10 @@ class CommentTextFieldState extends State<CommentTextField> {
             ),
             height: widget.issue["id"] == null ? 439 : 260,
             child: Markdown(
+              physics: NeverScrollableScrollPhysics(),
               controller: ScrollController(),
               imageBuilder: (uri, title, alt) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    title != null ? Text(title) : Container(),
-                    Container(
-                      constraints: BoxConstraints(
-                        maxHeight: 400,
-                        maxWidth: 750
-                      ),
-                      child: ImageItem(tag: uri, img: {'content_url': uri.toString(), 'name': alt}, previewComment: true, isConversation: false)
-                    )
-                  ]
-                );
+                return MarkdownAttachment(alt: alt, uri: uri); 
               },
               styleSheet: MarkdownStyleSheet(
                 p: TextStyle(fontSize: 15, height: 1.2, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
@@ -841,7 +930,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                 return MarkdownCheckbox(value: value, variable: variable, onChangeCheckBox: onChangeCheckBox, commentId: null, isDark: isDark);
               },
               data: parseComment(text, false),
-              
+
             )
           ) : Expanded(
             child: Container(
@@ -856,9 +945,9 @@ class CommentTextFieldState extends State<CommentTextField> {
                       stream: StreamDropzone.instance.dropped,
                       initialData: [],
                       onHighlightBox: (value) => setState(() => highlightDropfile = value),
-                      builder: (context, files){
-                        if (!widget.isThread) { 
-                          pasteImageFromParent(files); 
+                      builder: (context, files) {
+                        if (!widget.isThread) {
+                          pasteImageFromParent(files);
                         }
 
                         return Container(
@@ -894,7 +983,6 @@ class CommentTextFieldState extends State<CommentTextField> {
                               isCodeBlock: false,
                               isShowCommand: false,
                               autofocus: false,
-                              handleCodeBlock: (value) { },
                               handleEnterEvent: handleEnterEvent,
                               cursorColor: auth.theme == ThemeType.DARK ? Colors.grey[400] : Colors.black87,
                               onChanged: (value) {
@@ -903,6 +991,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                                 });
                               },
                               handleUpdateIssues: handleUpdateIssues,
+                              handleMessageToAttachments: handleMessageToAttachments,
                               isDark: auth.theme == ThemeType.DARK,
                               islastEdited: false,
                               decoration: InputDecoration(
@@ -970,7 +1059,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                                     EdgeInsets.symmetric(horizontal: 20)
                                   )
                                 ),
-                                onPressed: () {  
+                                onPressed: () {
                                   if (key.currentState!.focusNode.hasFocus) {
                                     openFileSelector();
                                   } else {
@@ -983,12 +1072,12 @@ class CommentTextFieldState extends State<CommentTextField> {
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 8),
-                                  child: Text(S.current.upload, style: TextStyle(color: Color(0xff27AE60), fontWeight: FontWeight.w400)),
+                                  child: TextWidget(S.current.upload, style: TextStyle(color: Color(0xff27AE60), fontWeight: FontWeight.w400)),
                                 ),
                               ),
                             ),
                             SizedBox(width: 16),
-                            Expanded(child: Text(S.current.attachImageToComment, style: TextStyle(color: isDark ? Color(0xffD9D9D9) : Colors.black45, overflow: TextOverflow.ellipsis)))
+                            Expanded(child: TextWidget(S.current.attachImageToComment, style: TextStyle(color: isDark ? Color(0xffD9D9D9) : Colors.black45, overflow: TextOverflow.ellipsis)))
                           ],
                         ),
                       ),
@@ -1007,42 +1096,8 @@ class CommentTextFieldState extends State<CommentTextField> {
                                 backgroundColor: MaterialStateProperty.all(isDark ? Colors.transparent : (widget.issue["is_closed"] ? Color(0xffF5F7FA) : Color(0xffFFF1F0))),
                               ),
                               onPressed: () async {
-                                if (widget.editComment) {
-                                  if (widget.comment != null) {
-                                    widget.onUpdateComment(widget.comment, widget.comment["comment"]);
-                                  } else {
-                                    widget.onUpdateComment(widget.issue["title"], widget.issue["description"], true);
-                                  }
-                                } else {
-                                  var text = (key.currentState != null && key.currentState!.controller!.markupText != "") ? key.currentState!.controller!.markupText : "";
-
-                                  if (text != "") {
-                                    var result = Provider.of<Messages>(context, listen: false).checkMentions(text);
-                                    var listMentionsNew = result["success"] ? result["data"].where((e) => e["type"] == "user").toList().map((e) => e["value"]).toList() : [];
-                                    var dataComment = {
-                                      "comment": text,
-                                      "channel_id":  currentChannel["id"],
-                                      "workspace_id": currentWorkspace["id"],
-                                      "user_id": auth.userId,
-                                      "from_issue_id": widget.issue["id"],
-                                      "list_mentions_old": [],
-                                      "list_mentions_new": listMentionsNew
-                                    };
-
-                                    await Provider.of<Channels>(context, listen: false).submitComment(token, dataComment);
-                                    key.currentState!.controller!.clear();
-                                  }
-
-                                  var isClosed = !widget.issue["is_closed"];
-                                  this.setState(() {
-                                    widget.issue["is_closed"] = isClosed;
-                                  });
-
-                                  final issueClosedTab = Provider.of<Work>(context, listen: false).issueClosedTab;
-                                  await Provider.of<Channels>(context, listen: false).closeIssue(token, currentWorkspace["id"], widget.issue["channel_id"], widget.issue["id"], isClosed, issueClosedTab);
-                                }
-                                FocusScope.of(context).unfocus();
-                              }, 
+                                onCloseIssue();
+                              },
                               child: !widget.issue["is_closed"] ? Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
@@ -1053,8 +1108,8 @@ class CommentTextFieldState extends State<CommentTextField> {
                                   SizedBox(width: !widget.editComment ? 8 : 0),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(vertical: 8),
-                                    child: Text(
-                                      widget.editComment ? S.current.cancel : 
+                                    child: TextWidget(
+                                      widget.editComment ? S.current.cancel :
                                       (key.currentState != null && key.currentState!.controller!.value.text != "") ?
                                       S.current.closeWithComment : S.current.closeIssue,
                                       style: TextStyle(color: Color(0xffFF7875), fontWeight: FontWeight.w400)
@@ -1063,7 +1118,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                                 ],
                               ) : Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 8),
-                                child: Text(
+                                child: TextWidget(
                                   S.current.reopenIssue,
                                   style: TextStyle(
                                     color: isDark ? Colors.white70 : Color(0xff9AA5B1),
@@ -1073,6 +1128,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                               ),
                             ),
                           ),
+                          SizedBox(width: 8),
                           widget.issue["id"] != null ? Container() : Container(
                             height: 32,
                             child: TextButton(
@@ -1087,7 +1143,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                               onPressed: () => Provider.of<Channels>(context, listen: false).onChangeOpenIssue(null),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 8),
-                                child: Text(S.current.cancel, style: TextStyle(color: Color(0xffFF7875), fontWeight: FontWeight.w400)),
+                                child: TextWidget(S.current.cancel, style: TextStyle(color: Color(0xffFF7875), fontWeight: FontWeight.w400)),
                               ),
                             ),
                           ),
@@ -1109,7 +1165,7 @@ class CommentTextFieldState extends State<CommentTextField> {
                               },
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                                child: Text(
+                                child: TextWidget(
                                   widget.editComment ? S.current.updateComment : widget.issue["id"] != null ? S.current.comment : S.current.submitNewIssue,
                                   style: TextStyle(
                                     color: Colors.white,
@@ -1167,13 +1223,27 @@ class CommentTextFieldState extends State<CommentTextField> {
               isShowCommand: false,
               isViewThread: true,
               autofocus: false,
-              handleCodeBlock: (value) { },
               sendMessages: handleUpdateIssues,
+              handleMessageToAttachments: handleMessageToAttachments,
               cursorColor: auth.theme == ThemeType.DARK ? Colors.grey[400] : Colors.black87,
               onChanged: (value) {
                 Timer(Duration(milliseconds: 0), () {
                   applyEditToPreview();
                 });
+                if(!isSend && value.isNotEmpty) {
+                  setState(() => isSend = true);
+                } else if (isSend && value.isEmpty) {
+                  setState(() => isSend = false);
+                }
+                if (value.trim() != "") {
+                  if (_debounce?.isActive ?? false) _debounce?.cancel();
+                  _debounce = Timer(const Duration(milliseconds: 500), () {
+                    auth.channel.push(
+                      event: "on_typing",
+                      payload: {"conversation_id": widget.dataDirectMessage.id, "user_name": currentUser["full_name"]}
+                    );
+                  });
+                }
               },
               isDark: auth.theme == ThemeType.DARK,
               islastEdited: false,
@@ -1189,7 +1259,6 @@ class CommentTextFieldState extends State<CommentTextField> {
                   color: isDark ? Color(0xff9AA5B1) : Color.fromRGBO(0, 0, 0, 0.65), fontSize: 13.5
                 )
               ),
-              suggestionListHeight: 200,
               suggestionListDecoration: BoxDecoration(
                 borderRadius: BorderRadius.all(Radius.circular(8)),
               ),
@@ -1221,28 +1290,45 @@ class CommentTextFieldState extends State<CommentTextField> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
-                  margin: EdgeInsets.only(left: 5),
-                  child: TextButton(
-                    style: ButtonStyle(
-                      padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
-                      overlayColor: MaterialStateProperty.all(isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15)),
-                      shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
-                    ),
-                    child: Icon(CupertinoIcons.plus, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-                    onPressed: () {
-                      openFileSelector();
-                    }
-                  )
-                ),
-                IconButton(
-                  icon: Icon(Icons.send,
-                    color: const Color(0xffFAAD14),
-                    size: 18
+                  margin: EdgeInsets.only(bottom: 4, left: 4),
+                  child: HoverItem(
+                    colorHover: Palette.hoverColorDefault,
+                    radius: 4.0, isRound: true,
+                    child: InkWell(
+                      child: Container(
+                        padding: EdgeInsets.all(6),
+                        child: Icon(
+                          CupertinoIcons.plus,
+                          color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65),
+                          size: 18
+                        )
+                      ),
+                      onTap: () {
+                        openFileSelector();
+                      }
+                    )
                   ),
-                  onPressed: handleUpdateIssues,
                 ),
+                Container(
+                  margin: EdgeInsets.only(bottom: 4, right: 4),
+                  child: HoverItem(
+                    colorHover: Palette.hoverColorDefault,
+                    radius: 4.0, isRound: true,
+                    child: InkWell(
+                      child: Container(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(isUpdate ? Icons.check : Icons.send,
+                          size: 18,
+                          color: (isSend || (fileItems.isNotEmpty))
+                          ? const Color(0xffFAAD14)
+                          : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                          // color: isDark ? const Color(0xff9AA5B1) : const Color(0xff616e7c)
+                        ),
+                      ),
+                      onTap: () => (isSend || (fileItems.isNotEmpty)) ? handleUpdateIssues() : null,
+                    ),
+                  ),
+                )
               ],
             )
           ],

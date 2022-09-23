@@ -20,74 +20,102 @@ typedef String MessageIfAbsent(String messageStr, List<dynamic> args);
 class MessageLookup extends MessageLookupByLibrary {
   String get localeName => 'en';
 
-  static String m0(time) => "  at ${time}";
+  static String m0(fullName) => "${fullName} has assign you in an issue";
 
-  static String m1(name) =>
+  static String m1(time) => "  at ${time}";
+
+  static String m2(name) =>
       "There aren\'t any actions for you to take on ${name}.";
 
-  static String m2(count) => "${count} Closed";
+  static String m3(name) => "${name} has changed avatar this group";
 
-  static String m3(time) => "commented ${time}";
+  static String m4(assignUser, issueauthor, channelName) =>
+      "${assignUser} has closed an issue ${issueauthor} created in ${channelName} channel";
 
-  static String m4(count) =>
-      "${Intl.plural(count, one: ' 1 comment', other: ' ${count} comments')}";
+  static String m5(assignUser, channelName) =>
+      "${assignUser} has closed an issue you has been assign in ${channelName} channel";
 
-  static String m5(count) =>
-      "${Intl.plural(count, one: '1 day ago', other: '${count} days ago')}";
+  static String m6(count) => "${count} Closed";
 
-  static String m6(count) =>
-      "${Intl.plural(count, one: '1 hour ago', other: '${count} hours ago')}";
-
-  static String m7(count) => "${count} labels";
+  static String m7(time) => "commented ${time}";
 
   static String m8(count) =>
-      "${Intl.plural(count, one: '1 minute ago', other: '${count} minutes ago')}";
+      "${Intl.plural(count, one: ' 1 comment', other: ' ${count} comments')}";
 
   static String m9(count) =>
-      "${Intl.plural(count, one: '1 month ago', other: '${count} months ago')}";
+      "${Intl.plural(count, one: '1 day ago', other: '${count} days ago')}";
 
   static String m10(count) =>
+      "${Intl.plural(count, one: '1 hour ago', other: '${count} hours ago')}";
+
+  static String m11(count) => "${count} labels";
+
+  static String m12(count) =>
+      "${Intl.plural(count, one: '1 minute ago', other: '${count} minutes ago')}";
+
+  static String m13(count) =>
+      "${Intl.plural(count, one: '1 month ago', other: '${count} months ago')}";
+
+  static String m14(count) =>
       "${Intl.plural(count, one: '1 year ago', other: '${count} years ago')}";
 
-  static String m11(name) => "Are you sure you want to archive ${name}?";
+  static String m15(name) => "Are you sure you want to archive ${name}?";
 
-  static String m12(name) => "Search your contacts and message in ${name}";
+  static String m16(name) => "Search your contacts and message in ${name}";
 
-  static String m13(name) => "Search messages in ${name}";
+  static String m17(name) => "Search messages in ${name}";
 
-  static String m14(time) => "•  edited ${time}";
+  static String m18(time) => "•  edited ${time}";
 
-  static String m15(statusCode) => "${statusCode} Error with status:";
+  static String m19(statusCode) => "${statusCode} Error with status:";
 
-  static String m16(name) => "Invite to ${name}";
+  static String m20(user, invitedUser) => " ${user} has invited ${invitedUser}";
 
-  static String m17(count) => "${count} Open";
+  static String m21(fullName, channelName) =>
+      "${fullName} has invite you to ${channelName} channel";
 
-  static String m18(count) => "${count} Milestones";
+  static String m22(fullName, workspaceName) =>
+      "${fullName} has invite you to ${workspaceName} workspace";
 
-  static String m19(time) => "opened this issue ${time}.";
+  static String m23(name) => "Invite to ${name}";
 
-  static String m20(name) => "Option: ${name}";
+  static String m24(count) => "${count} Open";
 
-  static String m21(type) => "YOU RECEIVE AN INVITE TO JOIN A ${type}";
+  static String m25(count) => "${count} Milestones";
 
-  static String m22(hotkey) =>
+  static String m26(time) => "opened this issue ${time}.";
+
+  static String m27(name) => "Option: ${name}";
+
+  static String m28(type) => "YOU RECEIVE AN INVITE TO JOIN A ${type}";
+
+  static String m29(assignUser, issueauthor, channelName) =>
+      "${assignUser} has reopened an issue ${issueauthor} created in ${channelName} channel";
+
+  static String m30(assignUser, channelName) =>
+      "${assignUser} has reopened an issue you has been assign in ${channelName} channel";
+
+  static String m31(hotkey) =>
       "Search (${hotkey} + F) / Anything (${hotkey} + T)";
 
-  static String m23(type) => "Search ${type}";
+  static String m32(type) => "Search ${type}";
 
-  static String m24(count) => "sent ${count} files.";
+  static String m33(count) => "sent ${count} files.";
 
-  static String m25(count) => "sent ${count} images.";
+  static String m34(count) => "sent ${count} images.";
 
-  static String m26(count) => "sent ${count} videos.";
+  static String m35(count) => "sent ${count} videos.";
 
-  static String m27(count) => "Show ${count} more comments";
+  static String m36(count) => "Show ${count} more comments";
 
-  static String m28(hotkey) =>
+  static String m37(character) => "${character} Sticker";
+
+  static String m38(fullName) => "${fullName} has unassign you in an issue";
+
+  static String m39(hotkey) =>
       "Tip: Use shotkeyboard ${hotkey}-T to quick search";
 
-  static String m29(hotkey) =>
+  static String m40(hotkey) =>
       "Tip: Use shotkeyboard ${hotkey}-T to search anything";
 
   final messages = _notInlinedMessages(_notInlinedMessages);
@@ -131,10 +159,11 @@ class MessageLookup extends MessageLookupByLibrary {
             "Are you sure you want to delete this member?"),
         "askLeaveWorkspace": MessageLookupByLibrary.simpleMessage(
             "Are you sure you want to leave this workspace?"),
+        "assignIssue": m0,
         "assignedNobody":
             MessageLookupByLibrary.simpleMessage("Assigned to nobody"),
         "assignees": MessageLookupByLibrary.simpleMessage("Assignees"),
-        "at": m0,
+        "at": m1,
         "attachImageToComment":
             MessageLookupByLibrary.simpleMessage("Attach image to comment"),
         "attachments": MessageLookupByLibrary.simpleMessage("Attachments"),
@@ -146,8 +175,9 @@ class MessageLookup extends MessageLookupByLibrary {
         "blocked": MessageLookupByLibrary.simpleMessage("Blocked"),
         "call": MessageLookupByLibrary.simpleMessage("Call"),
         "cancel": MessageLookupByLibrary.simpleMessage("Cancel"),
-        "cantActionsForYou": m1,
+        "cantActionsForYou": m2,
         "changeAvatar": MessageLookupByLibrary.simpleMessage("Change Avatar"),
+        "changeAvatarDm": m3,
         "changeFile": MessageLookupByLibrary.simpleMessage("Change File"),
         "changeNickname":
             MessageLookupByLibrary.simpleMessage("Change Nickname"),
@@ -162,15 +192,17 @@ class MessageLookup extends MessageLookupByLibrary {
         "channelType": MessageLookupByLibrary.simpleMessage("Channel Type"),
         "channels": MessageLookupByLibrary.simpleMessage("Channels"),
         "closeIssue": MessageLookupByLibrary.simpleMessage("Close issue"),
+        "closeIssues": m4,
+        "closeIssues1": m5,
         "closeWithComment":
             MessageLookupByLibrary.simpleMessage("Close with comment"),
-        "closed": m2,
+        "closed": m6,
         "codeInvite": MessageLookupByLibrary.simpleMessage("Code invite"),
         "color": MessageLookupByLibrary.simpleMessage("Color"),
         "colorPicker": MessageLookupByLibrary.simpleMessage("Color Picker"),
         "commands": MessageLookupByLibrary.simpleMessage("Commands"),
         "comment": MessageLookupByLibrary.simpleMessage("Comment"),
-        "commented": m3,
+        "commented": m7,
         "communityGuide":
             MessageLookupByLibrary.simpleMessage("Community Guidelines"),
         "complete": MessageLookupByLibrary.simpleMessage("complete"),
@@ -184,13 +216,13 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Conversation name"),
         "copyToClipboard":
             MessageLookupByLibrary.simpleMessage("Copy to clipboard"),
-        "countComments": m4,
-        "countDayAgo": m5,
-        "countHourAgo": m6,
-        "countLabels": m7,
-        "countMinuteAgo": m8,
-        "countMonthAgo": m9,
-        "countYearAgo": m10,
+        "countComments": m8,
+        "countDayAgo": m9,
+        "countHourAgo": m10,
+        "countLabels": m11,
+        "countMinuteAgo": m12,
+        "countMonthAgo": m13,
+        "countYearAgo": m14,
         "create": MessageLookupByLibrary.simpleMessage("Create"),
         "createApp": MessageLookupByLibrary.simpleMessage("Create app"),
         "createBy": MessageLookupByLibrary.simpleMessage("Create by"),
@@ -218,10 +250,17 @@ class MessageLookup extends MessageLookupByLibrary {
         "deleteChat": MessageLookupByLibrary.simpleMessage("Delete chat"),
         "deleteComment":
             MessageLookupByLibrary.simpleMessage("Delete this comment?"),
+        "deleteForEveryone":
+            MessageLookupByLibrary.simpleMessage("Delete for everyone"),
+        "deleteForMe": MessageLookupByLibrary.simpleMessage("Delete for me"),
         "deleteLabel": MessageLookupByLibrary.simpleMessage("Delete Label"),
         "deleteMembers": MessageLookupByLibrary.simpleMessage("Delete member?"),
+        "deleteMessages":
+            MessageLookupByLibrary.simpleMessage("Delete Messages"),
         "deleteMilestone":
             MessageLookupByLibrary.simpleMessage("Delete Milestone"),
+        "deleteThisMessages": MessageLookupByLibrary.simpleMessage(
+            "Are you sure you want to delete this message?"),
         "deleteWorkspace":
             MessageLookupByLibrary.simpleMessage("Delete workspace"),
         "desAddFriend": MessageLookupByLibrary.simpleMessage(
@@ -245,7 +284,7 @@ class MessageLookup extends MessageLookupByLibrary {
             "Search all your contacts and messages."),
         "desSilentMode": MessageLookupByLibrary.simpleMessage(
             "Turn off notifications only."),
-        "descArchiveChannel": m11,
+        "descArchiveChannel": m15,
         "descCreateWorkspace": MessageLookupByLibrary.simpleMessage(
             "Your workspace is where you and your friends hang out. Make your and start talking."),
         "descDeleteLabel": MessageLookupByLibrary.simpleMessage(
@@ -278,8 +317,8 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Search all your contacts"),
         "descSearchDms": MessageLookupByLibrary.simpleMessage(
             "Search messages in your direct"),
-        "descSearchInCtWs": m12,
-        "descSearchInWs": m13,
+        "descSearchInCtWs": m16,
+        "descSearchInWs": m17,
         "descSyncPanchat": MessageLookupByLibrary.simpleMessage(
             "*Tap Sync Data and open Panchat app on your devices to get OTP code"),
         "descWatchActivity": MessageLookupByLibrary.simpleMessage(
@@ -305,7 +344,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "editImage": MessageLookupByLibrary.simpleMessage("Edit Image"),
         "edited": MessageLookupByLibrary.simpleMessage("•  edited"),
         "editedBy": MessageLookupByLibrary.simpleMessage("•  edited by"),
-        "editedTime": m14,
+        "editedTime": m18,
         "email": MessageLookupByLibrary.simpleMessage("Email"),
         "emailAddress": MessageLookupByLibrary.simpleMessage("Email address"),
         "enjoyToSearch":
@@ -316,7 +355,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Enter password to transfer"),
         "enterUsername":
             MessageLookupByLibrary.simpleMessage("Enter a Username#0000"),
-        "errorWithStatus": m15,
+        "errorWithStatus": m19,
         "example": MessageLookupByLibrary.simpleMessage("Examples"),
         "female": MessageLookupByLibrary.simpleMessage("Female"),
         "fileDownloading":
@@ -335,7 +374,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "forwardMessage":
             MessageLookupByLibrary.simpleMessage("Forward message"),
         "forwardThisMessage":
-            MessageLookupByLibrary.simpleMessage("Forward this message"),
+            MessageLookupByLibrary.simpleMessage("Share this message"),
         "friends": MessageLookupByLibrary.simpleMessage("Friends"),
         "fullName": MessageLookupByLibrary.simpleMessage("Full Name"),
         "gender": MessageLookupByLibrary.simpleMessage("Gender"),
@@ -353,6 +392,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "insertKeyCodeChannel": MessageLookupByLibrary.simpleMessage(
             "Please Insert KeyCode Channel"),
         "install": MessageLookupByLibrary.simpleMessage("Install"),
+        "invied": m20,
+        "inviedChannel": m21,
+        "inviedChannels":
+            MessageLookupByLibrary.simpleMessage(" Has invite you to channel"),
+        "inviedWorkSpace": m22,
         "invitationHistory":
             MessageLookupByLibrary.simpleMessage("Invitation history:"),
         "invite": MessageLookupByLibrary.simpleMessage("Invite"),
@@ -361,7 +405,7 @@ class MessageLookup extends MessageLookupByLibrary {
         "inviteLookLike":
             MessageLookupByLibrary.simpleMessage("Invites should look like"),
         "invitePeople": MessageLookupByLibrary.simpleMessage("Invite People"),
-        "inviteTo": m16,
+        "inviteTo": m23,
         "inviteToChannel": MessageLookupByLibrary.simpleMessage(
             "Invite new people to this channel."),
         "inviteToGroup":
@@ -393,6 +437,8 @@ class MessageLookup extends MessageLookupByLibrary {
         "leastRecentlyUpdated":
             MessageLookupByLibrary.simpleMessage("Least Recently Updated"),
         "leaveChannel": MessageLookupByLibrary.simpleMessage("Leave Channel"),
+        "leaveDirect":
+            MessageLookupByLibrary.simpleMessage("Has left this conversation"),
         "leaveGroup": MessageLookupByLibrary.simpleMessage("Leave group"),
         "leaveWorkspace":
             MessageLookupByLibrary.simpleMessage("Leave workspace"),
@@ -442,11 +488,11 @@ class MessageLookup extends MessageLookupByLibrary {
         "oldest": MessageLookupByLibrary.simpleMessage("Oldest"),
         "on": MessageLookupByLibrary.simpleMessage("on"),
         "online": MessageLookupByLibrary.simpleMessage("Online"),
-        "open": m17,
-        "openMilestones": m18,
-        "openThisIssue": m19,
+        "open": m24,
+        "openMilestones": m25,
+        "openThisIssue": m26,
         "option": MessageLookupByLibrary.simpleMessage("Option"),
-        "optionName": m20,
+        "optionName": m27,
         "or": MessageLookupByLibrary.simpleMessage("or"),
         "outgoingFriendRequest":
             MessageLookupByLibrary.simpleMessage("Outgoing Friend Request"),
@@ -463,13 +509,15 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Please select channel"),
         "pleaseUpdateVersion":
             MessageLookupByLibrary.simpleMessage("Please update version"),
+        "pollIsDisabled":
+            MessageLookupByLibrary.simpleMessage("This poll is disabled"),
         "preview": MessageLookupByLibrary.simpleMessage("Preview"),
         "previewComment":
             MessageLookupByLibrary.simpleMessage("Preview Comment"),
         "previewText": MessageLookupByLibrary.simpleMessage("Preview text"),
         "previous": MessageLookupByLibrary.simpleMessage("Previous"),
         "private": MessageLookupByLibrary.simpleMessage("Private"),
-        "receiveJoinChannel": m21,
+        "receiveJoinChannel": m28,
         "recentChannel": MessageLookupByLibrary.simpleMessage("Recent channel"),
         "recentlyUpdated":
             MessageLookupByLibrary.simpleMessage("Recently Updated"),
@@ -480,6 +528,9 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Remove from saved items"),
         "reopen": MessageLookupByLibrary.simpleMessage("Reopen"),
         "reopenIssue": MessageLookupByLibrary.simpleMessage("Reopen issue"),
+        "reopened": m29,
+        "reopened1": m30,
+        "reply": MessageLookupByLibrary.simpleMessage("replied to a message"),
         "requestUrl": MessageLookupByLibrary.simpleMessage("Request URL:"),
         "resetDeviceKey":
             MessageLookupByLibrary.simpleMessage("Reset device key **"),
@@ -488,12 +539,12 @@ class MessageLookup extends MessageLookupByLibrary {
         "results": MessageLookupByLibrary.simpleMessage("Results"),
         "roles": MessageLookupByLibrary.simpleMessage("Roles"),
         "save": MessageLookupByLibrary.simpleMessage("Save"),
-        "saveChanges": MessageLookupByLibrary.simpleMessage("Save changes"),
+        "saveChanges": MessageLookupByLibrary.simpleMessage("Save change"),
         "savedMessages": MessageLookupByLibrary.simpleMessage("Saved Messages"),
-        "searchAnything": m22,
+        "searchAnything": m31,
         "searchChannel": MessageLookupByLibrary.simpleMessage("Search Channel"),
         "searchMember": MessageLookupByLibrary.simpleMessage("Search member"),
-        "searchType": m23,
+        "searchType": m32,
         "selectChannel": MessageLookupByLibrary.simpleMessage("Select Channel"),
         "selectMember": MessageLookupByLibrary.simpleMessage("Select member"),
         "sent": MessageLookupByLibrary.simpleMessage("Sent"),
@@ -502,23 +553,27 @@ class MessageLookup extends MessageLookupByLibrary {
         "sentAnImage": MessageLookupByLibrary.simpleMessage("sent an image."),
         "sentAttachments":
             MessageLookupByLibrary.simpleMessage("sent attachments."),
-        "sentFiles": m24,
-        "sentImages": m25,
-        "sentVideos": m26,
+        "sentFiles": m33,
+        "sentImages": m34,
+        "sentVideos": m35,
         "setAdmin": MessageLookupByLibrary.simpleMessage("Set Admin"),
         "setDesc": MessageLookupByLibrary.simpleMessage("Set Description"),
         "setEditor": MessageLookupByLibrary.simpleMessage("Set Editor"),
         "setMember": MessageLookupByLibrary.simpleMessage("Set Member"),
         "setTopic": MessageLookupByLibrary.simpleMessage("Set Topic"),
+        "setrole": MessageLookupByLibrary.simpleMessage("Set Roles"),
         "settings": MessageLookupByLibrary.simpleMessage("Settings"),
+        "share": MessageLookupByLibrary.simpleMessage("Sent a shared message"),
         "shareMessage":
             MessageLookupByLibrary.simpleMessage("Sharing this message:"),
         "shortcut": MessageLookupByLibrary.simpleMessage("Shortcut:"),
-        "showMoreComments": m27,
+        "showMoreComments": m36,
         "silentMode": MessageLookupByLibrary.simpleMessage("SILENT MODE"),
         "sort": MessageLookupByLibrary.simpleMessage("Sort"),
         "sortBy": MessageLookupByLibrary.simpleMessage("Sort by"),
         "startingUp": MessageLookupByLibrary.simpleMessage("Starting up"),
+        "sticker": m37,
+        "sticker1": MessageLookupByLibrary.simpleMessage("Sent a sticker"),
         "submit": MessageLookupByLibrary.simpleMessage("Submit"),
         "submitNewIssue":
             MessageLookupByLibrary.simpleMessage("Submit new issue"),
@@ -528,6 +583,7 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Sync by Panchat app *"),
         "syntaxError": MessageLookupByLibrary.simpleMessage(
             "Syntax code was wrong, try again!"),
+        "tClose": MessageLookupByLibrary.simpleMessage("Close"),
         "tClosed": MessageLookupByLibrary.simpleMessage("Closed"),
         "tOpen": MessageLookupByLibrary.simpleMessage("Open"),
         "tagName": MessageLookupByLibrary.simpleMessage("Tag name"),
@@ -555,13 +611,14 @@ class MessageLookup extends MessageLookupByLibrary {
             MessageLookupByLibrary.simpleMessage("Type a message..."),
         "unPinThisChannel":
             MessageLookupByLibrary.simpleMessage("Unpin this channel."),
+        "unassignIssue": m38,
         "unreadOnly": MessageLookupByLibrary.simpleMessage("Unread only"),
         "unwatch": MessageLookupByLibrary.simpleMessage("Unwatch"),
         "updateCommand": MessageLookupByLibrary.simpleMessage("Update command"),
         "updateComment": MessageLookupByLibrary.simpleMessage("Update comment"),
         "upload": MessageLookupByLibrary.simpleMessage("Upload"),
-        "useShotKeyboardQuickSearch": m28,
-        "useShotKeyboardSearchAnything": m29,
+        "useShotKeyboardQuickSearch": m39,
+        "useShotKeyboardSearchAnything": m40,
         "userProfile": MessageLookupByLibrary.simpleMessage("User profile"),
         "videoCall": MessageLookupByLibrary.simpleMessage("Video"),
         "watch": MessageLookupByLibrary.simpleMessage("Watch"),

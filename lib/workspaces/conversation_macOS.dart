@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:better_selection/better_selection.dart';
-import 'package:context_menus/context_menus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
@@ -10,30 +8,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hive/hive.dart';
 import 'package:html/parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:just_the_tooltip/just_the_tooltip.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/drop_zone.dart';
 import 'package:workcake/common/focus_inputbox_manager.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/common/utils.dart';
-import 'package:workcake/components/custom_context_menu.dart';
 import 'package:workcake/components/draggable_scrollbar.dart';
-import 'package:workcake/components/message_item/attachments/sticker_file.dart';
 import 'package:workcake/components/message_item/chat_item_macOS.dart';
 import 'package:workcake/components/message_item/record_audio.dart';
+import 'package:workcake/components/sticker_emojis.dart';
 import 'package:workcake/components/typing.dart';
 import 'package:workcake/emoji/emoji.dart';
+import 'package:workcake/flutter_mention/custom_selection.dart';
 import 'package:workcake/flutter_mention/flutter_mentions.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 import 'package:workcake/service_locator.dart';
 import 'package:workcake/services/sharedprefsutil.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:workcake/workspaces/list_sticker.dart';
 
 import '../components/file_items.dart';
 
@@ -106,48 +102,52 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
       techPass = value;
     });
 
-    final String newApi = Utils.apiUrl + 'tcb/auth';
-    final response  = await Dio().post(newApi, data: { "username": techAcc, "password": techPass })
-      .then((res) async {
-        final r = res.data;
-        if (!r["success"]) {
-          return {"success": false, "code": r["error"]["code"], "message": r["error"]["value"]};
-        } else {
-          final String newApiTransaction = Utils.apiUrl + 'tcb/get_transactions';
-    
-          var rp = await Dio().post(newApiTransaction, data: {
-            "username": techAcc,
-            "token": r["data"]["token"]
-          });
-          final rpData = rp.data;
-          if (rpData["success"]) {
-            final transactions = rpData["data"]["transactions"];
-
-            List data = [];
-            for (var i = 0; i < transactions.length; i++) {
-              var row = new Map();
-              row['id'] = transactions[i]["txnRef"];
-              row['note'] = transactions[i]["txnDesc"];
-              row['date'] = DateFormat("dd/MM/yyyy").format(DateTime.parse(transactions[i]["txnDate"]).add(const Duration(hours: 7)));
-              row['amount'] = NumberFormat.simpleCurrency(locale: 'vi').format(transactions[i]["txnAmount"]);
-              row['remain'] = NumberFormat.simpleCurrency(locale: 'vi').format(transactions[i]["balanceAfterTxn"]);
-              data.add(row);
-            }
-
-            setState(() {
-              transfer = data.reversed.toList();
-            });
-            return {"success": true, "data": data.reversed.toList()};
+    try {
+      final String newApi = Utils.apiUrl + 'tcb/auth';
+      final response  = await Dio().post(newApi, data: { "username": techAcc, "password": techPass })
+        .then((res) async {
+          final r = res.data;
+          if (!r["success"]) {
+            return {"success": false, "code": r["error"]["code"], "message": r["error"]["value"]};
           } else {
-            return {"success": false, "message": rpData["message"] || rpData["error"]};
+            final String newApiTransaction = Utils.apiUrl + 'tcb/get_transactions';
+
+            var rp = await Dio().post(newApiTransaction, data: {
+              "username": techAcc,
+              "token": r["data"]["token"]
+            });
+            final rpData = rp.data;
+            if (rpData["success"]) {
+              final transactions = rpData["data"]["transactions"];
+
+              List data = [];
+              for (var i = 0; i < transactions.length; i++) {
+                var row = new Map();
+                row['id'] = transactions[i]["txnRef"];
+                row['note'] = transactions[i]["txnDesc"];
+                row['date'] = DateFormat("dd/MM/yyyy").format(DateTime.parse(transactions[i]["txnDate"]).add(const Duration(hours: 7)));
+                row['amount'] = NumberFormat.simpleCurrency(locale: 'vi').format(transactions[i]["txnAmount"]);
+                row['remain'] = NumberFormat.simpleCurrency(locale: 'vi').format(transactions[i]["balanceAfterTxn"]);
+                data.add(row);
+              }
+
+              setState(() {
+                transfer = data.reversed.toList();
+              });
+              return {"success": true, "data": data.reversed.toList()};
+            } else {
+              return {"success": false, "message": rpData["message"] ?? rpData["error"] ?? "Internal Server Error"};
+            }
           }
-        }
-      });
-    
-    if (response["success"]) {
-      return {"success": true, "data": response["data"]};
-    } else {
-      return {"success": false, "message": response["message"]};
+        });
+
+      if (response["success"]) {
+        return {"success": true, "data": response["data"]};
+      } else {
+        return {"success": false, "message": "Internal Server Error"};
+      }
+    } catch (e) {
+      return {"success": false, "message": "Internal Server Error"};
     }
   }
 
@@ -200,7 +200,6 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
       final mainBodyCode = docX.querySelectorAll(".fragmentContainer.notPrintableFragment td[height='100%']")
           .map((el) => el.attributes["id"])
           .where((element) => element!.indexOf("MainBody") >= 0).toList();
-      // print("yyy ${mainBodyCode[0].toString()}");
       final paramsX = docX.querySelectorAll(".fragmentContainer.notPrintableFragment td[height='100%']")
           .map((el) => el.attributes["fragmenturl"])
           .where((element) => element!.indexOf("MainBody") >= 0).toList();
@@ -211,7 +210,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
       final resultX = fixedX.indexWhere((el) => el.startsWith("routineArgs"));
       fixedX[resultX] = "routineArgs=AI.QCK.TRANS.STMT.TCB";
       final newParamsX = fixedX.join("&");
-      
+
       final urlY = Uri.parse('https://ib.techcombank.com.vn/servlet/' + newParamsX.toString());
       var responseY = await http.get(urlY, headers: headers);
       // print("urlY $urlY");
@@ -236,7 +235,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
             );
         // Timeout
         if (responseZ.statusCode == 500) return getTransaction();
- 
+
         final docZ = parse(responseZ.body);
         final message = docZ.querySelector("#message");
         // Tài khoản không tồn tại (E-113653)
@@ -273,13 +272,13 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
       } on TimeoutException catch (_) {
         return getTransaction();
       }
-    } catch (e) {
-      print(e);
+    } catch (e, trace) {
+      print("$e and $trace");
       return getTransaction();
       // sl.get<Auth>().showErrorDialog(e.toString());
     }
   }
-  
+
 
   // ignore: close_sinks
   final stream =StreamController<List>.broadcast(sync: false);
@@ -351,7 +350,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
               "isUnsent": msg["is_unsent"]
             };
             message["attachments"].indexWhere((e) => e["type"] == "bot");
-            if (currentUser["id"] == message["userId"] && message["isChannel"]) updateMessage(message);
+            if (currentUser["id"] == message["userId"] && message["isChannel"] && (message['current_time'] != null && DateTime.now().add(Duration(hours: -7)).microsecondsSinceEpoch - message['current_time'] < 86400000000)) updateMessage(message);
           }
         }
       }
@@ -361,39 +360,51 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
   }
 
   processFiles(files, isSetstate) {
-    List result = [];
-    for(var i = 0; i < files.length; i++) {
-      var file = files[i];
-      var existed  =  (fileItems + result).indexWhere((element) => (element["path"] == files[i]["path"] && element['name'] == file['name']));
-      if (existed != -1) continue;
+    try {
+      if(files[0]['type'] == 'text') {
+        Timer.run(() {
+          if (key.currentState != null) key.currentState!.focusNode.requestFocus();
+          key.currentState!.setMarkUpText(files[0]['text']);
+        });
+        return;
+      }
 
-      String type = Utils.getLanguageFile(file['mime_type'].toLowerCase());
-      int index = Utils.languages.indexWhere((ele) => ele == type);
+      List result = [];
+      for(var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var existed  =  (fileItems + result).indexWhere((element) => (element["path"] == files[i]["path"] && element['name'] == file['name']));
+        if (existed != -1) continue;
 
-      try {
-        if (index != -1 && file['preview'] == null) {
-          String message = utf8.decode((file['file'] as List<int>));
+        String type = Utils.getLanguageFile(file['mime_type'].toLowerCase());
+        int index = Utils.languages.indexWhere((ele) => ele == type);
 
-          file = {
-            ...files[i],
-            'preview': message.length >= 1000 ? message.substring(0, 1000) + ' ...'  : message,
-          };
-        }
-      } catch (err) {}
+        try {
+          if (index != -1 && file['preview'] == null) {
+            String message = utf8.decode((file['file'] as List<int>));
 
-      result += [file];
-    }
+            file = {
+              ...files[i],
+              'preview': message.length >= 1000 ? message.substring(0, 1000) + ' ...'  : message,
+            };
+          }
+        } catch (err) {}
 
-    if (isSetstate) {
-      setState(() {
+        result += [file];
+      }
+
+      if (isSetstate) {
+        setState(() {
+          fileItems += result;
+        });
+      } else {
         fileItems += result;
-      });
-    } else {
-      fileItems += result;
+      }
+      if (key.currentState != null) key.currentState!.focusNode.requestFocus();
+      StreamDropzone.instance.initDrop();
+      onSaveAttachments();
+    } catch (e, t) {
+      print("processFiles error: $e, $t");
     }
-    if (key.currentState != null) key.currentState!.focusNode.requestFocus();
-    StreamDropzone.instance.initDrop();
-    onSaveAttachments();
   }
 
   @override
@@ -510,7 +521,9 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
     final auth = Provider.of<Auth>(context, listen: false);
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
     onChangeIsSendMessage(true);
-
+   if ( Provider.of<Channels>(context, listen: false).currentChannel["id"] != null) {
+      Provider.of<Channels>(context, listen: false).updateLastMessageReaded(Provider.of<Channels>(context, listen: false).currentChannel["id"], null);
+    }
     if (isShowCommand && commandSelected != null) {
       String stringCommand = "/" + commandSelected["short_cut"] + " ";
       key.currentState!.controller!.text = stringCommand;
@@ -561,7 +574,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
             }
           }
         }
-        
+
         if (sendToChannelFromThread.length == 0) {
           // Tat ca file can hien thi
           var attOldMessage = dataM["attachments"] != null ? dataM["attachments"].where((ele) => ele["mime_type"] != "block_code" && ele["type"] != "mention").toList() : [];
@@ -576,6 +589,13 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
 
       setUpdateMessage(dataM, true);
     }
+  }
+  
+  setShareMessage (bool setShareMessage){
+    setState(() {
+      fileItems = [];
+    });
+    onSaveAttachments();
   }
 
   handleMessageToAttachments(String message) {
@@ -874,8 +894,8 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
         var messageDummy = {
           "message": "",
           "attachments": [{
-            "type": "bot", 
-            "data": {...c, "command": message.replaceFirst("/", "")}, 
+            "type": "bot",
+            "data": {...c, "command": message.replaceFirst("/", "")},
             "bot": {"id": c["app_id"], "name": c["app_name"]}
           }],
           "channel_id":  widget.id,
@@ -916,7 +936,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
             };
             final url = Utils.apiUrl + 'workspaces/$workspaceId/channels/${widget.id}/messages?token=$token';
             await http.post(Uri.parse(url), headers: Utils.headers, body: json.encode(dataMessage));
-          } 
+          }
           Provider.of<Messages>(context, listen: false).deleteMessage({...messageDummy, "message_id": messageDummy["id"]});
         } else {
           Provider.of<Messages>(context, listen: false).excuteCommand(token, workspaceId, widget.id, {...c, "key": messageDummy["key"]});
@@ -1132,7 +1152,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                     ),
                   ),
                 ) : RenderMessageByDay(
-                  controller: controller, theme: theme, locale: locale, currentChannel: currentChannel, updateMessage: updateMessage, 
+                  controller: controller, theme: theme, locale: locale, currentChannel: currentChannel, updateMessage: updateMessage,
                   keyMessageToJump: keyMessageToJump, messageIdToJump: messageIdToJump,
                   onFirstFrameMessageSelectedDone: onFirstFrameMessageSelectedDone, onShareMessage: onShareMessage
                 ),
@@ -1151,7 +1171,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                     )
                   ) : Column (
                     children:[
-                      fileItems.isNotEmpty ? FileItems(files: fileItems, removeFile: removeFile, onChangedTypeFile: onChangedTypeFile) : Container(),
+                      fileItems.isNotEmpty ? FileItems(files: fileItems, removeFile: removeFile, onChangedTypeFile: onChangedTypeFile, setShareMessage: setShareMessage) : Container(),
                       isShowRecord
                         ? RecordAudio(onExit: (value) => setState(() => isShowRecord = value))
                         : Container(
@@ -1201,7 +1221,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                                     checkCommand(str, context);
                                     setState(() {});
                                     if (str.trim() != "" && str != textInput) {
-                                      
+
                                       if (_debounce?.isActive ?? false) _debounce?.cancel();
                                       _debounce = Timer(const Duration(milliseconds: 500), () {
                                           auth.channel.push(
@@ -1211,7 +1231,6 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                                       });
                                     }
                                   },
-                                  suggestionListHeight: 200,
                                   suggestionListDecoration: const BoxDecoration(
                                     borderRadius: BorderRadius.all(Radius.circular(8)),
                                   ),
@@ -1247,16 +1266,26 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                                       showRecordMessage: (value) => setState(() => isShowRecord = value),
                                       selectSticker: selectSticker
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        isUpdate ? Icons.check : Icons.send,
-                                        color: ((key.currentState?.controller!.markupText != "" ) || (fileItems.isNotEmpty))
-                                          ? const Color(0xffFAAD14)
-                                          : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
-                                        size: 18
+                                    Container(
+                                      margin: EdgeInsets.all(4),
+                                      child: HoverItem(
+                                        colorHover: Palette.hoverColorDefault,
+                                        radius: 4.0, isRound: true,
+                                        child: InkWell(
+                                          child: Container(
+                                            padding: EdgeInsets.all(6),
+                                            child: Icon(
+                                              isUpdate ? Icons.check : Icons.send,
+                                              color: ((key.currentState?.controller!.markupText != "" ) || (fileItems.isNotEmpty))
+                                                ? const Color(0xffFAAD14)
+                                                : isDark ? const Color(0xff9AA5B1) : const Color(0xff616E7C),
+                                              size: 18
+                                            ),
+                                          ),
+                                          onTap: () => ((key.currentState?.controller!.markupText != "" ) || (fileItems.isNotEmpty)) ? handleMessage() : null,
+                                        ),
                                       ),
-                                      onPressed: () => ((key.currentState?.controller!.markupText != "" ) || (fileItems.isNotEmpty)) ? handleMessage() : null,
-                                    ),
+                                    )
                                   ],
                                 )
                               ],
@@ -1293,7 +1322,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                 decoration: BoxDecoration(
                   borderRadius: const BorderRadius.all(Radius.circular(8)),
                     color: isDark ? const Color(0xff2f3136) : const Color(0xFFf0f0f0),
-                    boxShadow: suggestCommands.isNotEmpty ? 
+                    boxShadow: suggestCommands.isNotEmpty ?
                     [
                       BoxShadow(
                         color: isDark  ? const Color(0xFF262626).withOpacity(0.5) : Colors.grey.withOpacity(0.5),
@@ -1334,7 +1363,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Align(
-                                    alignment: Alignment.centerLeft, 
+                                    alignment: Alignment.centerLeft,
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.start,
                                       children: [
@@ -1404,7 +1433,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
                     ),
                   ),
                 ),
-              ) 
+              )
             : Container(),
             StreamBuilder(
               stream: streamShowGoUp.stream,
@@ -1451,7 +1480,7 @@ class _ConversationMacOSState extends State<ConversationMacOS> {
     final data = messagesData.isNotEmpty ? messagesData[0]["messages"] : [];
     try {
       if (!messagesData[0]["disableLoadingUp"]) setStreamShow(true);
-      if (messagesData[0]["disableLoadingUp"] && controller.position.extentBefore < 10) setStreamShow(false);      
+      if (messagesData[0]["disableLoadingUp"] && controller.position.extentBefore < 10) setStreamShow(false);
     } catch (e) {
     }
 
@@ -1495,21 +1524,20 @@ class InputLeading extends StatefulWidget {
 class _InputLeadingState extends State<InputLeading> {
   List options = [{'id': 0, 'title': ''}];
   String title = "";
-  JustTheController controller = JustTheController(value: TooltipStatus.isHidden);
-  List stickers = ducks + pepeStickers + otherSticker;
 
   createPollMessage() {
     final auth = Provider.of<Auth>(context, listen: false);
     final user = Provider.of<User>(context, listen: false);
     final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
-    
+
 
     List attachments = [{
       'type': 'poll',
       'title': title,
       'options': options,
-      'results': []
+      'results': [],
+      "isDisabled": false
     }];
 
     var dataMessage  = {
@@ -1535,7 +1563,7 @@ class _InputLeadingState extends State<InputLeading> {
 
   int generateOptionID(){
     int newID = 0;
-    List listID = options.map((e) => e["id"]).toList(); 
+    List listID = options.map((e) => e["id"]).toList();
     while(listID.contains(newID)){
       newID += 1;
     }
@@ -1547,6 +1575,8 @@ class _InputLeadingState extends State<InputLeading> {
     final auth = Provider.of<Auth>(context);
     var isDark = auth.theme == ThemeType.DARK;
     final currentWorkspace = Provider.of<Workspaces>(context, listen: false).currentWorkspace;
+    final currentChannel = Provider.of<Channels>(context, listen: false).currentChannel;
+    final List stickers = Provider.of<Channels>(context, listen: false).getStickerChannel(currentChannel['id']);
 
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -1559,7 +1589,7 @@ class _InputLeadingState extends State<InputLeading> {
             style: ButtonStyle(
               padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
               overlayColor: MaterialStateProperty.all(isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15)),
-              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
+              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0))),
             ),
             child: Icon(CupertinoIcons.plus, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
             onPressed: () {
@@ -1579,7 +1609,11 @@ class _InputLeadingState extends State<InputLeading> {
                 overlayColor: MaterialStateProperty.all(Colors.transparent),
                 shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
               ),
-              child: Icon(Icons.poll, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 20),
+              child: SvgPicture.asset(
+                "assets/icons/poll.svg",
+                color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65),
+                width: 16, height: 16
+              ),
               onPressed: () {
                 createPollDialog(context, isDark).then((value) {
                   options = [{'id': 0, 'title': ''}];
@@ -1608,129 +1642,15 @@ class _InputLeadingState extends State<InputLeading> {
             ),
           )
         ),
-        JustTheTooltip(
-          controller: controller,
-          preferredDirection: AxisDirection.up,
-          isModal: true,
-          content: Emoji(
-            workspaceId: currentWorkspace["id"],
-            onSelect: (emoji){
-              widget.selectEmoji(emoji);
-              
-            },
-            onClose: (){
-              // Navigator.pop(context);
-              controller.hideTooltip();
-            }
-          ),
-          child: Container(
-            width: 30,
-            height: 30,
-            child: HoverItem(
-              colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-              child: TextButton(
-                style: ButtonStyle(
-                  padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
-                  overlayColor: MaterialStateProperty.all(Colors.transparent),
-                  shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(50.0))),
-                ),
-                child: Icon(CupertinoIcons.smiley, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-                onPressed: () {
-                  controller.showTooltip();
-                  // showPopover(
-                  //   context: context,
-                  //   direction: PopoverDirection.top,
-                  //   transitionDuration: const Duration(milliseconds: 0),
-                  //   arrowWidth: 0, 
-                  //   arrowHeight: 0,
-                  //   arrowDxOffset: 0,
-                  //   shadow: [],
-                  //   onPop: (){
-                  //   },
-                  //   bodyBuilder: (context) => 
-                  // );
-                }
-              ),
-            )
-          ),
-        ),
-        ContextMenu(
-          contextMenu: Container(
-            decoration: BoxDecoration(
-              color: isDark ? Palette.backgroundRightSiderDark : Palette.backgroundRightSiderLight,
-              border: Border.all(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75)),
-              borderRadius: BorderRadius.all(Radius.circular(8))
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: isDark ? Palette.borderSideColorDark : Palette.borderSideColorLight.withOpacity(0.75))
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: EdgeInsets.only(left: 8),
-                        child: Text(
-                          'Sticker',
-                          style: TextStyle(
-                            color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                            fontWeight: FontWeight.w500, fontSize: 16
-                          ),
-                        )
-                      ),
-                      InkWell(
-                        child: Icon(
-                          PhosphorIcons.xCircle,
-                        size: 20, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight,
-                        ),
-                        onTap: () => context.contextMenuOverlay.close(),
-                      ),
-                    ],
-                  )
-                ),
-                SingleChildScrollView(
-                  child: Container(
-                    width: 300, height: 400,
-                    padding: EdgeInsets.symmetric(horizontal: 20),
-                    child: GridView.builder(
-                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                        maxCrossAxisExtent: 100,
-                        childAspectRatio: 1,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                      ),
-                      itemCount: stickers.length,
-                      itemBuilder: (context, index) {
-                        return Container(
-                          width: 80, height: 80,
-                          child: TextButton(
-                            onPressed: () {
-                              widget.selectSticker(stickers[index]);
-                              context.contextMenuOverlay.close();
-                            },
-                            child: StickerFile(data: stickers[index], isPreview: true)
-                          )
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          child: Container(
-            width: 30,
-            height: 30,
-            child: HoverItem(
-              colorHover: isDark ? Palette.hoverColorDefault : const Color.fromARGB(255, 166, 164, 164).withOpacity(0.15),
-              child: Icon(PhosphorIcons.sticker, color: isDark ? const Color(0xff9AA5B1) : const Color.fromRGBO(0, 0, 0, 0.65), size: 18),
-            )
-          ),
+        StickerEmojiWidget(
+          data: stickers,
+          selectSticker: widget.selectSticker,
+          workspaceId: currentWorkspace["id"],
+          channelId: currentChannel['id'],
+          onSelect: (emoji){
+            widget.selectEmoji(emoji);
+          },
+          isCreateSticker: true
         )
       ]
     );
@@ -1837,14 +1757,14 @@ class _InputLeadingState extends State<InputLeading> {
                                                     autofocus: true,
                                                     controller: _optionController,
                                                     onChanged: (value) {
-                                                     
+
                                                       var index = options.indexWhere((e) => e["id"] == option["id"]);
-                                                      options[index]['title'] = value; 
+                                                      options[index]['title'] = value;
                                                     },
                                                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                                                     placeholder: "Option",
                                                     placeholderStyle: const TextStyle(
-                                                      fontSize: 14, 
+                                                      fontSize: 14,
                                                       color:Colors.red),
                                                     style: TextStyle(fontSize: 14, color: isDark ? Palette.defaultTextDark : Palette.defaultTextLight),
                                                     decoration: BoxDecoration(
@@ -1919,8 +1839,7 @@ class _InputLeadingState extends State<InputLeading> {
                                       borderRadius: BorderRadius.circular(4),
                                       color: Colors.blueAccent
                                     ),
-                                    width: 212,
-                                    height: 32,
+                                    width: 212, height: 32,
                                     child: TextButton(onPressed: () {
                                       var _index = options.indexWhere((e) => !Utils.checkedTypeEmpty(e['title'].trim()));
                                       if (_index == -1) {
@@ -1942,12 +1861,12 @@ class _InputLeadingState extends State<InputLeading> {
                         ],
                       ),
                     ),
-                    
+
                   ]
                 )
               )
             );
-          }                
+          }
         );
       }
     );
@@ -1994,8 +1913,8 @@ class RenderMessageByDay extends StatefulWidget {
     required this.theme,
     required this.locale,
     required this.currentChannel,
-    required this.updateMessage, 
-    this.keyMessageToJump, 
+    required this.updateMessage,
+    this.keyMessageToJump,
     this.messageIdToJump,
     this.onFirstFrameMessageSelectedDone,
     this.onShareMessage
@@ -2038,9 +1957,9 @@ class _RenderMessageByDayState extends State<RenderMessageByDay> {
     int index = Provider.of<Messages>(context, listen: true).data.indexWhere((element) => element["channelId"].toString() == currentChannel["id"].toString());
     var isFetchingUp =  (index == -1 ? false :  Provider.of<Messages>(context).data[index]["isLoadingUp"]) ?? false;
     var isFetchingDown =  (index == -1 ? false :  Provider.of<Messages>(context).data[index]["isLoadingDown"]) ?? false;
-    
+
     return Expanded(
-      child: SelectableScope(
+      child: CustomSelectionArea(
         child: DraggableScrollbar.rrect(
           key: keyScroll,
           id: currentChannel["id"],
@@ -2056,66 +1975,64 @@ class _RenderMessageByDayState extends State<RenderMessageByDay> {
           scrollbarTimeToFade: const Duration(seconds: 2),
           itemCount: data.length,
           controller: widget.controller,
-          child: ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-            child: Container(
-              height: double.infinity,
-              child: ListView.builder(
-                shrinkWrap: true,
-                reverse: true,
-                controller: widget.controller,
-                itemCount: data.length,
-                itemBuilder: (context, index) { 
-                  var message = data[index];
-                  var isAfterThread = (index + 1) < data.length ? (((data[index +  1]["count_child"] ?? 0) > 0)) : false;
+          child: Container(
+            height: double.infinity,
+            child: ListView.builder(
+              shrinkWrap: true,
+              reverse: true,
+              controller: widget.controller,
+              itemCount: data.length,
+              itemBuilder: (context, index) {
+                var message = data[index];
+                var isAfterThread = (index + 1) < data.length ? (((data[index +  1]["count_child"] ?? 0) > 0)) : false;
 
-                  return ChatItemMacOS(
-                    key: (message["id"] != null && message["id"] != "") ? Key(message["id"]) : message["message_key"] != null ? Key( message["message_key"]) : null,
-                    userId: message["user_id"],
-                    isChildMessage: false,
-                    id: message["id"],
-                    isMe: message["user_id"] == userId,
-                    accountType: message["account_type"],
-                    message: message["message"],
-                    avatarUrl: message["avatar_url"],
-                    insertedAt: message["inserted_at"],
-                    lastEditedAt: message["last_edited_at"],
-                    isUnsent: message["is_unsent"],
-                    fullName: Utils.getUserNickName(message["user_id"]) ?? message["full_name"],
-                    attachments: message["attachments"] == null ?  [] : message["attachments"],
-                    isFirst: message["isFirst"],
-                    isLast: message["isLast"],
-                    isChannel: true,
-                    isThread: false,
-                    count: message["count_child"],
-                    infoThread: message["info_thread"] != null ? message["info_thread"] : [],
-                    success: message["error"] == null ? true : message["error"],
-                    showHeader: false,
-                    showNewUser: message["showNewUser"],
-                    isSystemMessage: message["is_system_message"] ?? false,
-                    isBlur: message["isBlur"],
-                    updateMessage: widget.updateMessage,
-                    reactions: message["reactions"],
-                    snippet: message["snippet"] ?? "",
-                    blockCode: message["block_code"] ?? "",
-                    isViewMention: false,
-                    channelId: currentChannel["id"],
-                    idMessageToJump: widget.messageIdToJump,
-                    onFirstFrameDone: widget.onFirstFrameMessageSelectedDone ,
-                    firstMessage: message["firstMessage"],
-                    onShareMessage: widget.onShareMessage,
-                    isDark: isDark,
-                    customColor: customColor,
-                    currentTime: message["current_time"],
-                    isAfterThread: isAfterThread,
-                    isShow: isShow,
-                    keyScroll: keyScroll,
-                    isFetchingDown: isFetchingDown && index == data.length - 1,
-                    isFetchingUp: isFetchingUp && index == 0,
-                  );
-                }
-              ),
-            )
+                return ChatItemMacOS(
+                  key: (message["id"] != null && message["id"] != "") ? Key(message["id"]) : message["message_key"] != null ? Key( message["message_key"]) : null,
+                  userId: message["user_id"],
+                  isChildMessage: false,
+                  id: message["id"],
+                  isMe: message["user_id"] == userId,
+                  accountType: message["account_type"],
+                  message: message["message"],
+                  avatarUrl: message["avatar_url"],
+                  insertedAt: message["inserted_at"],
+                  lastEditedAt: message["last_edited_at"],
+                  isUnsent: message["is_unsent"],
+                  fullName: Utils.getUserNickName(message["user_id"]) ?? message["full_name"],
+                  attachments: message["attachments"] == null ?  [] : message["attachments"],
+                  isFirst: message["isFirst"],
+                  isLast: message["isLast"],
+                  isChannel: true,
+                  isThread: false,
+                  count: message["count_child"],
+                  infoThread: message["info_thread"] != null ? message["info_thread"] : [],
+                  success: message["error"] == null ? true : message["error"],
+                  showHeader: false,
+                  showNewUser: message["showNewUser"],
+                  isSystemMessage: message["is_system_message"] ?? false,
+                  isBlur: message["is_blur"],
+                  updateMessage: widget.updateMessage,
+                  reactions: message["reactions"],
+                  snippet: message["snippet"] ?? "",
+                  blockCode: message["block_code"] ?? "",
+                  isViewMention: false,
+                  channelId: currentChannel["id"],
+                  idMessageToJump: widget.messageIdToJump,
+                  onFirstFrameDone: widget.onFirstFrameMessageSelectedDone ,
+                  firstMessage: message["firstMessage"],
+                  onShareMessage: widget.onShareMessage,
+                  isDark: isDark,
+                  customColor: customColor,
+                  currentTime: message["current_time"],
+                  isAfterThread: isAfterThread,
+                  isShow: isShow,
+                  keyScroll: keyScroll,
+                  isFetchingDown: isFetchingDown && index == data.length - 1,
+                  isFetchingUp: isFetchingUp && index == 0,
+                  workspaceId: message['workspace_id'],
+                );
+              }
+            ),
           )
         )
       )

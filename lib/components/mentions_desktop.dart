@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:workcake/common/palette.dart';
 import 'package:workcake/generated/l10n.dart';
-import 'package:workcake/models/models.dart';
+import 'package:workcake/providers/providers.dart';
 
 class MentionsDesktop extends StatefulWidget {
   MentionsDesktop({Key? key, this.mentionTabKey}) : super(key: key);
@@ -16,11 +15,11 @@ class _MentionsDesktopState extends State<MentionsDesktop> {
 
   checkUnreadMention(data) {
     for (var i = 0; i < data.length; i++) {
-      if (data[i]["unread"] != null && data[i]["unread"]) return true;
-    }  
+      if (data[i]["unread"] == true) return true;
+    }
     return false;
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final selectedTab = Provider.of<User>(context, listen: true).selectedTab;
@@ -41,7 +40,6 @@ class _MentionsDesktopState extends State<MentionsDesktop> {
       },
 
       onTap: () async {
-        Provider.of<Workspaces>(context, listen: false).setNumberUnreadMentions(currentWorkspace["id"]);
         Provider.of<Channels>(context, listen: false).clearBadge(null, currentWorkspace['id'], true);
         Provider.of<User>(context, listen: false).selectTab("mention");
         if(keyScaffold.currentState!.isEndDrawerOpen) keyScaffold.currentState!.openDrawer();
@@ -58,10 +56,10 @@ class _MentionsDesktopState extends State<MentionsDesktop> {
           decoration: selectedTab == "mention" ? BoxDecoration(
             borderRadius: BorderRadius.all(Radius.circular(3)),
             color: Palette.selectChannelColor
-          ) 
+          )
           : isHover ? BoxDecoration(
               borderRadius: BorderRadius.all(Radius.circular(3)),
-              color: Palette.backgroundRightSiderDark 
+              color: Palette.backgroundRightSiderDark
             )
           : BoxDecoration(),
           height: 32,
@@ -82,7 +80,7 @@ class _MentionsDesktopState extends State<MentionsDesktop> {
                                 ? Colors.white
                                 : isDark
                                     ? Palette.darkTextListChannel
-                                    : Palette.lightTextListChannel 
+                                    : Palette.lightTextListChannel
                       ),
                     ),
                   ),
@@ -97,7 +95,7 @@ class _MentionsDesktopState extends State<MentionsDesktop> {
                             ? Colors.white
                             : isDark
                                 ? Palette.darkTextListChannel
-                                : Palette.lightTextListChannel      
+                                : Palette.lightTextListChannel
                     )
                   )
                 ]
